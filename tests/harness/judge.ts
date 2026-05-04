@@ -77,3 +77,72 @@ export function validDAG(dagMarkdown: string): Assertion {
   }
   return { description: "Valid DAG structure", pass: true };
 }
+
+export function hasSourceAttribution(markdown: string): Assertion {
+  const sourceComments = markdown.match(/<!-- Source: .+? -->/g) ?? [];
+  if (sourceComments.length === 0) {
+    return {
+      description: "No source attribution comments found",
+      pass: false,
+    };
+  }
+  return {
+    description: `Found ${sourceComments.length} source attribution comments`,
+    pass: true,
+  };
+}
+
+export function hasUngroundedSection(markdown: string): Assertion {
+  const hasSection =
+    /#{1,3}\s+ungrounded/i.test(markdown) ||
+    markdown.includes("<!-- UNGROUNDED");
+  if (!hasSection) {
+    return {
+      description: "No ungrounded claims section or markers found",
+      pass: false,
+    };
+  }
+  return { description: "Ungrounded claims section present", pass: true };
+}
+
+export function matchesNarrativeArc(
+  markdown: string,
+  type: string,
+): Assertion {
+  const arcs: Record<string, string[]> = {
+    launch: ["hook", "context", "reveal", "proof", "transformation", "cta", "outro"],
+    explainer: ["hook", "problem", "concept", "application", "summary", "cta", "outro"],
+    demo: ["end result", "setup", "walkthrough", "result", "cta", "outro"],
+    testimonial: ["strongest quote", "problem", "discovery", "experience", "results", "cta", "outro"],
+  };
+
+  const expected = arcs[type.toLowerCase()];
+  if (!expected) {
+    return {
+      description: `Unknown arc type: ${type}`,
+      pass: false,
+    };
+  }
+
+  const headings = markdown
+    .split("\n")
+    .filter((line) => /^#{1,4}\s/.test(line))
+    .map((line) => line.replace(/^#{1,4}\s+/, "").trim().toLowerCase());
+
+  const missing = expected.filter(
+    (keyword) => !headings.some((h) => h.includes(keyword)),
+  );
+
+  if (missing.length > 0) {
+    return {
+      description: `Narrative arc missing sections: ${missing.join(", ")}`,
+      pass: false,
+      detail: `Expected arc for "${type}": ${expected.join(" → ")}. Found headings: ${headings.join(", ")}`,
+    };
+  }
+
+  return {
+    description: `Matches ${type} narrative arc`,
+    pass: true,
+  };
+}
