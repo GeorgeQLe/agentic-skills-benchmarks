@@ -1,7 +1,10 @@
 import type { RunResult, Assertion } from "./types.js";
 
+export type BenchAgent = "claude" | "codex";
+
 export interface BenchConfig {
   skill: string;
+  agent: BenchAgent;
   runs: number;
   chunkSize: number;
   pauseSeconds: number;
@@ -19,8 +22,11 @@ export interface SingleRunResult {
   assertions: Assertion[];
   passed: boolean;
   stdout: string;
+  stderr: string;
   files: string[];
   estimatedCostUsd: number;
+  infrastructureBlocked?: boolean;
+  infrastructureReason?: string;
 }
 
 export interface ChunkRecord {
@@ -50,7 +56,13 @@ export interface OutlierRun {
 export interface BenchReport {
   sessionId: string;
   skill: string;
+  agent: BenchAgent;
   totalRuns: number;
+  evaluatedRuns: number;
+  blockedRuns: {
+    index: number;
+    reason: string;
+  }[];
   passRate: number;
   wilsonLower: number;
   wilsonUpper: number;

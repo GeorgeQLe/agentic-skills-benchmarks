@@ -18,9 +18,11 @@ Layer 1 passed 1,185 tests. Layer 2 passed both `design-system` behavior tests.
 | Metric | Result |
 | --- | ---: |
 | Runs | 3 |
-| Passed | 1 |
-| Pass rate | 33.3% |
-| Wilson 95% CI | 6.1% - 79.2% |
+| Evaluated runs | 1 |
+| Infrastructure-blocked runs | 2 |
+| Passed evaluated runs | 1 |
+| Evaluated pass rate | 100.0% |
+| Wilson 95% CI | 20.7% - 100.0% |
 | Latency p50 | 13.5s |
 | Latency p95 | 104.9s |
 | Latency p99 | 113.0s |
@@ -31,14 +33,18 @@ Layer 1 passed 1,185 tests. Layer 2 passed both `design-system` behavior tests.
 
 ## Failed Assertions
 
-Runs 1 and 2 failed one assertion each:
+No evaluated runs failed skill assertions.
 
-| Run | Exit Code | Failed Assertion |
+## Infrastructure Blocked Runs
+
+Runs 1 and 2 were blocked before skill behavior could be evaluated:
+
+| Run | Exit Code | Reason |
 | ---: | ---: | --- |
-| 1 | 1 | DESIGN.md created in project root |
-| 2 | 1 | DESIGN.md created in project root |
+| 1 | 1 | agent runner rate limit |
+| 2 | 1 | agent runner rate limit |
 
-Both failed runs exited after the agent runner reported: `You've hit your limit · resets 3:40pm (America/New_York)`. The missing `DESIGN.md` assertion is therefore a harness-runner limit failure, not evidence that the skill completed and produced incorrect output.
+Both blocked runs exited after the agent runner reported: `You've hit your limit · resets 3:40pm (America/New_York)`. They should not count as skill failures.
 
 ## Next Step
 

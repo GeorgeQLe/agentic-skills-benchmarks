@@ -11,6 +11,7 @@ const SETUPS: Record<string, SkillBenchSetup> = {
 };
 
 const skill = process.env.BENCH_SKILL ?? "design-system";
+const agent = process.env.BENCH_AGENT === "codex" ? "codex" : "claude";
 const runs = parseInt(process.env.BENCH_RUNS ?? "5", 10);
 const chunkSize = parseInt(process.env.BENCH_CHUNK_SIZE ?? "5", 10);
 
@@ -21,6 +22,7 @@ describe(`bench: ${skill}`, () => {
 
     const config: BenchConfig = {
       skill,
+      agent,
       runs,
       chunkSize,
       pauseSeconds: 0,
@@ -51,7 +53,7 @@ describe(`bench: ${skill}`, () => {
 
     console.log(
       `Pass rate: ${(report.passRate * 100).toFixed(1)}% ` +
-        `(${Math.round(report.passRate * report.totalRuns)}/${report.totalRuns})`,
+        `(${Math.round(report.passRate * report.evaluatedRuns)}/${report.evaluatedRuns} evaluated)`,
     );
     console.log(
       `Latency p50=${(report.latency.p50 / 1000).toFixed(1)}s ` +

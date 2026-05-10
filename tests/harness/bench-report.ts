@@ -33,17 +33,26 @@ function percentile(sorted: number[], p: number): number {
 
 export function generateReport(manifest: SessionManifest): BenchReport {
   const runs = loadSessionRuns(manifest);
-  const passedRuns = runs.filter((r) => r.passed);
-  const { lower, upper } = wilsonCI(passedRuns.length, runs.length);
+  const evaluatedRuns = runs.filter((r) => !r.infrastructureBlocked);
+  const passedRuns = evaluatedRuns.filter((r) => r.passed);
+  const { lower, upper } = wilsonCI(passedRuns.length, evaluatedRuns.length);
 
-  const durations = runs.map((r) => r.durationMs).sort((a, b) => a - b);
-  const consistency = computeConsistency(runs.filter((r) => r.passed));
+  const durations = evaluatedRuns.map((r) => r.durationMs).sort((a, b) => a - b);
+  const consistency = computeConsistency(evaluatedRuns.filter((r) => r.passed));
 
   return {
     sessionId: manifest.sessionId,
     skill: manifest.skill,
+    agent: manifest.config.agent,
     totalRuns: runs.length,
-    passRate: runs.length > 0 ? passedRuns.length / runs.length : 0,
+    evaluatedRuns: evaluatedRuns.length,
+    blockedRuns: runs
+      .filter((r) => r.infrastructureBlocked)
+      .map((run) => ({
+        index: run.index,
+        reason: run.infrastructureReason ?? "infrastructure blocked",
+      })),
+    passRate: evaluatedRuns.length > 0 ? passedRuns.length / evaluatedRuns.length : 0,
     wilsonLower: lower,
     wilsonUpper: upper,
     latency: {
@@ -62,6 +71,7 @@ export function summarizeFailedRuns(
   runs: SingleRunResult[],
 ): BenchReport["failedRuns"] {
   return runs
+    .filter((run) => !run.infrastructureBlocked)
     .filter((run) => !run.passed || run.exitCode !== 0)
     .map((run) => ({
       index: run.index,
@@ -85,6 +95,7 @@ export function writeReport(manifest: SessionManifest): BenchReport {
 export function formatMarkdown(r: BenchReport): string {
   const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
   const sec = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
+  const passedCount = Math.round(r.passRate * r.evaluatedRuns);
   const failedRuns =
     r.failedRuns.length === 0
       ? "- none"
@@ -99,15 +110,26 @@ export function formatMarkdown(r: BenchReport): string {
             return `| #${run.index} | ${run.exitCode} | ${assertions} |`;
           }),
         ].join("\n");
+  const blockedRuns =
+    r.blockedRuns.length === 0
+      ? "- none"
+      : [
+          "| Run | Reason |",
+          "|-----|--------|",
+          ...r.blockedRuns.map((run) => `| #${run.index} | ${run.reason} |`),
+        ].join("\n");
 
   return `# Benchmark Report: ${r.skill}
 
+**Agent**: ${r.agent}
 **Session**: ${r.sessionId}
 **Generated**: ${r.generatedAt}
 
 ## Pass Rate
 
-- **${pct(r.passRate)}** (${Math.round(r.passRate * r.totalRuns)}/${r.totalRuns} runs)
+- **${pct(r.passRate)}** (${passedCount}/${r.evaluatedRuns} evaluated runs)
+- Total runs: ${r.totalRuns}
+- Infrastructure blocked: ${r.blockedRuns.length}
 - 95% Wilson CI: [${pct(r.wilsonLower)}, ${pct(r.wilsonUpper)}]
 
 ## Latency
@@ -127,6 +149,10 @@ export function formatMarkdown(r: BenchReport): string {
 ## Failed Runs
 
 ${failedRuns}
+
+## Infrastructure Blocked Runs
+
+${blockedRuns}
 
 ## Cost
 

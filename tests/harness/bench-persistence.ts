@@ -20,6 +20,10 @@ function sessionDir(skill: string, sessionId: string): string {
   return join(RUNS_DIR, `${skill}-${sessionId}`);
 }
 
+function sessionPrefix(config: Pick<BenchConfig, "skill" | "agent">): string {
+  return `${config.skill}-${config.agent}`;
+}
+
 function writeAtomic(path: string, data: string): void {
   const tmp = `${path}.tmp`;
   writeFileSync(tmp, data, "utf-8");
@@ -28,7 +32,7 @@ function writeAtomic(path: string, data: string): void {
 
 export function createSession(config: BenchConfig): SessionManifest {
   const sessionId = randomUUID().slice(0, 8);
-  const dir = sessionDir(config.skill, sessionId);
+  const dir = sessionDir(sessionPrefix(config), sessionId);
   mkdirSync(dir, { recursive: true });
 
   const manifest: SessionManifest = {
@@ -51,7 +55,7 @@ export function saveRunResult(
   manifest: SessionManifest,
   result: SingleRunResult,
 ): void {
-  const dir = sessionDir(manifest.skill, manifest.sessionId);
+  const dir = sessionDir(sessionPrefix(manifest.config), manifest.sessionId);
   const fileName = `run-${String(result.index).padStart(3, "0")}.json`;
   writeAtomic(join(dir, fileName), JSON.stringify(result, null, 2));
 
@@ -65,7 +69,7 @@ export function updateManifestStatus(
   manifest: SessionManifest,
   status: SessionManifest["status"],
 ): void {
-  const dir = sessionDir(manifest.skill, manifest.sessionId);
+  const dir = sessionDir(sessionPrefix(manifest.config), manifest.sessionId);
   manifest.status = status;
   manifest.updatedAt = new Date().toISOString();
   writeAtomic(join(dir, "manifest.json"), JSON.stringify(manifest, null, 2));
@@ -73,11 +77,13 @@ export function updateManifestStatus(
 
 export function findResumeableSession(
   skill: string,
+  agent: BenchConfig["agent"],
 ): SessionManifest | null {
   if (!existsSync(RUNS_DIR)) return null;
 
+  const prefix = `${skill}-${agent}-`;
   const dirs = readdirSync(RUNS_DIR)
-    .filter((d) => d.startsWith(`${skill}-`))
+    .filter((d) => d.startsWith(prefix))
     .sort()
     .reverse();
 
@@ -97,7 +103,7 @@ export function findResumeableSession(
 export function loadSessionRuns(
   manifest: SessionManifest,
 ): SingleRunResult[] {
-  const dir = sessionDir(manifest.skill, manifest.sessionId);
+  const dir = sessionDir(sessionPrefix(manifest.config), manifest.sessionId);
   const files = readdirSync(dir)
     .filter((f) => f.startsWith("run-") && f.endsWith(".json"))
     .sort();
@@ -108,7 +114,7 @@ export function loadSessionRuns(
 }
 
 export function getSessionDir(manifest: SessionManifest): string {
-  return sessionDir(manifest.skill, manifest.sessionId);
+  return sessionDir(sessionPrefix(manifest.config), manifest.sessionId);
 }
 
 export function loadManifestFromDir(dir: string): SessionManifest {

@@ -96,3 +96,42 @@ export async function runClaude(opts: RunOptions): Promise<RunResult> {
     files: listFilesRecursive(workDir),
   };
 }
+
+export async function runCodex(opts: RunOptions): Promise<RunResult> {
+  const { prompt, workDir, timeoutMs = 120_000 } = opts;
+
+  const args = [
+    "exec",
+    "--cd", workDir,
+    "--sandbox", "workspace-write",
+    "--ephemeral",
+    prompt,
+  ];
+
+  let stdout = "";
+  let stderr = "";
+  let exitCode = 0;
+
+  try {
+    const result = await execFileAsync("codex", args, {
+      cwd: workDir,
+      timeout: timeoutMs,
+      encoding: "utf-8",
+      maxBuffer: 10 * 1024 * 1024,
+    });
+    stdout = result.stdout;
+    stderr = result.stderr;
+  } catch (err: any) {
+    stdout = err.stdout ?? "";
+    stderr = err.stderr ?? "";
+    exitCode = err.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER" ? 1 : (err.status ?? err.code ?? 1);
+  }
+
+  return {
+    stdout,
+    stderr,
+    exitCode,
+    workDir,
+    files: listFilesRecursive(workDir),
+  };
+}
