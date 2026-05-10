@@ -1,50 +1,42 @@
 # Benchmark Test: design-system
 
 **Date:** 2026-05-10
-**Raw session:** `tests/benchmarks/runs/design-system-d7f8c628/`
-**Generated report:** `tests/benchmarks/runs/design-system-d7f8c628/report.md`
+**Claude raw session:** `tests/benchmarks/runs/design-system-claude-d263df0d/`
+**Claude generated report:** `tests/benchmarks/runs/design-system-claude-d263df0d/report.md`
+**Codex raw session:** `tests/benchmarks/runs/design-system-codex-1a9bc956/`
+**Codex generated report:** `tests/benchmarks/runs/design-system-codex-1a9bc956/report.md`
 
 ## Verify
 
 | Layer | Status | Wall Time |
 | --- | --- | ---: |
-| layer1 | PASS | 7.4s |
-| layer2 | PASS | 177.2s |
+| layer1 | PASS | 7.9s |
+| layer2 | PASS | 185.7s |
 
-Layer 1 passed 1,185 tests. Layer 2 passed both `design-system` behavior tests.
+Layer 1 passed 1,186 tests. Layer 2 passed both `design-system` behavior tests.
 
 ## Benchmark
 
-| Metric | Result |
-| --- | ---: |
-| Runs | 3 |
-| Evaluated runs | 1 |
-| Infrastructure-blocked runs | 2 |
-| Passed evaluated runs | 1 |
-| Evaluated pass rate | 100.0% |
-| Wilson 95% CI | 20.7% - 100.0% |
-| Latency p50 | 13.5s |
-| Latency p95 | 104.9s |
-| Latency p99 | 113.0s |
-| Cost per run | $1.00 |
-| Total cost | $3.00 |
-| Mean pairwise similarity | 1.000 |
-| Outliers | 0 |
+| Agent | Runs | Evaluated | Infrastructure-blocked | Evaluated pass rate | Wilson 95% CI | Latency p50 | Latency p95 | Latency p99 | Cost/run | Total cost | Mean similarity | Outliers |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Claude | 3 | 3 | 0 | 100.0% | 43.8% - 100.0% | 154.9s | 319.0s | 333.6s | $1.00 | $3.00 | 0.822 | 0 |
+| Codex | 3 | 3 | 0 | 0.0% | 0.0% - 56.2% | 429.8s | 1014.6s | 1066.6s | $1.00 | $3.00 | 1.000 | 0 |
 
 ## Failed Assertions
 
-No evaluated runs failed skill assertions.
+Claude had no failed assertions.
+
+Codex failed the same assertion in all three evaluated runs:
+
+| Run | Exit Code | Failed Assertion |
+| ---: | ---: | --- |
+| 1 | 0 | `DESIGN.md created in project root` |
+| 2 | 0 | `DESIGN.md created in project root` |
+| 3 | 0 | `DESIGN.md created in project root` |
 
 ## Infrastructure Blocked Runs
 
-Runs 1 and 2 were blocked before skill behavior could be evaluated:
-
-| Run | Exit Code | Reason |
-| ---: | ---: | --- |
-| 1 | 1 | agent runner rate limit |
-| 2 | 1 | agent runner rate limit |
-
-Both blocked runs exited after the agent runner reported: `You've hit your limit · resets 3:40pm (America/New_York)`. They should not count as skill failures.
+No infrastructure-blocked runs were reported for either agent.
 
 ## Next Step
 
