@@ -1,43 +1,44 @@
 # Benchmark Test: design-system
 
 **Date:** 2026-05-10
-**Raw session:** `tests/benchmarks/runs/design-system-534194ed/`
-**Generated report:** `tests/benchmarks/runs/design-system-534194ed/report.md`
+**Raw session:** `tests/benchmarks/runs/design-system-d7f8c628/`
+**Generated report:** `tests/benchmarks/runs/design-system-d7f8c628/report.md`
 
 ## Verify
 
 | Layer | Status | Wall Time |
 | --- | --- | ---: |
-| layer1 | PASS | 7.5s |
-| layer2 | PASS | 167.1s |
+| layer1 | PASS | 7.4s |
+| layer2 | PASS | 177.2s |
 
-Layer 1 passed 1,184 tests. Layer 2 passed both `design-system` behavior tests.
+Layer 1 passed 1,185 tests. Layer 2 passed both `design-system` behavior tests.
 
 ## Benchmark
 
 | Metric | Result |
 | --- | ---: |
 | Runs | 3 |
-| Passed | 2 |
-| Pass rate | 66.7% |
-| Wilson 95% CI | 20.8% - 93.9% |
-| Latency p50 | 91.0s |
-| Latency p95 | 225.0s |
-| Latency p99 | 236.9s |
+| Passed | 1 |
+| Pass rate | 33.3% |
+| Wilson 95% CI | 6.1% - 79.2% |
+| Latency p50 | 13.5s |
+| Latency p95 | 104.9s |
+| Latency p99 | 113.0s |
 | Cost per run | $1.00 |
 | Total cost | $3.00 |
-| Mean pairwise similarity | 0.843 |
+| Mean pairwise similarity | 1.000 |
 | Outliers | 0 |
 
 ## Failed Assertions
 
-Run 2 failed one assertion:
+Runs 1 and 2 failed one assertion each:
 
-| Assertion | Result |
-| --- | --- |
-| Interview log created | FAIL |
+| Run | Exit Code | Failed Assertion |
+| ---: | ---: | --- |
+| 1 | 1 | DESIGN.md created in project root |
+| 2 | 1 | DESIGN.md created in project root |
 
-All other benchmark assertions passed in all runs.
+Both failed runs exited after the agent runner reported: `You've hit your limit · resets 3:40pm (America/New_York)`. The missing `DESIGN.md` assertion is therefore a harness-runner limit failure, not evidence that the skill completed and produced incorrect output.
 
 ## Next Step
 
