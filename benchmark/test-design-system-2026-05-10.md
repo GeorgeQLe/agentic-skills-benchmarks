@@ -1,40 +1,44 @@
-# Design System Skill — Test Report (2026-05-10)
+# Benchmark Test: design-system
 
-## Summary
-- **Skill:** design-system
-- **Date:** 2026-05-10
-- **Variant:** ui-final-dashboard (standard)
-- **Birpc fix validated:** yes (no timeout errors, clean exit codes)
+**Date:** 2026-05-10
+**Raw session:** `tests/benchmarks/runs/design-system-534194ed/`
+**Generated report:** `tests/benchmarks/runs/design-system-534194ed/report.md`
 
-## Verification (layer1 + layer2)
-| Layer  | Status | Wall Time | Notes |
-|--------|--------|-----------|-------|
-| layer1 | PASS   | 8.3s      | 1177 tests, 5 files |
-| layer2 | PASS   | 179.3s    | design-system 99s, design-system-complex 179s |
+## Verify
 
-No birpc timeout warnings or false-failure exit codes observed.
+| Layer | Status | Wall Time |
+| --- | --- | ---: |
+| layer1 | PASS | 7.5s |
+| layer2 | PASS | 167.1s |
 
-## Benchmark (3 runs)
-### Correctness
-- Pass rate: 100% (3/3 passed)
-- Wilson 95% CI: [43.8%, 100.0%]
-- Failed assertions: none
+Layer 1 passed 1,184 tests. Layer 2 passed both `design-system` behavior tests.
 
-### Performance
-| Metric | Value |
-|--------|-------|
-| p50    | 89.0s |
-| p95    | 97.0s |
-| p99    | 97.7s |
+## Benchmark
 
-### Cost
-- Per run: ~$1.00
-- Total: $3.00
+| Metric | Result |
+| --- | ---: |
+| Runs | 3 |
+| Passed | 2 |
+| Pass rate | 66.7% |
+| Wilson 95% CI | 20.8% - 93.9% |
+| Latency p50 | 91.0s |
+| Latency p95 | 225.0s |
+| Latency p99 | 236.9s |
+| Cost per run | $1.00 |
+| Total cost | $3.00 |
+| Mean pairwise similarity | 0.843 |
+| Outliers | 0 |
 
-### Consistency
-- Mean pairwise similarity: 0.790
-- Medoid avg similarity: 0.799
-- Outliers: 0
+## Failed Assertions
 
-## Raw Data
-Session: `tests/benchmarks/runs/design-system-91c2540b/`
+Run 2 failed one assertion:
+
+| Assertion | Result |
+| --- | --- |
+| Interview log created | FAIL |
+
+All other benchmark assertions passed in all runs.
+
+## Next Step
+
+Recommended next command: `$session-triage design-system benchmark failure`
