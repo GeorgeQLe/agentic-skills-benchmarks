@@ -62,7 +62,7 @@ export function runClaude(opts: RunOptions): RunResult {
     "--print",
     "--dangerously-skip-permissions",
     `--max-turns 25`,
-    `--budget ${maxBudgetUsd}`,
+    `--max-budget-usd ${maxBudgetUsd}`,
     "-p",
     JSON.stringify(prompt),
   ].join(" ");
