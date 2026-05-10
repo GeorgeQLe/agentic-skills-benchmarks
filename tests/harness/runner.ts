@@ -1,8 +1,12 @@
-import { execSync, ExecSyncOptionsWithStringEncoding } from "node:child_process";
+import { execSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { mkdtempSync, readdirSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { RunResult } from "./types.js";
+
+const execFileAsync = promisify(execFile);
 
 const REPO_ROOT = resolve(import.meta.dirname, "../..");
 const PACK_SCRIPT = join(REPO_ROOT, "scripts/pack.sh");
@@ -54,35 +58,34 @@ export interface RunOptions {
   timeoutMs?: number;
 }
 
-export function runClaude(opts: RunOptions): RunResult {
+export async function runClaude(opts: RunOptions): Promise<RunResult> {
   const { prompt, workDir, maxBudgetUsd = 0.5, timeoutMs = 120_000 } = opts;
 
-  const cmd = [
-    "claude",
+  const args = [
     "--print",
     "--dangerously-skip-permissions",
-    `--max-turns 25`,
-    `--max-budget-usd ${maxBudgetUsd}`,
-    "-p",
-    JSON.stringify(prompt),
-  ].join(" ");
+    "--max-turns", "25",
+    "--max-budget-usd", String(maxBudgetUsd),
+    "-p", prompt,
+  ];
 
   let stdout = "";
   let stderr = "";
   let exitCode = 0;
 
   try {
-    stdout = execSync(cmd, {
+    const result = await execFileAsync("claude", args, {
       cwd: workDir,
       timeout: timeoutMs,
       encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
       maxBuffer: 10 * 1024 * 1024,
-    } as ExecSyncOptionsWithStringEncoding);
+    });
+    stdout = result.stdout;
+    stderr = result.stderr;
   } catch (err: any) {
-    stdout = err.stdout?.toString() ?? "";
-    stderr = err.stderr?.toString() ?? "";
-    exitCode = err.status ?? 1;
+    stdout = err.stdout ?? "";
+    stderr = err.stderr ?? "";
+    exitCode = err.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER" ? 1 : (err.status ?? err.code ?? 1);
   }
 
   return {
