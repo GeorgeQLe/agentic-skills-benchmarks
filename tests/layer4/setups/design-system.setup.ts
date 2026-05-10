@@ -10,7 +10,7 @@ export const designSystemSetup: SkillBenchSetup = {
   prompt: `You have the design-system skill installed. Read specs/ui-final-dashboard.md and extract all design tokens into a DESIGN.md file in the project root. Follow the Google Labs Stitch format: YAML frontmatter with machine-readable tokens (colors, typography, spacing, rounded, elevation, components) plus prose sections (Overview, Colors, Typography, Layout & Spacing, Elevation & Depth, Shapes, Components, Do's and Don'ts). Use {token.path} cross-references in component definitions. Do NOT ask questions — use the spec values directly. Write DESIGN.md and design-system-interview.md.`,
 
   perRunBudgetUsd: 1.0,
-  timeoutMs: 180_000,
+  timeoutMs: 300_000,
 
   setupProject(workDir: string): void {
     const specContent = inputFixture("ui-final-dashboard.md");

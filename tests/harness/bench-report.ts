@@ -53,8 +53,23 @@ export function generateReport(manifest: SessionManifest): BenchReport {
     },
     consistency,
     totalEstimatedCostUsd: manifest.totalEstimatedCostUsd,
+    failedRuns: summarizeFailedRuns(runs),
     generatedAt: new Date().toISOString(),
   };
+}
+
+export function summarizeFailedRuns(
+  runs: SingleRunResult[],
+): BenchReport["failedRuns"] {
+  return runs
+    .filter((run) => !run.passed || run.exitCode !== 0)
+    .map((run) => ({
+      index: run.index,
+      exitCode: run.exitCode,
+      failedAssertions: run.assertions
+        .filter((assertion) => !assertion.pass)
+        .map((assertion) => assertion.description),
+    }));
 }
 
 export function writeReport(manifest: SessionManifest): BenchReport {
@@ -67,9 +82,23 @@ export function writeReport(manifest: SessionManifest): BenchReport {
   return report;
 }
 
-function formatMarkdown(r: BenchReport): string {
+export function formatMarkdown(r: BenchReport): string {
   const pct = (n: number) => `${(n * 100).toFixed(1)}%`;
   const sec = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
+  const failedRuns =
+    r.failedRuns.length === 0
+      ? "- none"
+      : [
+          "| Run | Exit Code | Failed Assertions |",
+          "|-----|-----------|-------------------|",
+          ...r.failedRuns.map((run) => {
+            const assertions =
+              run.failedAssertions.length === 0
+                ? "none"
+                : run.failedAssertions.join("; ");
+            return `| #${run.index} | ${run.exitCode} | ${assertions} |`;
+          }),
+        ].join("\n");
 
   return `# Benchmark Report: ${r.skill}
 
@@ -94,6 +123,10 @@ function formatMarkdown(r: BenchReport): string {
 - Mean pairwise similarity: ${r.consistency.meanPairwiseSimilarity.toFixed(3)}
 - Medoid run: #${r.consistency.medoidIndex} (avg similarity: ${r.consistency.medoidAvgSimilarity.toFixed(3)})
 - Outliers: ${r.consistency.outliers.length === 0 ? "none" : r.consistency.outliers.map((o) => `#${o.index} (${o.similarityToMedoid.toFixed(3)})`).join(", ")}
+
+## Failed Runs
+
+${failedRuns}
 
 ## Cost
 

@@ -66,6 +66,11 @@ export interface BenchReport {
     outliers: OutlierRun[];
   };
   totalEstimatedCostUsd: number;
+  failedRuns: {
+    index: number;
+    exitCode: number;
+    failedAssertions: string[];
+  }[];
   generatedAt: string;
 }
 
