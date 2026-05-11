@@ -102,6 +102,7 @@ const TIER23_GLOBAL_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "block
 
 const PACK_CUSTOM_SKILLS = [
   "assumption-tracker",
+  "benchmark-agent-review",
   "brainstorm-kanban",
   "burn-rate",
   "clone-spec-store",
@@ -197,6 +198,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "affected",
   "analyze-sessions",
   "assumption-tracker",
+  "benchmark-agent-review",
   "benchmark-test-skill",
   "bootstrap-repo",
   "brainstorm",

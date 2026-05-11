@@ -25,6 +25,8 @@ interface PackWorkflowDefinition {
   focus: string;
   inputs: string[];
   expectedPattern: RegExp;
+  nextRoute?: string;
+  forbidden?: string[];
 }
 
 const packFamilyContexts: Record<string, { id: string; facts: string[]; traits: string[] }> = {
@@ -32,6 +34,11 @@ const packFamilyContexts: Record<string, { id: string; facts: string[]; traits: 
     id: "alignment-loop-context",
     facts: ["evidence", "assumption"],
     traits: ["adversarial", "scope", "decision"],
+  },
+  "agentic-skills-bench": {
+    id: "agentic-skills-bench-context",
+    facts: ["benchmark", "review"],
+    traits: ["artifact", "rubric", "score"],
   },
   "business-discovery": {
     id: "business-discovery-context",
@@ -203,7 +210,7 @@ function createPackQualityEvaluator(definition: PackWorkflowDefinition) {
         id: "pack-next-route",
         description: "Provides a concrete next command handoff.",
         weight: 1,
-        route: "$run",
+        route: definition.nextRoute ?? "$run",
       }),
       requiredFactCoverageCriterion({
         id: familyContext.id,
@@ -222,7 +229,7 @@ function createPackQualityEvaluator(definition: PackWorkflowDefinition) {
         description: "Avoids fabricated external systems and generic unsupported claims.",
         weight: 2,
         critical: true,
-        forbidden: [
+        forbidden: definition.forbidden ?? [
           "google analytics",
           "stripe dashboard",
           "salesforce",
@@ -240,6 +247,7 @@ function createPackQualityEvaluator(definition: PackWorkflowDefinition) {
 
 const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "assumption-tracker", pack: "business-ops", focus: "assumption inventory with owner and validation cadence", inputs: ["Unverified pricing assumption", "Unknown onboarding conversion"], expectedPattern: /assumption|validation|owner/i },
+  { skill: "benchmark-agent-review", pack: "agentic-skills-bench", focus: "subjective agent review of persisted benchmark artifacts", inputs: ["Hard assertions: 100%", "Deterministic quality score: 100%", "Reviewer concern: validation only checks file existence"], expectedPattern: /benchmark|review|score/i, nextRoute: "$targeted-skill-builder", forbidden: ["google analytics", "stripe dashboard", "salesforce", "hubspot", "api dashboard", "industry-leading", "best-in-class", "proprietary data"] },
   { skill: "brainstorm-kanban", pack: "kanban", focus: "board-aware idea generation and card routing", inputs: ["Backlog has three stale discovery cards", "Need one next experiment"], expectedPattern: /kanban|card|board/i },
   { skill: "burn-rate", pack: "business-ops", focus: "runway and burn-rate analysis", inputs: ["Cash: 120000", "Monthly burn: 18000"], expectedPattern: /burn|runway|cash/i },
   { skill: "clone-spec-store", pack: "project-fleet", focus: "spec-store clone plan without network execution", inputs: ["Spec store URL is unavailable in benchmark", "Need local checklist"], expectedPattern: /clone|spec|store/i },
