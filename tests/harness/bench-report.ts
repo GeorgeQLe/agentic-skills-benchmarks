@@ -63,7 +63,42 @@ export function generateReport(manifest: SessionManifest): BenchReport {
     consistency,
     totalEstimatedCostUsd: manifest.totalEstimatedCostUsd,
     failedRuns: summarizeFailedRuns(runs),
+    qualitySummary: summarizeQuality(evaluatedRuns),
     generatedAt: new Date().toISOString(),
+  };
+}
+
+function summarizeQuality(runs: SingleRunResult[]): BenchReport["qualitySummary"] {
+  const qualityRuns = runs.filter((run) => run.qualityResult);
+  if (qualityRuns.length === 0) return undefined;
+
+  const averageScore = qualityRuns.reduce((sum, run) => sum + (run.qualityResult?.score ?? 0), 0) / qualityRuns.length;
+  const thresholdFailures = qualityRuns.filter((run) => run.qualityResult && !run.qualityResult.thresholdPassed).length;
+  const criticalFailures = qualityRuns.reduce((sum, run) => sum + (run.qualityResult?.criticalFailures.length ?? 0), 0);
+  const criterionScores = new Map<string, number[]>();
+
+  for (const run of qualityRuns) {
+    for (const criterion of run.qualityResult?.criteria ?? []) {
+      const scores = criterionScores.get(criterion.id) ?? [];
+      scores.push(criterion.score);
+      criterionScores.set(criterion.id, scores);
+    }
+  }
+
+  const lowestScoringCriteria = [...criterionScores.entries()]
+    .map(([id, scores]) => ({
+      id,
+      averageScore: scores.reduce((sum, score) => sum + score, 0) / scores.length,
+    }))
+    .sort((a, b) => a.averageScore - b.averageScore)
+    .slice(0, 5);
+
+  return {
+    evaluatedRuns: qualityRuns.length,
+    averageScore,
+    thresholdFailures,
+    criticalFailures,
+    lowestScoringCriteria,
   };
 }
 
@@ -118,6 +153,24 @@ export function formatMarkdown(r: BenchReport): string {
           "|-----|--------|",
           ...r.blockedRuns.map((run) => `| #${run.index} | ${run.reason} |`),
         ].join("\n");
+  const quality = r.qualitySummary
+    ? `
+## Output Quality
+
+- Hard assertion pass rate: **${pct(r.passRate)}** (${passedCount}/${r.evaluatedRuns} evaluated runs)
+- Average quality score: **${pct(r.qualitySummary.averageScore)}** (${r.qualitySummary.evaluatedRuns} evaluated runs)
+- Threshold failures: ${r.qualitySummary.thresholdFailures}
+- Critical failures: ${r.qualitySummary.criticalFailures}
+
+${r.qualitySummary.lowestScoringCriteria.length === 0
+  ? "Lowest-scoring criteria: none"
+  : [
+      "| Criterion | Average Score |",
+      "|-----------|---------------|",
+      ...r.qualitySummary.lowestScoringCriteria.map((criterion) => `| ${criterion.id} | ${pct(criterion.averageScore)} |`),
+    ].join("\n")}
+`
+    : "";
 
   return `# Benchmark Report: ${r.skill}
 
@@ -131,6 +184,7 @@ export function formatMarkdown(r: BenchReport): string {
 - Total runs: ${r.totalRuns}
 - Infrastructure blocked: ${r.blockedRuns.length}
 - 95% Wilson CI: [${pct(r.wilsonLower)}, ${pct(r.wilsonUpper)}]
+${quality}
 
 ## Latency
 

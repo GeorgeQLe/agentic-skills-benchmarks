@@ -10,6 +10,7 @@ import {
 } from "../setup-helpers/artifacts.js";
 import { BENCH_BUDGETS_USD, BENCH_TIMEOUTS_MS } from "../setup-helpers/budgets.js";
 import { assertNextCommand, assertRecommendedRoute } from "../setup-helpers/routing.js";
+import { createQualityEvaluator, qualityAssertions } from "../../harness/bench-quality.js";
 
 interface Tier1WorkflowDefinition {
   skill: string;
@@ -18,8 +19,10 @@ interface Tier1WorkflowDefinition {
   fixtureFiles: Record<string, string>;
   expectedIncludes: string[];
   expectedPattern?: RegExp;
+  perRunBudgetUsd?: number;
   recommendedRoute?: string;
   recommendedRoutes?: Partial<Record<BenchAgent, string>>;
+  qualityEvaluator?: SkillBenchSetup["qualityEvaluator"];
 }
 
 function expectedRoute(definition: Tier1WorkflowDefinition, agent?: BenchAgent): string | undefined {
@@ -33,8 +36,10 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
   return {
     skill: definition.skill,
     prompt: definition.prompt,
-    perRunBudgetUsd: BENCH_BUDGETS_USD.smoke,
+    perRunBudgetUsd: definition.perRunBudgetUsd ?? BENCH_BUDGETS_USD.smoke,
     timeoutMs: BENCH_TIMEOUTS_MS.smoke,
+    qualityOutputPath: definition.outputPath,
+    qualityEvaluator: definition.qualityEvaluator,
 
     setupProject(workDir: string): void {
       for (const [relativePath, content] of Object.entries(definition.fixtureFiles)) {
@@ -86,6 +91,52 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
     expectedIncludes: ["Step 1.1", "validation", "Shipping"],
     expectedPattern: /tests\/example\.test\.ts|benchmark fixture/i,
+    perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
+    qualityEvaluator: createQualityEvaluator({
+      minimumScore: 0.8,
+      criteria: [
+        {
+          id: "evidence-linked",
+          description: "Names concrete task files and fixture facts used as evidence",
+          weight: 3,
+          critical: true,
+          evaluate: qualityAssertions.requiredFacts(["Step 1.1", "tests/example.test.ts"]),
+        },
+        {
+          id: "scope-control",
+          description: "Keeps the plan focused on the selected run step",
+          weight: 2,
+          evaluate: qualityAssertions.specificity({
+            requiredAny: ["Step 1.1", "benchmark fixture", "tests/example.test.ts"],
+            forbiddenPhrases: ["full phase", "all remaining steps", "production"],
+          }),
+        },
+        {
+          id: "validation-specificity",
+          description: "Names concrete validation rather than generic checking",
+          weight: 2,
+          evaluate: qualityAssertions.requiredPatterns([/validation/i, /test|git diff --check|verify/i]),
+        },
+        {
+          id: "actionable-next-route",
+          description: "Includes an explicit next command handoff",
+          weight: 1,
+          evaluate: qualityAssertions.requiredPatterns([/next\s+command/i]),
+        },
+        {
+          id: "no-fabricated-facts",
+          description: "Avoids fabricated files, deploys, services, and GitHub Actions",
+          weight: 3,
+          critical: true,
+          evaluate: qualityAssertions.forbiddenFabrications([
+            ".github/workflows",
+            "GitHub Actions",
+            "Postgres",
+            "OpenAI Evals API",
+          ]),
+        },
+      ],
+    }),
     recommendedRoutes: {
       claude: "/ship",
       codex: "$run",

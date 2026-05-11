@@ -27,6 +27,7 @@ export interface SingleRunResult {
   estimatedCostUsd: number;
   infrastructureBlocked?: boolean;
   infrastructureReason?: string;
+  qualityResult?: QualityEvaluationResult;
 }
 
 export interface ChunkRecord {
@@ -83,6 +84,7 @@ export interface BenchReport {
     exitCode: number;
     failedAssertions: string[];
   }[];
+  qualitySummary?: QualitySummary;
   generatedAt: string;
 }
 
@@ -91,8 +93,61 @@ export interface SkillBenchSetup {
   prompt: string;
   perRunBudgetUsd: number;
   timeoutMs: number;
+  qualityOutputPath?: string;
   setupProject(workDir: string): void;
   assertResult(result: RunResult, context?: { agent: BenchAgent }): Assertion[];
+  qualityEvaluator?: QualityEvaluator;
+}
+
+export interface QualityCriterionResult {
+  id: string;
+  description: string;
+  weight: number;
+  critical?: boolean;
+  score: number;
+  passed: boolean;
+  notes: string[];
+}
+
+export interface QualityEvaluationResult {
+  score: number;
+  passed: boolean;
+  thresholdPassed: boolean;
+  criticalFailures: string[];
+  criteria: QualityCriterionResult[];
+  notes: string[];
+}
+
+export interface QualitySummary {
+  evaluatedRuns: number;
+  averageScore: number;
+  thresholdFailures: number;
+  criticalFailures: number;
+  lowestScoringCriteria: {
+    id: string;
+    averageScore: number;
+  }[];
+}
+
+export interface QualityCriterion {
+  id: string;
+  description: string;
+  weight: number;
+  critical?: boolean;
+  evaluate(output: string): {
+    score: number;
+    notes?: string[];
+  };
+}
+
+export interface QualityRubric {
+  minimumScore: number;
+  criteria: QualityCriterion[];
+}
+
+export interface QualityEvaluator {
+  rubric: QualityRubric;
+  evaluate(output: string): QualityEvaluationResult;
 }
 
 export type ResolvedBenchCoverageStatus = "custom" | "generic" | "blocked";

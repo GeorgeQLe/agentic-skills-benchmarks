@@ -1,4 +1,5 @@
-import { rmSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { createTempProject, runClaude, runCodex } from "./runner.js";
 import type { RunOptions } from "./runner.js";
 import type { BenchAgent, SkillBenchSetup, SingleRunResult, SessionManifest, BenchConfig } from "./bench-types.js";
@@ -62,6 +63,10 @@ export async function runChunk(
     const infrastructureReason = classifyInfrastructureBlock(result);
     const infrastructureBlocked = Boolean(infrastructureReason);
     const assertions = infrastructureBlocked ? [] : setup.assertResult(result, { agent: manifest.config.agent });
+    const output = collectQualityOutput(setup, result);
+    const qualityResult = !infrastructureBlocked && setup.qualityEvaluator
+      ? setup.qualityEvaluator.evaluate(output)
+      : undefined;
     const passed = !infrastructureBlocked && assertions.every((a) => a.pass);
 
     const runResult: SingleRunResult = {
@@ -78,6 +83,7 @@ export async function runChunk(
       estimatedCostUsd: setup.perRunBudgetUsd,
       infrastructureBlocked,
       infrastructureReason,
+      qualityResult,
     };
 
     saveRunResult(manifest, runResult);
@@ -101,6 +107,26 @@ export async function runChunk(
   }
 
   return { manifest, runs, haltedByBudget };
+}
+
+function collectQualityOutput(setup: SkillBenchSetup, result: RunResult): string {
+  if (setup.qualityOutputPath) {
+    try {
+      return readFileSync(join(result.workDir, setup.qualityOutputPath), "utf8");
+    } catch {
+      return `${result.stdout}\n${result.stderr}`;
+    }
+  }
+
+  const fileOutput = result.files.map((file) => {
+    try {
+      return readFileSync(join(result.workDir, file), "utf8");
+    } catch {
+      return "";
+    }
+  });
+
+  return [result.stdout, result.stderr, ...fileOutput].filter(Boolean).join("\n");
 }
 
 export function startOrResumeSession(
@@ -152,6 +178,9 @@ function classifyInfrastructureBlock(result: RunResult): string | undefined {
     output.includes("too many requests")
   ) {
     return "agent runner rate limit";
+  }
+  if (output.includes("exceeded usd budget")) {
+    return "agent runner budget exceeded";
   }
   return undefined;
 }
