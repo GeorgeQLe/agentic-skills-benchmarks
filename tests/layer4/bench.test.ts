@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { BenchConfig } from "../harness/bench-types.js";
 import { startOrResumeSession, runChunk } from "../harness/bench-runner.js";
 import { writeReport } from "../harness/bench-report.js";
-import { BENCH_SETUPS, supportedBenchSkills } from "../harness/bench-setups.js";
+import { resolveBenchSetup, supportedBenchSkills } from "../harness/bench-setups.js";
 
 const skill = process.env.BENCH_SKILL ?? "design-system";
 const agent = process.env.BENCH_AGENT === "codex" ? "codex" : "claude";
@@ -11,8 +11,8 @@ const chunkSize = parseInt(process.env.BENCH_CHUNK_SIZE ?? "5", 10);
 
 describe(`bench: ${skill}`, () => {
   it(`runs ${runs} iterations and generates a report`, async () => {
-    const setup = BENCH_SETUPS[skill];
-    expect(setup, `Unknown benchmark target: ${skill}. Supported: ${supportedBenchSkills().join(", ")}`).toBeDefined();
+    const setup = resolveBenchSetup(skill);
+    expect(setup, `Unknown skill: ${skill}. Repository skills: ${supportedBenchSkills().join(", ")}`).toBeDefined();
 
     const config: BenchConfig = {
       skill,
