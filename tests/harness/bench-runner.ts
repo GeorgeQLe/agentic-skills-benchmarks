@@ -21,6 +21,8 @@ export async function runChunk(
   manifest: SessionManifest,
   startIndex: number,
   count: number,
+  runAgent = runBenchAgent,
+  createProject = createTempProject,
 ): Promise<ChunkResult> {
   const runs: SingleRunResult[] = [];
   let haltedByBudget = false;
@@ -43,13 +45,13 @@ export async function runChunk(
       break;
     }
 
-    const workDir = createTempProject();
+    const workDir = createProject();
     setup.setupProject(workDir);
 
     const startedAt = new Date().toISOString();
     const t0 = Date.now();
 
-    const result = await runBenchAgent(manifest.config.agent, {
+    const result = await runAgent(manifest.config.agent, {
       prompt: setup.prompt,
       workDir,
       maxBudgetUsd: setup.perRunBudgetUsd,
@@ -104,13 +106,34 @@ export async function runChunk(
 export function startOrResumeSession(
   setup: SkillBenchSetup,
   config: BenchConfig,
+  resume = false,
 ): SessionManifest {
+  if (!resume) {
+    return createSession(config);
+  }
+
   const existing = findResumeableSession(config.skill, config.agent);
-  if (existing) {
+  if (existing && canResumeSession(existing, config)) {
     updateManifestStatus(existing, "running");
     return existing;
   }
   return createSession(config);
+}
+
+export function canResumeSession(
+  existing: SessionManifest,
+  config: BenchConfig,
+): boolean {
+  return (
+    existing.config.skill === config.skill &&
+    existing.config.agent === config.agent &&
+    existing.config.runs === config.runs &&
+    existing.config.chunkSize === config.chunkSize &&
+    existing.config.pauseSeconds === config.pauseSeconds &&
+    existing.config.maxBudgetUsd === config.maxBudgetUsd &&
+    existing.config.perRunBudgetUsd === config.perRunBudgetUsd &&
+    existing.config.timeoutMs === config.timeoutMs
+  );
 }
 
 function runBenchAgent(agent: BenchAgent, opts: RunOptions): Promise<RunResult> {
@@ -118,6 +141,8 @@ function runBenchAgent(agent: BenchAgent, opts: RunOptions): Promise<RunResult> 
 }
 
 function classifyInfrastructureBlock(result: RunResult): string | undefined {
+  if (result.exitCode === 0) return undefined;
+
   const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
   if (
     output.includes("hit your limit") ||

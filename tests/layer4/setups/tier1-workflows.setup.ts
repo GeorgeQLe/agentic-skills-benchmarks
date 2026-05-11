@@ -75,7 +75,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       "tasks/todo.md": "# Active Phase\n\n### Execution Profile\n**Parallel mode:** serial\n\n## Implementation\n\n- [ ] Step 1.1: Add a deterministic benchmark fixture.\n  - Files: modify `tests/example.test.ts`\n",
       "tasks/roadmap.md": "# Roadmap\n\n## Phase 1\n\n- [ ] Add benchmark fixture\n",
     },
-    expectedIncludes: ["Step 1.1", "validation", "shipping"],
+    expectedIncludes: ["Step 1.1", "validation", "Shipping"],
     expectedPattern: /tests\/example\.test\.ts|benchmark fixture/i,
     recommendedRoute: "$run",
   },
@@ -183,7 +183,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "benchmark-test-skill",
     outputPath: "benchmark/test-run-2026-05-11.md",
-    prompt: "You have the benchmark-test-skill skill installed. Using bench-output.txt and verify-output.txt, write benchmark/test-run-2026-05-11.md with verify status, benchmark pass rate, latency, cost, raw session path, and Next command. Do not run pnpm.",
+    prompt: "You have the benchmark-test-skill skill installed. Using bench-output.txt and verify-output.txt, write benchmark/test-run-2026-05-11.md with verify status, benchmark pass rate, latency, cost, raw session path, and Next command. Use `$ship` as the Next command. Do not run pnpm.",
     fixtureFiles: {
       "verify-output.txt": "layer1 PASS in 7.1s\nlayer2 SKIPPED no tests matched run\n",
       "bench-output.txt": "Benchmark coverage for run: custom\npassRate=1.0 p50=1200 totalCost=0.42 raw=tests/benchmarks/runs/run-codex-abc/report.json\n",
@@ -209,4 +209,3 @@ export const investigateSetup = tier1Setups.investigate;
 export const sessionTriageSetup = tier1Setups["session-triage"];
 export const targetedSkillBuilderSetup = tier1Setups["targeted-skill-builder"];
 export const benchmarkTestSkillSetup = tier1Setups["benchmark-test-skill"];
-

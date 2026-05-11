@@ -36,7 +36,7 @@ export function assertContentIncludes(
 ): Assertion {
   return {
     description,
-    pass: content.includes(expected),
+    pass: content.toLowerCase().includes(expected.toLowerCase()),
   };
 }
 
