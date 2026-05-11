@@ -53,6 +53,7 @@ function workflowQualityEvaluator(options: {
   validationPatterns?: RegExp[];
   concreteFiles?: string[];
   concreteCommands?: string[];
+  nextRoutes?: string[];
   forbidden?: string[];
 }): SkillBenchSetup["qualityEvaluator"] {
   return createSetupQualityEvaluator({
@@ -113,7 +114,7 @@ function workflowQualityEvaluator(options: {
         id: "actionable-next-route",
         description: "Includes an explicit next command handoff",
         weight: 1,
-        route: options.nextRoute,
+        route: options.nextRoutes ?? options.nextRoute,
       }),
       forbiddenFabricationCriterion({
         id: "no-fabricated-facts",
@@ -250,7 +251,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "ship",
     outputPath: "ship-manifest.md",
-    prompt: "You have the ship skill installed. Read the fixture task and diff summary, then write ship-manifest.md with User goal, Changed files, Tests run, Deploy status, Rollback note, and Next command. Do not run git.",
+    prompt: "You have the ship skill installed. Read the fixture task and diff summary, then write ship-manifest.md with User goal, Changed files, Tests run, Deploy status, Rollback note, and Next command. Use your runner's command convention for Next command: Claude uses `/run`; Codex uses `$run`. Do not run git.",
     fixtureFiles: {
       "tasks/todo.md": "# Active Phase\n\n## Review\n\nValidation passed for the completed fixture step.\n",
       "diff-summary.txt": "M tests/example.test.ts\nM tasks/todo.md\n",
@@ -260,14 +261,17 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["Validation passed", "M tests/example.test.ts", "M tasks/todo.md"],
       specificMarkers: ["User goal", "Changed files", "Rollback note"],
-      nextRoute: "$run",
+      nextRoutes: ["/run", "$run"],
       coreTraitId: "shipping-manifest-completeness",
       coreTraitDescription: "Includes the required shipping manifest fields",
       coreTraits: ["User goal", "Changed files", "Tests run", "Deploy status", "Rollback note"],
       validationPatterns: [/Validation passed|Tests run/i],
       concreteFiles: ["tests/example.test.ts", "tasks/todo.md"],
     }),
-    recommendedRoute: "$run",
+    recommendedRoutes: {
+      claude: "/run",
+      codex: "$run",
+    },
   },
   {
     skill: "ship-end",

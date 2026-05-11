@@ -89,11 +89,12 @@ export function concreteCommandReferenceCriterion(options: CriterionOptions & { 
   });
 }
 
-export function nextRouteCriterion(options: CriterionOptions & { route?: string }): QualityCriterion {
+export function nextRouteCriterion(options: CriterionOptions & { route?: string | string[] }): QualityCriterion {
+  const routes = Array.isArray(options.route) ? options.route : options.route ? [options.route] : [];
   return requiredPatternCriterion({
     ...options,
-    patterns: options.route
-      ? [/next\s+command/i, new RegExp(escapeRegExp(options.route), "i")]
+    patterns: routes.length > 0
+      ? [/next\s+command/i, new RegExp(routes.map(escapeRegExp).join("|"), "i")]
       : [/next\s+command/i],
   });
 }
