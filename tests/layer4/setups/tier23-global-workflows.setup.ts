@@ -467,14 +467,26 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "uat",
     outputPath: "uat-journeys.md",
-    prompt: "You have the uat skill installed. Read persona.md and feature.md, then write uat-journeys.md with role-based scenarios, acceptance criteria, evidence capture, and Next command.",
+    prompt: "You have the uat skill installed. Read specs/ui-layout-variations-dashboard.md and write uat-journeys.md with variant evaluation, acceptance criteria, evidence capture, and Next command.",
     fixtureFiles: {
-      "persona.md": "Maintainer adding a new skill.",
-      "feature.md": "Benchmark coverage handling is required before shipping.",
+      "specs/ui-layout-variations-dashboard.md": "Variation A uses a dense table. Variation B uses a card grid. Both must help maintainers compare custom, generic, and blocked benchmark coverage.",
     },
-    expectedIncludes: ["role-based scenarios", "acceptance criteria", "evidence capture"],
-    expectedPattern: /new skill|benchmark coverage/i,
-    recommendedRoute: "$run",
+    expectedIncludes: ["variant evaluation", "acceptance criteria", "evidence capture"],
+    expectedPattern: /dense table|card grid|benchmark coverage/i,
+    recommendedRoute: "$ui-consolidate",
+  },
+  {
+    skill: "ui-consolidate",
+    outputPath: "specs/ui-final-dashboard.md",
+    prompt: "You have the ui-consolidate skill installed. Read specs/ui-layout-variations-dashboard.md and research/uat-variant-evaluation-dashboard.md, then write specs/ui-final-dashboard.md with UAT evidence summary, consolidation matrix, conflict resolutions, implementation plan, and Next command.",
+    fixtureFiles: {
+      "specs/ui-requirements-dashboard.md": "The dashboard must show custom, generic, and blocked benchmark coverage rows with blocked reasons.",
+      "specs/ui-layout-variations-dashboard.md": "Variation A uses a dense table. Variation B uses a card grid. Variation C uses list plus detail.",
+      "research/uat-variant-evaluation-dashboard.md": "Dense table worked for scanning blocked reasons. Card grid felt easier to browse but slower for comparing custom and generic status.",
+    },
+    expectedIncludes: ["UAT evidence summary", "consolidation matrix", "conflict resolutions", "implementation plan"],
+    expectedPattern: /dense table|card grid|blocked reasons/i,
+    recommendedRoute: "$design-system",
   },
   {
     skill: "ui-interview",
@@ -490,13 +502,13 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "ux-variation",
     outputPath: "ux-variations.md",
-    prompt: "You have the ux-variation skill installed. Read flow.md and write ux-variations.md with onboarding, typical workflow, collaboration, return use, alternatives, and Next command.",
+    prompt: "You have the ux-variation skill installed. Read specs/ui-requirements-dashboard.md and write ux-variations.md with layout variations, alternatives, variant evaluation handoff, and Next command.",
     fixtureFiles: {
-      "flow.md": "Maintainers compare custom, generic, and blocked benchmark coverage before prioritizing setup work.",
+      "specs/ui-requirements-dashboard.md": "Maintainers compare custom, generic, and blocked benchmark coverage before prioritizing setup work.",
     },
-    expectedIncludes: ["onboarding", "typical workflow", "collaboration", "alternatives"],
+    expectedIncludes: ["layout variations", "alternatives", "variant evaluation"],
     expectedPattern: /custom|generic|blocked/i,
-    recommendedRoute: "$ui-interview",
+    recommendedRoute: "$run",
   },
 ];
 

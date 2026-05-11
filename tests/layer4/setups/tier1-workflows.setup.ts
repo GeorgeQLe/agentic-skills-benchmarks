@@ -383,13 +383,13 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     expectedIncludes: ["Strategy Used", "Root Cause", "Prevention"],
     expectedPattern: /missing setup_path|run\.setup\.ts/i,
     qualityEvaluator: workflowQualityEvaluator({
-      evidenceFacts: ["missing setup_path", "run.setup.ts", "coverage_status: \"custom\""],
+      evidenceFacts: ["custom benchmark coverage row", "setup_path", "run.setup.ts"],
       specificMarkers: ["Root Cause", "Prevention", "missing setup_path"],
       coreTraitId: "root-cause-specificity",
       coreTraitDescription: "Identifies the concrete failure cause and prevention path",
       coreTraits: ["Strategy Used", "Root Cause", "Fix Applied", "Prevention"],
       validationPatterns: [/missing setup_path|run\.setup\.ts/i],
-      concreteFiles: ["logs/failure.txt", "tests/harness/bench-coverage.ts"],
+      concreteFiles: ["tests/harness/bench-coverage.ts"],
     }),
   },
   {

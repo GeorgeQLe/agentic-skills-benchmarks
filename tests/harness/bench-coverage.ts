@@ -60,6 +60,7 @@ const TIER23_GLOBAL_CUSTOM_SKILLS = [
   "spec-drift",
   "trace",
   "uat",
+  "ui-consolidate",
   "ui-interview",
   "ux-variation",
 ] as const;
@@ -96,10 +97,6 @@ const TIER23_GLOBAL_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "block
   "uat-guide": {
     blocked_reason: "Claude-only manual UAT guidance skill without a Codex skill contract.",
     next_command: "$targeted-skill-builder uat-guide benchmark coverage",
-  },
-  "ui-consolidate": {
-    blocked_reason: "Claude-only UI consolidation workflow without a Codex skill contract.",
-    next_command: "$targeted-skill-builder ui-consolidate benchmark coverage",
   },
 };
 
