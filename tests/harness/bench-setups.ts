@@ -3,6 +3,19 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { designSystemSetup } from "../layer4/setups/design-system.setup.js";
 import { designSystemDraftstonkSetup } from "../layer4/setups/design-system-draftstonk.setup.js";
+import {
+  benchmarkTestSkillSetup,
+  featureInterviewSetup,
+  investigateSetup,
+  planPhaseSetup,
+  roadmapSetup,
+  runSetup,
+  sessionTriageSetup,
+  shipEndSetup,
+  shipSetup,
+  specInterviewSetup,
+  targetedSkillBuilderSetup,
+} from "../layer4/setups/tier1-workflows.setup.js";
 import { benchmarkCoverageMatrix, type BenchCoverageRow } from "./bench-coverage.js";
 import type { ResolvedBenchTarget, SkillBenchSetup } from "./bench-types.js";
 import type { Assertion, RunResult } from "./types.js";
@@ -10,8 +23,19 @@ import type { Assertion, RunResult } from "./types.js";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 export const CUSTOM_BENCH_SETUPS: Record<string, SkillBenchSetup> = {
+  "benchmark-test-skill": benchmarkTestSkillSetup,
   "design-system": designSystemSetup,
   "design-system-draftstonk": designSystemDraftstonkSetup,
+  "feature-interview": featureInterviewSetup,
+  "investigate": investigateSetup,
+  "plan-phase": planPhaseSetup,
+  "roadmap": roadmapSetup,
+  "run": runSetup,
+  "session-triage": sessionTriageSetup,
+  "ship": shipSetup,
+  "ship-end": shipEndSetup,
+  "spec-interview": specInterviewSetup,
+  "targeted-skill-builder": targetedSkillBuilderSetup,
 };
 
 export function supportedBenchSkills(): string[] {

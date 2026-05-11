@@ -174,11 +174,77 @@ export const BENCH_COVERAGE_SKILLS = [
 ] as const;
 
 const COVERAGE_OVERRIDES: Record<string, Partial<BenchCoverageRow>> = {
+  "benchmark-test-skill": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "benchmark-report-fixture",
+  },
   "design-system": {
     coverage_status: "custom",
     setup_path: "tests/layer4/setups/design-system.setup.ts",
     priority_tier: 1,
     fixture_type: "custom-fixture",
+  },
+  "feature-interview": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "interview-artifact-fixture",
+  },
+  "investigate": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "debug-log-fixture",
+  },
+  "plan-phase": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "task-planning-fixture",
+  },
+  "roadmap": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "roadmap-fixture",
+  },
+  "run": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "execution-plan-fixture",
+  },
+  "session-triage": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "incident-report-fixture",
+  },
+  "ship": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "ship-manifest-fixture",
+  },
+  "ship-end": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "handoff-fixture",
+  },
+  "spec-interview": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "spec-artifact-fixture",
+  },
+  "targeted-skill-builder": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "skill-update-plan-fixture",
   },
 };
 
