@@ -17,11 +17,62 @@ import {
   assertTokenCrossReferences,
   parseYamlFrontmatter,
 } from "../setup-helpers/markdown.js";
+import {
+  concreteFileReferenceCriterion,
+  createSetupQualityEvaluator,
+  forbiddenFabricationCriterion,
+  referenceTraitCriterion,
+  requiredFactCoverageCriterion,
+  requiredPatternCriterion,
+} from "../setup-helpers/quality.js";
 
 export const designSystemDraftstonkSetup: SkillBenchSetup = {
   skill: "design-system-draftstonk",
 
   prompt: `You have the design-system skill installed. Read specs/ui-v1-draft-night.md and extract all design tokens into a DESIGN.md file in the project root. Follow the Google Labs Stitch format: YAML frontmatter with machine-readable tokens (colors, typography, spacing, rounded, elevation, components, animations) plus prose sections (Overview, Colors, Typography, Layout & Spacing, Elevation & Depth, Shapes, Animation & Motion, Components, Do's and Don'ts). Use {token.path} cross-references in component definitions. Do NOT ask questions — use the spec values directly. Write DESIGN.md and design-system-interview.md.`,
+  qualityOutputPath: "DESIGN.md",
+  qualityEvaluator: createSetupQualityEvaluator({
+    minimumScore: 0.85,
+    criteria: [
+      requiredFactCoverageCriterion({
+        id: "draftstonk-token-facts",
+        description: "Output preserves the DraftStonk fixture color palette.",
+        weight: 3,
+        critical: true,
+        facts: ["#10b981", "#0f172a", "#1e293b", "#fbbf24", "#f87171"],
+      }),
+      requiredPatternCriterion({
+        id: "draftstonk-frontmatter-shape",
+        description: "Output includes required Stitch token groups including motion-related tokens.",
+        weight: 3,
+        critical: true,
+        patterns: [
+          /^---[\s\S]*colors:/i,
+          /^---[\s\S]*components:/i,
+          /animat|transition|motion/i,
+        ],
+      }),
+      referenceTraitCriterion({
+        id: "draftstonk-prose-coverage",
+        description: "Output covers key prose sections and token cross-reference behavior.",
+        weight: 2,
+        traits: ["Colors", "Typography", "Components", "{"],
+      }),
+      concreteFileReferenceCriterion({
+        id: "draftstonk-interview-artifact-reference",
+        description: "Output references the companion interview artifact requested by the setup.",
+        weight: 1,
+        files: ["design-system-interview.md"],
+      }),
+      forbiddenFabricationCriterion({
+        id: "no-fabricated-draftstonk-values",
+        description: "Output avoids unrelated palette and type values.",
+        weight: 2,
+        critical: true,
+        forbidden: ["#2563EB", "SF Pro", "pastel", "minimal white dashboard"],
+      }),
+    ],
+  }),
 
   perRunBudgetUsd: BENCH_BUDGETS_USD.expanded,
   timeoutMs: BENCH_TIMEOUTS_MS.focused,

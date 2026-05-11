@@ -9,6 +9,15 @@ import {
   readGeneratedFile,
 } from "../setup-helpers/artifacts.js";
 import { BENCH_BUDGETS_USD, BENCH_TIMEOUTS_MS } from "../setup-helpers/budgets.js";
+import {
+  concreteFileReferenceCriterion,
+  createSetupQualityEvaluator,
+  forbiddenFabricationCriterion,
+  nextRouteCriterion,
+  referenceTraitCriterion,
+  requiredFactCoverageCriterion,
+  requiredPatternCriterion,
+} from "../setup-helpers/quality.js";
 import { assertNextCommand, assertRecommendedRoute } from "../setup-helpers/routing.js";
 
 interface GlobalWorkflowDefinition {
@@ -27,6 +36,8 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
     prompt: definition.prompt,
     perRunBudgetUsd: BENCH_BUDGETS_USD.smoke,
     timeoutMs: BENCH_TIMEOUTS_MS.smoke,
+    qualityOutputPath: definition.outputPath,
+    qualityEvaluator: createGlobalWorkflowQualityEvaluator(definition),
 
     setupProject(workDir: string): void {
       for (const [relativePath, content] of Object.entries(definition.fixtureFiles)) {
@@ -63,6 +74,64 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
       return assertions;
     },
   };
+}
+
+function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefinition) {
+  return createSetupQualityEvaluator({
+    minimumScore: 0.8,
+    criteria: [
+      requiredFactCoverageCriterion({
+        id: "workflow-fixture-facts",
+        description: "Output preserves the setup's required fixture terms.",
+        weight: 3,
+        critical: true,
+        facts: definition.expectedIncludes,
+      }),
+      concreteFileReferenceCriterion({
+        id: "workflow-artifact-reference",
+        description: "Output names the generated workflow artifact.",
+        weight: 1,
+        files: [definition.outputPath],
+      }),
+      nextRouteCriterion({
+        id: "workflow-next-route",
+        description: "Output includes the expected next command route.",
+        weight: 2,
+        critical: true,
+        route: definition.recommendedRoute,
+      }),
+      ...(definition.expectedPattern
+        ? [
+          requiredPatternCriterion({
+            id: "workflow-domain-specificity",
+            description: "Output includes the setup-specific domain evidence pattern.",
+            weight: 2,
+            critical: true,
+            patterns: [definition.expectedPattern],
+          }),
+        ]
+        : []),
+      referenceTraitCriterion({
+        id: "workflow-actionability",
+        description: "Output has practical workflow evidence, validation, risk, or action language.",
+        weight: 1,
+        traits: ["validation", "risk", "evidence", "Next command"],
+      }),
+      forbiddenFabricationCriterion({
+        id: "no-generic-or-external-overreach",
+        description: "Output avoids generic filler and external actions not present in fixtures.",
+        weight: 2,
+        critical: true,
+        forbidden: [
+          "Lorem ipsum",
+          "production deployment completed",
+          "package-lock.json",
+          "AWS account",
+          "Vercel project configured",
+        ],
+      }),
+    ],
+  });
 }
 
 const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
