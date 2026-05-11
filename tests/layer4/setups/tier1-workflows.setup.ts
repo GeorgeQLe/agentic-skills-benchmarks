@@ -11,10 +11,12 @@ import {
 import { BENCH_BUDGETS_USD, BENCH_TIMEOUTS_MS } from "../setup-helpers/budgets.js";
 import { assertNextCommand, assertRecommendedRoute } from "../setup-helpers/routing.js";
 import {
+  concreteCommandReferenceCriterion,
   concreteFileReferenceCriterion,
   createSetupQualityEvaluator,
   forbiddenFabricationCriterion,
   nextRouteCriterion,
+  referenceTraitCriterion,
   requiredFactCoverageCriterion,
   requiredPatternCriterion,
   specificityCriterion,
@@ -38,6 +40,97 @@ function expectedRoute(definition: Tier1WorkflowDefinition, agent?: BenchAgent):
     return definition.recommendedRoutes[agent];
   }
   return definition.recommendedRoute;
+}
+
+function workflowQualityEvaluator(options: {
+  minimumScore?: number;
+  evidenceFacts: string[];
+  specificMarkers: string[];
+  nextRoute?: string;
+  coreTraitId: string;
+  coreTraitDescription: string;
+  coreTraits: string[];
+  validationPatterns?: RegExp[];
+  concreteFiles?: string[];
+  concreteCommands?: string[];
+  forbidden?: string[];
+}): SkillBenchSetup["qualityEvaluator"] {
+  return createSetupQualityEvaluator({
+    minimumScore: options.minimumScore ?? 0.78,
+    criteria: [
+      requiredFactCoverageCriterion({
+        id: "evidence-linked",
+        description: "Names concrete fixture facts used as evidence",
+        weight: 3,
+        critical: true,
+        facts: options.evidenceFacts,
+      }),
+      ...(options.concreteFiles
+        ? [
+          concreteFileReferenceCriterion({
+            id: "file-reference",
+            description: "Names concrete fixture files or generated outputs",
+            weight: 1,
+            critical: true,
+            files: options.concreteFiles,
+          }),
+        ]
+        : []),
+      specificityCriterion({
+        id: "scope-control",
+        description: "Keeps the answer scoped to the supplied workflow fixture",
+        weight: 2,
+        requiredAny: options.specificMarkers,
+        forbiddenPhrases: ["production deploy", "GitHub Actions", "database migration"],
+      }),
+      referenceTraitCriterion({
+        id: options.coreTraitId,
+        description: options.coreTraitDescription,
+        weight: 2,
+        traits: options.coreTraits,
+      }),
+      ...(options.validationPatterns
+        ? [
+          requiredPatternCriterion({
+            id: "validation-specificity",
+            description: "Names concrete validation or verification evidence",
+            weight: 2,
+            patterns: options.validationPatterns,
+          }),
+        ]
+        : []),
+      ...(options.concreteCommands
+        ? [
+          concreteCommandReferenceCriterion({
+            id: "command-reference",
+            description: "Names concrete commands from the fixture",
+            weight: 1,
+            commands: options.concreteCommands,
+          }),
+        ]
+        : []),
+      nextRouteCriterion({
+        id: "actionable-next-route",
+        description: "Includes an explicit next command handoff",
+        weight: 1,
+        route: options.nextRoute,
+      }),
+      forbiddenFabricationCriterion({
+        id: "no-fabricated-facts",
+        description: "Avoids fabricated files, deploys, services, and GitHub Actions",
+        weight: 3,
+        critical: true,
+        forbidden: [
+          ".github/workflows",
+          "GitHub Actions",
+          "Postgres",
+          "OpenAI Evals API",
+          "production deploy",
+          ...(options.forbidden ?? []),
+        ],
+      }),
+    ],
+  });
 }
 
 function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBenchSetup {
@@ -164,6 +257,16 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
     expectedIncludes: ["User goal", "Changed files", "Tests run", "Rollback note"],
     expectedPattern: /Deploy status|Deploy skipped/i,
+    qualityEvaluator: workflowQualityEvaluator({
+      evidenceFacts: ["Validation passed", "M tests/example.test.ts", "M tasks/todo.md"],
+      specificMarkers: ["User goal", "Changed files", "Rollback note"],
+      nextRoute: "$run",
+      coreTraitId: "shipping-manifest-completeness",
+      coreTraitDescription: "Includes the required shipping manifest fields",
+      coreTraits: ["User goal", "Changed files", "Tests run", "Deploy status", "Rollback note"],
+      validationPatterns: [/Validation passed|Tests run/i],
+      concreteFiles: ["tests/example.test.ts", "tasks/todo.md"],
+    }),
     recommendedRoute: "$run",
   },
   {
@@ -175,6 +278,16 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       "tasks/history.md": "# History\n\n- Completed Step 1.1 with tests.\n",
     },
     expectedIncludes: ["completed work", "validation", "remaining risks", "Step 1.2"],
+    qualityEvaluator: workflowQualityEvaluator({
+      evidenceFacts: ["Step 1.1", "Step 1.2", "Completed Step 1.1 with tests"],
+      specificMarkers: ["completed work", "remaining risks", "Step 1.2"],
+      nextRoute: "$run",
+      coreTraitId: "handoff-continuity",
+      coreTraitDescription: "Connects completed work to the next project task",
+      coreTraits: ["completed work", "validation", "remaining risks", "next work"],
+      validationPatterns: [/validation|tests/i],
+      concreteFiles: ["tasks/todo.md", "tasks/history.md"],
+    }),
     recommendedRoute: "$run",
   },
   {
@@ -186,6 +299,16 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
     expectedIncludes: ["Phase", "Acceptance Criteria", "verification"],
     expectedPattern: /benchmark coverage|CLI status/i,
+    qualityEvaluator: workflowQualityEvaluator({
+      evidenceFacts: ["benchmark coverage reporting", "CLI status output"],
+      specificMarkers: ["Phase", "Acceptance Criteria", "verification"],
+      nextRoute: "$run",
+      coreTraitId: "roadmap-phase-structure",
+      coreTraitDescription: "Turns the fixture idea into phased, verifiable project work",
+      coreTraits: ["Phase", "Acceptance Criteria", "verification", "Next command"],
+      validationPatterns: [/verification|test|validate/i],
+      concreteFiles: ["specs/feature.md", "tasks/roadmap.md"],
+    }),
     recommendedRoute: "$run",
   },
   {
@@ -196,6 +319,16 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       "tasks/roadmap.md": "# Roadmap\n\n## Phase 2: Coverage Reporting\n\nAcceptance Criteria:\n- CLI lists custom/generic/blocked coverage.\n- Tests cover blocked rows.\n",
     },
     expectedIncludes: ["Tests First", "Implementation", "CLI lists custom/generic/blocked"],
+    qualityEvaluator: workflowQualityEvaluator({
+      evidenceFacts: ["Phase 2: Coverage Reporting", "CLI lists custom/generic/blocked", "Tests cover blocked rows"],
+      specificMarkers: ["Tests First", "Implementation", "file-level", "CLI lists custom/generic/blocked"],
+      nextRoute: "$run",
+      coreTraitId: "phase-plan-specificity",
+      coreTraitDescription: "Creates a tests-first phase plan with implementation detail",
+      coreTraits: ["Tests First", "Implementation", "file-level", "validation"],
+      validationPatterns: [/test|validation|blocked rows/i],
+      concreteFiles: ["tasks/roadmap.md", "tasks/todo.md"],
+    }),
     recommendedRoute: "$run",
   },
   {
@@ -207,6 +340,16 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
     expectedIncludes: ["Assumptions", "evidence", "decision", "risks"],
     expectedPattern: /custom|generic|blocked/i,
+    qualityEvaluator: workflowQualityEvaluator({
+      evidenceFacts: ["custom", "generic", "blocked", "Benchmark reports"],
+      specificMarkers: ["Assumptions", "evidence", "decision", "risks"],
+      nextRoute: "$spec-interview",
+      coreTraitId: "interview-decision-quality",
+      coreTraitDescription: "Frames the product idea with evidence, decision, and risk",
+      coreTraits: ["Assumptions", "evidence", "decision", "risks"],
+      validationPatterns: [/custom|generic|blocked/i],
+      concreteFiles: ["feature-idea.md", "specs/benchmark-reporting-feature-interview.md"],
+    }),
     recommendedRoute: "$spec-interview",
   },
   {
@@ -217,6 +360,16 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       "specs/draft.md": "# Draft\n\nAdd benchmark coverage status to reports and list output.\n",
     },
     expectedIncludes: ["Overview", "Detailed Design", "Test Plan", "Acceptance Criteria", "Assumptions & Risks"],
+    qualityEvaluator: workflowQualityEvaluator({
+      evidenceFacts: ["benchmark coverage status", "reports", "list output"],
+      specificMarkers: ["Overview", "Detailed Design", "Test Plan", "Acceptance Criteria"],
+      nextRoute: "$plan-phase",
+      coreTraitId: "spec-completeness",
+      coreTraitDescription: "Produces a complete implementation-ready spec from the draft",
+      coreTraits: ["Overview", "Goals", "Non-Goals", "Detailed Design", "Edge Cases", "Test Plan", "Acceptance Criteria", "Assumptions & Risks"],
+      validationPatterns: [/Test Plan|Acceptance Criteria/i],
+      concreteFiles: ["specs/draft.md", "specs/benchmark-reporting.md"],
+    }),
     recommendedRoute: "$plan-phase",
   },
   {
@@ -229,6 +382,16 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
     expectedIncludes: ["Strategy Used", "Root Cause", "Prevention"],
     expectedPattern: /missing setup_path|run\.setup\.ts/i,
+    qualityEvaluator: workflowQualityEvaluator({
+      evidenceFacts: ["missing setup_path", "run.setup.ts", "coverage_status: \"custom\""],
+      specificMarkers: ["Root Cause", "Prevention", "missing setup_path"],
+      nextRoute: "$run",
+      coreTraitId: "root-cause-specificity",
+      coreTraitDescription: "Identifies the concrete failure cause and prevention path",
+      coreTraits: ["Strategy Used", "Root Cause", "Fix Applied", "Prevention"],
+      validationPatterns: [/missing setup_path|run\.setup\.ts/i],
+      concreteFiles: ["logs/failure.txt", "tests/harness/bench-coverage.ts"],
+    }),
     recommendedRoute: "$run",
   },
   {
@@ -241,6 +404,16 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
     expectedIncludes: ["Verification verdict", "Timeline", "Root cause", "Validation plan"],
     expectedPattern: /coverage matrix validation|shipped anyway/i,
+    qualityEvaluator: workflowQualityEvaluator({
+      evidenceFacts: ["coverage matrix validation", "shipped anyway", "Run required validation before shipping"],
+      specificMarkers: ["Verification verdict", "Timeline", "Root cause", "Validation plan"],
+      nextRoute: "$targeted-skill-builder",
+      coreTraitId: "incident-triage-specificity",
+      coreTraitDescription: "Connects the session failure to a concrete validation gap",
+      coreTraits: ["Verification verdict", "Timeline", "Root cause", "Recommended fix", "Validation plan"],
+      validationPatterns: [/coverage matrix validation|validation plan/i],
+      concreteFiles: ["session-log.md", "tasks/lessons.md"],
+    }),
     recommendedRoute: "$targeted-skill-builder",
   },
   {
@@ -253,6 +426,16 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
     expectedIncludes: ["workflow gap", "existing-skill overlap", "contract change", "validation"],
     expectedPattern: /benchmark coverage|blocked status/i,
+    qualityEvaluator: workflowQualityEvaluator({
+      evidenceFacts: ["benchmark coverage handling", "blocked status", "durable validation"],
+      specificMarkers: ["workflow gap", "existing-skill overlap", "contract change", "validation"],
+      nextRoute: "$run",
+      coreTraitId: "correction-to-contract-mapping",
+      coreTraitDescription: "Maps the correction to a durable skill contract and validation check",
+      coreTraits: ["workflow gap", "existing-skill overlap", "contract change", "validation checks"],
+      validationPatterns: [/benchmark coverage|blocked status|validation/i],
+      concreteFiles: ["correction.md", "tasks/lessons.md"],
+    }),
     recommendedRoute: "$run",
   },
   {
@@ -265,6 +448,17 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
     expectedIncludes: ["verify", "pass rate", "latency", "cost", "raw session path"],
     expectedPattern: /custom|1\.0|run-codex-abc/i,
+    qualityEvaluator: workflowQualityEvaluator({
+      evidenceFacts: ["layer1 PASS", "passRate=1.0", "p50=1200", "totalCost=0.42", "run-codex-abc"],
+      specificMarkers: ["verify", "pass rate", "latency", "cost", "raw session path"],
+      nextRoute: "$ship",
+      coreTraitId: "benchmark-evidence-reporting",
+      coreTraitDescription: "Reports benchmark evidence without overstating the result",
+      coreTraits: ["verify status", "benchmark pass rate", "latency", "cost", "raw session path"],
+      validationPatterns: [/passRate=1\.0|1\.0|100/i, /run-codex-abc/i],
+      concreteFiles: ["bench-output.txt", "verify-output.txt", "benchmark/test-run-2026-05-11.md"],
+      concreteCommands: ["$ship"],
+    }),
     recommendedRoute: "$ship",
   },
 ];
