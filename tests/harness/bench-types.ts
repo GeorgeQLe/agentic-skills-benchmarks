@@ -92,7 +92,7 @@ export interface SkillBenchSetup {
   perRunBudgetUsd: number;
   timeoutMs: number;
   setupProject(workDir: string): void;
-  assertResult(result: RunResult): Assertion[];
+  assertResult(result: RunResult, context?: { agent: BenchAgent }): Assertion[];
 }
 
 export type ResolvedBenchCoverageStatus = "custom" | "generic" | "blocked";

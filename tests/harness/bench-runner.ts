@@ -61,7 +61,7 @@ export async function runChunk(
     const durationMs = Date.now() - t0;
     const infrastructureReason = classifyInfrastructureBlock(result);
     const infrastructureBlocked = Boolean(infrastructureReason);
-    const assertions = infrastructureBlocked ? [] : setup.assertResult(result);
+    const assertions = infrastructureBlocked ? [] : setup.assertResult(result, { agent: manifest.config.agent });
     const passed = !infrastructureBlocked && assertions.every((a) => a.pass);
 
     const runResult: SingleRunResult = {

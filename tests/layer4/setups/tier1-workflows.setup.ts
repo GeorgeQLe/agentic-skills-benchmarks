@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { SkillBenchSetup } from "../../harness/bench-types.js";
+import type { BenchAgent, SkillBenchSetup } from "../../harness/bench-types.js";
 import type { Assertion, RunResult } from "../../harness/types.js";
 import {
   assertContentIncludes,
@@ -19,6 +19,14 @@ interface Tier1WorkflowDefinition {
   expectedIncludes: string[];
   expectedPattern?: RegExp;
   recommendedRoute?: string;
+  recommendedRoutes?: Partial<Record<BenchAgent, string>>;
+}
+
+function expectedRoute(definition: Tier1WorkflowDefinition, agent?: BenchAgent): string | undefined {
+  if (agent && definition.recommendedRoutes?.[agent]) {
+    return definition.recommendedRoutes[agent];
+  }
+  return definition.recommendedRoute;
 }
 
 function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBenchSetup {
@@ -35,7 +43,7 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
       }
     },
 
-    assertResult(result: RunResult): Assertion[] {
+    assertResult(result: RunResult, context?: { agent: BenchAgent }): Assertion[] {
       const assertions: Assertion[] = [
         {
           description: "Agent command exited successfully",
@@ -56,8 +64,9 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
       }
 
       assertions.push(assertNextCommand(content));
-      if (definition.recommendedRoute) {
-        assertions.push(assertRecommendedRoute(content, definition.recommendedRoute));
+      const route = expectedRoute(definition, context?.agent);
+      if (route) {
+        assertions.push(assertRecommendedRoute(content, route));
       }
 
       return assertions;
@@ -77,7 +86,10 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
     expectedIncludes: ["Step 1.1", "validation", "Shipping"],
     expectedPattern: /tests\/example\.test\.ts|benchmark fixture/i,
-    recommendedRoute: "$run",
+    recommendedRoutes: {
+      claude: "/ship",
+      codex: "$run",
+    },
   },
   {
     skill: "ship",
