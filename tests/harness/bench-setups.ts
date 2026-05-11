@@ -16,6 +16,7 @@ import {
   specInterviewSetup,
   targetedSkillBuilderSetup,
 } from "../layer4/setups/tier1-workflows.setup.js";
+import { GLOBAL_WORKFLOW_SETUPS } from "../layer4/setups/tier23-global-workflows.setup.js";
 import { benchmarkCoverageMatrix, type BenchCoverageRow } from "./bench-coverage.js";
 import type { ResolvedBenchTarget, SkillBenchSetup } from "./bench-types.js";
 import type { Assertion, RunResult } from "./types.js";
@@ -23,6 +24,7 @@ import type { Assertion, RunResult } from "./types.js";
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 export const CUSTOM_BENCH_SETUPS: Record<string, SkillBenchSetup> = {
+  ...GLOBAL_WORKFLOW_SETUPS,
   "benchmark-test-skill": benchmarkTestSkillSetup,
   "design-system": designSystemSetup,
   "design-system-draftstonk": designSystemDraftstonkSetup,

@@ -26,6 +26,81 @@ export interface BenchCoverageValidationResult {
 }
 
 const LAST_VERIFIED = "2026-05-11";
+const TIER23_GLOBAL_SETUP_PATH = "tests/layer4/setups/tier23-global-workflows.setup.ts";
+
+const TIER23_GLOBAL_CUSTOM_SKILLS = [
+  "affected",
+  "analyze-sessions",
+  "bootstrap-repo",
+  "brainstorm",
+  "branch-lifecycle",
+  "codebase-status",
+  "concept-exploration",
+  "create-agentic-skill",
+  "create-local-skill",
+  "dead-code",
+  "debug",
+  "decommission",
+  "dogfood",
+  "expert-review",
+  "guide",
+  "handoff",
+  "hygiene",
+  "migrate",
+  "mono-plan",
+  "pack",
+  "provision-agentic-config",
+  "reconcile-dev-docs",
+  "regression-check",
+  "research-roadmap",
+  "scaffold",
+  "skills",
+  "slim-audit",
+  "spec-drift",
+  "trace",
+  "uat",
+  "ui-interview",
+  "ux-variation",
+] as const;
+
+const TIER23_GLOBAL_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason" | "next_command">> = {
+  "commit-and-push-by-feature": {
+    blocked_reason: "Requires real git commit/push mutation against the primary branch, which is unsafe for deterministic benchmark runs.",
+    next_command: "$guide commit-and-push-by-feature benchmark fixture",
+  },
+  "delegate": {
+    blocked_reason: "Claude-only orchestration skill with subagent dispatch semantics that Codex benchmarks cannot execute directly.",
+    next_command: "$targeted-skill-builder delegate benchmark coverage",
+  },
+  "deploy": {
+    blocked_reason: "Requires environment-specific deploy credentials, possible production safety decisions, and external service state.",
+    next_command: "$guide deploy benchmark fixture",
+  },
+  "install-agentic-skills": {
+    blocked_reason: "Mutates local Codex and Claude skill installations outside the benchmark worktree.",
+    next_command: "$targeted-skill-builder install-agentic-skills benchmark coverage",
+  },
+  "patch-exec-profile": {
+    blocked_reason: "Claude-only workflow patching skill without a Codex skill contract.",
+    next_command: "$targeted-skill-builder patch-exec-profile benchmark coverage",
+  },
+  "release": {
+    blocked_reason: "May create tags, version bumps, and publishable release artifacts; deterministic coverage needs a dry-run fixture first.",
+    next_command: "$targeted-skill-builder release benchmark coverage",
+  },
+  "sync": {
+    blocked_reason: "Requires live remote git fetch/pull state and can mutate the worktree from the network.",
+    next_command: "$targeted-skill-builder sync benchmark coverage",
+  },
+  "uat-guide": {
+    blocked_reason: "Claude-only manual UAT guidance skill without a Codex skill contract.",
+    next_command: "$targeted-skill-builder uat-guide benchmark coverage",
+  },
+  "ui-consolidate": {
+    blocked_reason: "Claude-only UI consolidation workflow without a Codex skill contract.",
+    next_command: "$targeted-skill-builder ui-consolidate benchmark coverage",
+  },
+};
 
 export const BENCH_COVERAGE_SKILLS = [
   "affected",
@@ -174,6 +249,19 @@ export const BENCH_COVERAGE_SKILLS = [
 ] as const;
 
 const COVERAGE_OVERRIDES: Record<string, Partial<BenchCoverageRow>> = {
+  ...Object.fromEntries(TIER23_GLOBAL_CUSTOM_SKILLS.map((skill) => [skill, {
+    coverage_status: "custom",
+    setup_path: TIER23_GLOBAL_SETUP_PATH,
+    priority_tier: 2,
+    fixture_type: "global-workflow-fixture",
+  }] satisfies [string, Partial<BenchCoverageRow>])),
+  ...Object.fromEntries(Object.entries(TIER23_GLOBAL_BLOCKED_SKILLS).map(([skill, blocked]) => [skill, {
+    coverage_status: "blocked",
+    priority_tier: 2,
+    agent_scope: "codex",
+    fixture_type: "blocked-external-or-claude-only",
+    ...blocked,
+  }] satisfies [string, Partial<BenchCoverageRow>])),
   "benchmark-test-skill": {
     coverage_status: "custom",
     setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
@@ -317,6 +405,14 @@ export function validateBenchmarkCoverage(
 }
 
 export function discoverRepositorySkills(): Map<string, string[]> {
+  return new Map(discoverRepositorySkillsCached());
+}
+
+let repositorySkillsCache: Map<string, string[]> | undefined;
+
+function discoverRepositorySkillsCached(): Map<string, string[]> {
+  if (repositorySkillsCache) return repositorySkillsCache;
+
   const skills = new Map<string, string[]>();
   for (const skillPath of skillPaths()) {
     const name = frontmatterName(skillPath);
@@ -325,7 +421,8 @@ export function discoverRepositorySkills(): Map<string, string[]> {
     paths.push(relative(REPO_ROOT, skillPath));
     skills.set(name, paths.sort());
   }
-  return new Map([...skills.entries()].sort(([a], [b]) => a.localeCompare(b)));
+  repositorySkillsCache = new Map([...skills.entries()].sort(([a], [b]) => a.localeCompare(b)));
+  return repositorySkillsCache;
 }
 
 function skillPaths(): string[] {
