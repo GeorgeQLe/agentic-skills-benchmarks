@@ -11,7 +11,7 @@ The current benchmark harness can run every repository skill because unknown ski
 - Provide custom Codex benchmark setups for every skill under `global/` and `packs/`.
 - Prioritize highest-use and highest-risk skills first, without changing the end state: all skills get custom setups.
 - Keep generic smoke benchmarks available while rollout is incomplete.
-- Record coverage status in a durable matrix so custom, generic, blocked, and not-started states are visible.
+- Record coverage status in a durable matrix so custom, generic, and blocked states are visible.
 - Add a forward contract so every future skill creation includes a benchmark test setup or a documented blocked status.
 - Keep benchmark work local to the existing harness and skill contracts.
 
@@ -46,15 +46,16 @@ Required fields:
 |---|---|
 | `skill` | Frontmatter skill name. |
 | `source_paths` | Claude/Codex/global/pack skill source paths that share the skill name. |
-| `coverage_status` | `custom`, `generic`, `blocked`, or `not_started`. |
+| `coverage_status` | `custom`, `generic`, or `blocked`. |
 | `setup_path` | Custom layer4 setup path when present. |
 | `priority_tier` | Rollout priority tier. |
 | `agent_scope` | `codex`, `claude`, or `both`; first pass defaults to `codex`. |
 | `fixture_type` | Artifact, planning, interview, research, mutation-safe, external-blocked, or other local category. |
 | `blocked_reason` | Required when status is `blocked`. |
+| `next_command` | Recommended next command when status is `blocked`. |
 | `last_verified` | Date or report reference for the last successful custom benchmark validation. |
 
-The matrix may be committed as JSON, Markdown, or both. The implementation should prefer a machine-readable source with a Markdown summary if both are useful.
+The matrix is implemented as a TypeScript constant array in `tests/harness/bench-coverage.ts` with compile-time validation.
 
 ## Custom Setup Pattern
 
