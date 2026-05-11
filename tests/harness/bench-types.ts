@@ -94,3 +94,14 @@ export interface SkillBenchSetup {
   setupProject(workDir: string): void;
   assertResult(result: RunResult): Assertion[];
 }
+
+export type ResolvedBenchCoverageStatus = "custom" | "generic" | "blocked";
+
+export interface ResolvedBenchTarget {
+  skill: string;
+  coverageStatus: ResolvedBenchCoverageStatus;
+  setup?: SkillBenchSetup;
+  setupPath?: string;
+  blockedReason?: string;
+  nextCommand?: string;
+}

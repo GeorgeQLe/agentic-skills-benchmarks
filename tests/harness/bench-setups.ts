@@ -3,7 +3,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { designSystemSetup } from "../layer4/setups/design-system.setup.js";
 import { designSystemDraftstonkSetup } from "../layer4/setups/design-system-draftstonk.setup.js";
-import type { SkillBenchSetup } from "./bench-types.js";
+import { benchmarkCoverageMatrix, type BenchCoverageRow } from "./bench-coverage.js";
+import type { ResolvedBenchTarget, SkillBenchSetup } from "./bench-types.js";
 import type { Assertion, RunResult } from "./types.js";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -14,13 +15,50 @@ export const CUSTOM_BENCH_SETUPS: Record<string, SkillBenchSetup> = {
 };
 
 export function supportedBenchSkills(): string[] {
-  return allRepositorySkillNames();
+  return benchmarkCoverageMatrix().map((row) => row.skill).sort();
+}
+
+export function supportedBenchSkillRows(): BenchCoverageRow[] {
+  return benchmarkCoverageMatrix().sort((a, b) => a.skill.localeCompare(b.skill));
+}
+
+export function resolveBenchTarget(
+  skill: string,
+  rows: BenchCoverageRow[] = benchmarkCoverageMatrix(),
+): ResolvedBenchTarget | undefined {
+  const coverage = rows.find((row) => row.skill === skill);
+  if (!coverage) return undefined;
+
+  if (coverage.coverage_status === "blocked") {
+    return {
+      skill,
+      coverageStatus: "blocked",
+      setupPath: coverage.setup_path,
+      blockedReason: coverage.blocked_reason,
+      nextCommand: coverage.next_command,
+    };
+  }
+
+  const customSetup = CUSTOM_BENCH_SETUPS[skill];
+  if (coverage.coverage_status === "custom") {
+    return {
+      skill,
+      coverageStatus: "custom",
+      setup: customSetup,
+      setupPath: coverage.setup_path,
+    };
+  }
+
+  return {
+    skill,
+    coverageStatus: "generic",
+    setup: customSetup ?? genericBenchSetup(skill),
+    setupPath: coverage.setup_path,
+  };
 }
 
 export function resolveBenchSetup(skill: string): SkillBenchSetup | undefined {
-  return CUSTOM_BENCH_SETUPS[skill] ?? (
-    allRepositorySkillNames().includes(skill) ? genericBenchSetup(skill) : undefined
-  );
+  return resolveBenchTarget(skill)?.setup;
 }
 
 export function allRepositorySkillNames(): string[] {
