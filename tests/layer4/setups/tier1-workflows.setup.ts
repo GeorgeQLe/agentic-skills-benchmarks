@@ -385,14 +385,12 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["missing setup_path", "run.setup.ts", "coverage_status: \"custom\""],
       specificMarkers: ["Root Cause", "Prevention", "missing setup_path"],
-      nextRoute: "$run",
       coreTraitId: "root-cause-specificity",
       coreTraitDescription: "Identifies the concrete failure cause and prevention path",
       coreTraits: ["Strategy Used", "Root Cause", "Fix Applied", "Prevention"],
       validationPatterns: [/missing setup_path|run\.setup\.ts/i],
       concreteFiles: ["logs/failure.txt", "tests/harness/bench-coverage.ts"],
     }),
-    recommendedRoute: "$run",
   },
   {
     skill: "session-triage",
