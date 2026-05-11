@@ -9,6 +9,14 @@ import {
   readGeneratedFile,
 } from "../../setup-helpers/artifacts.js";
 import { BENCH_BUDGETS_USD, BENCH_TIMEOUTS_MS } from "../../setup-helpers/budgets.js";
+import {
+  createSetupQualityEvaluator,
+  forbiddenFabricationCriterion,
+  nextRouteCriterion,
+  referenceTraitCriterion,
+  requiredFactCoverageCriterion,
+  specificityCriterion,
+} from "../../setup-helpers/quality.js";
 import { assertNextCommand } from "../../setup-helpers/routing.js";
 
 interface PackWorkflowDefinition {
@@ -18,6 +26,79 @@ interface PackWorkflowDefinition {
   inputs: string[];
   expectedPattern: RegExp;
 }
+
+const packFamilyContexts: Record<string, { id: string; facts: string[]; traits: string[] }> = {
+  "alignment-loop": {
+    id: "alignment-loop-context",
+    facts: ["evidence", "assumption"],
+    traits: ["adversarial", "scope", "decision"],
+  },
+  "business-discovery": {
+    id: "business-discovery-context",
+    facts: ["customer", "positioning"],
+    traits: ["market", "customer", "evidence"],
+  },
+  "business-growth": {
+    id: "business-growth-context",
+    facts: ["metric", "growth"],
+    traits: ["experiment", "channel", "conversion"],
+  },
+  "business-ops": {
+    id: "business-ops-context",
+    facts: ["risk", "validation"],
+    traits: ["owner", "metric", "cadence"],
+  },
+  "code-quality": {
+    id: "code-quality-context",
+    facts: ["quality", "validation"],
+    traits: ["regression", "test", "risk"],
+  },
+  "creator-foundation": {
+    id: "creator-media-context",
+    facts: ["evidence", "audience"],
+    traits: ["creator", "platform", "provenance"],
+  },
+  devtool: {
+    id: "devtool-context",
+    facts: ["developer", "validation"],
+    traits: ["install", "workflow", "adoption"],
+  },
+  game: {
+    id: "game-context",
+    facts: ["game", "player"],
+    traits: ["playtest", "loop", "prototype"],
+  },
+  kanban: {
+    id: "kanban-context",
+    facts: ["kanban", "card"],
+    traits: ["board", "lane", "handoff"],
+  },
+  monorepo: {
+    id: "monorepo-context",
+    facts: ["monorepo", "validation"],
+    traits: ["package", "workspace", "lane"],
+  },
+  "poketowork-kanban": {
+    id: "kanban-context",
+    facts: ["kanban", "board"],
+    traits: ["card", "roadmap", "sync"],
+  },
+  "project-fleet": {
+    id: "project-fleet-context",
+    facts: ["project", "fleet"],
+    traits: ["inventory", "repository", "staleness"],
+  },
+  remotion: {
+    id: "remotion-context",
+    facts: ["video", "script"],
+    traits: ["scene", "format", "render"],
+  },
+  "youtube-ops": {
+    id: "youtube-ops-context",
+    facts: ["youtube", "audit"],
+    traits: ["channel", "video", "retention"],
+  },
+};
 
 function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBenchSetup {
   const outputPath = "pack-benchmark-output.md";
@@ -36,6 +117,7 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
     ].join("\n"),
     perRunBudgetUsd: BENCH_BUDGETS_USD.smoke,
     timeoutMs: BENCH_TIMEOUTS_MS.smoke,
+    qualityEvaluator: createPackQualityEvaluator(definition),
 
     setupProject(workDir: string): void {
       mkdirSync(join(workDir, "fixtures"), { recursive: true });
@@ -83,6 +165,77 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
       return assertions;
     },
   };
+}
+
+function createPackQualityEvaluator(definition: PackWorkflowDefinition) {
+  const familyContext = packFamilyContexts[definition.pack] ?? {
+    id: "pack-family-context",
+    facts: [definition.pack],
+    traits: [definition.focus],
+  };
+
+  return createSetupQualityEvaluator({
+    id: `${definition.skill}-pack-quality`,
+    minimumScore: 0.75,
+    criteria: [
+      requiredFactCoverageCriterion({
+        id: "pack-skill-context",
+        description: "Names the exact pack and skill under benchmark.",
+        weight: 2,
+        critical: true,
+        facts: [definition.pack, definition.skill],
+      }),
+      requiredFactCoverageCriterion({
+        id: "pack-fixture-evidence",
+        description: "Uses deterministic local fixture evidence instead of generic pack prose.",
+        weight: 2,
+        critical: true,
+        facts: ["local-fixture", ...definition.inputs.slice(0, 2)],
+      }),
+      specificityCriterion({
+        id: "pack-practical-risk-or-validation",
+        description: "Includes a practical risk, assumption, or validation detail for the pack workflow.",
+        weight: 1,
+        requiredAny: ["risk", "risks", "assumption", "assumptions", "validation", "validate", "metric", "evidence"],
+        forbiddenPhrases: ["best practices", "industry-leading", "comprehensive strategy"],
+      }),
+      nextRouteCriterion({
+        id: "pack-next-route",
+        description: "Provides a concrete next command handoff.",
+        weight: 1,
+        route: "$run",
+      }),
+      requiredFactCoverageCriterion({
+        id: familyContext.id,
+        description: "Uses pack-family domain context tied to the benchmark fixture.",
+        weight: 1,
+        facts: familyContext.facts,
+      }),
+      referenceTraitCriterion({
+        id: "pack-workflow-traits",
+        description: "References practical traits expected for this pack family.",
+        weight: 1,
+        traits: [definition.focus, ...familyContext.traits],
+      }),
+      forbiddenFabricationCriterion({
+        id: "no-generic-or-external-pack-overreach",
+        description: "Avoids fabricated external systems and generic unsupported claims.",
+        weight: 2,
+        critical: true,
+        forbidden: [
+          "google analytics",
+          "stripe dashboard",
+          "salesforce",
+          "hubspot",
+          "github actions",
+          "api dashboard",
+          "industry-leading",
+          "best-in-class",
+          "proprietary data",
+        ],
+      }),
+    ],
+  });
 }
 
 const packWorkflowDefinitions: PackWorkflowDefinition[] = [
