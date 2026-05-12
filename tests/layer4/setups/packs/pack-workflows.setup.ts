@@ -328,6 +328,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "youtube-audit", pack: "youtube-ops", focus: "YouTube audit", inputs: ["Channel snapshot", "Recent video list"], expectedPattern: /youtube|audit|channel/i },
   { skill: "youtube-cadence-diagnosis", pack: "youtube-ops", focus: "YouTube cadence diagnosis", inputs: ["Upload dates", "Format mix"], expectedPattern: /youtube|cadence|upload/i },
   { skill: "youtube-channel-audit", pack: "youtube-ops", focus: "YouTube channel audit", inputs: ["About page", "Top videos"], expectedPattern: /youtube|channel|audit/i },
+  { skill: "youtube-concept-research", pack: "youtube-ops", focus: "YouTube concept research", inputs: ["Video concept", "Comparable themes"], expectedPattern: /youtube|concept|research/i },
   { skill: "youtube-competitive-research", pack: "youtube-ops", focus: "YouTube competitive research", inputs: ["Peer channel A", "Peer channel B"], expectedPattern: /youtube|competitive|peer/i },
   { skill: "youtube-description-optimizer", pack: "youtube-ops", focus: "YouTube description optimization", inputs: ["Draft description", "Links"], expectedPattern: /youtube|description|optimi/i },
   { skill: "youtube-format-research", pack: "remotion", focus: "YouTube format research", inputs: ["Reference video", "Format notes"], expectedPattern: /youtube|format|research/i },
