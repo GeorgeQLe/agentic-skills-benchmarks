@@ -442,21 +442,21 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "benchmark-test-skill",
     outputPath: "benchmark/test-run-2026-05-11.md",
-    prompt: "You have the benchmark-test-skill skill installed. Using bench-output.txt and verify-output.txt, write benchmark/test-run-2026-05-11.md with verify status, benchmark pass rate, latency, cost, raw session path, source file names, report path, and a literal `Recommended next command:` line. Use your runner's command convention for the route: Claude `/ship`, Codex `$ship`. Do not run pnpm.",
+    prompt: "You have the benchmark-test-skill skill installed. Using bench-output.txt and verify-output.txt, write benchmark/test-run-2026-05-11.md with verify status, benchmark pass rate, latency, cost, raw session path, source file names, report path, and a literal `Recommended next command:` line. Use your runner's command convention for the route, regardless of fixture file names or raw session path text: Claude `/ship`, Codex `$ship`. Do not run pnpm.",
     fixtureFiles: {
       "verify-output.txt": "layer1 PASS in 7.1s\nlayer2 SKIPPED no tests matched run\n",
-      "bench-output.txt": "Benchmark coverage for run: custom\npassRate=1.0 p50=1200 totalCost=0.42 raw=tests/benchmarks/runs/run-codex-abc/report.json\n",
+      "bench-output.txt": "Benchmark coverage for run: custom\npassRate=1.0 p50=1200 totalCost=0.42 raw=tests/benchmarks/runs/run-agent-abc/report.json\n",
     },
     expectedIncludes: ["verify", "pass rate", "latency", "cost", "raw session path", "bench-output.txt", "verify-output.txt"],
-    expectedPattern: /custom|1\.0|run-codex-abc/i,
+    expectedPattern: /custom|1\.0|run-agent-abc/i,
     qualityEvaluator: workflowQualityEvaluator({
-      evidenceFacts: ["layer1 PASS", "p50", "1200", "0.42", "run-codex-abc"],
+      evidenceFacts: ["layer1 PASS", "p50", "1200", "0.42", "run-agent-abc"],
       specificMarkers: ["verify", "pass rate", "latency", "cost", "raw session path"],
       nextRoutes: ["/ship", "$ship"],
       coreTraitId: "benchmark-evidence-reporting",
       coreTraitDescription: "Reports benchmark evidence without overstating the result",
       coreTraits: ["verify status", "benchmark pass rate", "latency", "cost", "raw session path"],
-      validationPatterns: [/passRate=1\.0|1\.0|100/i, /run-codex-abc/i],
+      validationPatterns: [/passRate=1\.0|1\.0|100/i, /run-agent-abc/i],
       concreteFiles: ["bench-output.txt", "verify-output.txt", "benchmark/test-run-2026-05-11.md"],
     }),
     recommendedRoutes: {
