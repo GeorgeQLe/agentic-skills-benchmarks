@@ -66,10 +66,6 @@ const TIER23_GLOBAL_CUSTOM_SKILLS = [
 ] as const;
 
 const TIER23_GLOBAL_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason" | "next_command">> = {
-  "commit-and-push-by-feature": {
-    blocked_reason: "Requires real git commit/push mutation against the primary branch, which is unsafe for deterministic benchmark runs.",
-    next_command: "$guide commit-and-push-by-feature benchmark fixture",
-  },
   "delegate": {
     blocked_reason: "Claude-only orchestration skill with subagent dispatch semantics that Codex benchmarks cannot execute directly.",
     next_command: "$targeted-skill-builder delegate benchmark coverage",
@@ -364,6 +360,13 @@ const COVERAGE_OVERRIDES: Record<string, Partial<BenchCoverageRow>> = {
     agent_scope: "codex",
     fixture_type: "pack-local-fixture",
   }] satisfies [string, Partial<BenchCoverageRow>])),
+  "commit-and-push-by-feature": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/git-fixture-commit-and-push.setup.ts",
+    priority_tier: 2,
+    agent_scope: "both",
+    fixture_type: "git-disposable-repo-fixture",
+  },
   "benchmark-test-skill": {
     coverage_status: "custom",
     setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
