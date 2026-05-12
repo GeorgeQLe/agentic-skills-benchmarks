@@ -1,9 +1,12 @@
 import type { Assertion } from "../../harness/types.js";
 
+export const nextCommandHandoffPattern =
+  /(?:^|\n)\s*(?:[-*]\s*)?(?:#{1,6}\s*)?(?:(?:recommended\s+)?next\s+(?:command|skill)(?:\s+line)?|next\s+work)\b\s*:?\s*(?:\n|`|\$|\/|\S)/i;
+
 export function assertNextCommand(content: string): Assertion {
   return {
     description: "Output includes next command handoff",
-    pass: /(?:^|\n)\s*(?:[-*]\s*)?(?:#{1,6}\s*)?(?:recommended\s+)?next command(?:\s+line)?\b\s*:?\s*(?:\n|`|\$)/i.test(content),
+    pass: nextCommandHandoffPattern.test(content),
   };
 }
 

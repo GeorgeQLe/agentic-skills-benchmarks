@@ -4,6 +4,7 @@ import {
   type QualityRubric,
 } from "../../harness/bench-quality.js";
 import type { QualityCriterion, QualityEvaluator } from "../../harness/bench-types.js";
+import { nextCommandHandoffPattern } from "./routing.js";
 
 type CriterionOptions = {
   id: string;
@@ -94,8 +95,8 @@ export function nextRouteCriterion(options: CriterionOptions & { route?: string 
   return requiredPatternCriterion({
     ...options,
     patterns: routes.length > 0
-      ? [/next\s+command/i, new RegExp(routes.map(escapeRegExp).join("|"), "i")]
-      : [/next\s+command/i],
+      ? [nextCommandHandoffPattern, new RegExp(routes.map(escapeRegExp).join("|"), "i")]
+      : [nextCommandHandoffPattern],
   });
 }
 
