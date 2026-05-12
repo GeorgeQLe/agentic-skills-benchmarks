@@ -30,6 +30,7 @@ interface Tier1WorkflowDefinition {
   expectedIncludes: string[];
   expectedPattern?: RegExp;
   perRunBudgetUsd?: number;
+  timeoutMs?: number;
   recommendedRoute?: string;
   recommendedRoutes?: Partial<Record<BenchAgent, string>>;
   qualityEvaluator?: SkillBenchSetup["qualityEvaluator"];
@@ -139,7 +140,7 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
     skill: definition.skill,
     prompt: definition.prompt,
     perRunBudgetUsd: definition.perRunBudgetUsd ?? BENCH_BUDGETS_USD.smoke,
-    timeoutMs: BENCH_TIMEOUTS_MS.smoke,
+    timeoutMs: definition.timeoutMs ?? BENCH_TIMEOUTS_MS.smoke,
     qualityOutputPath: definition.outputPath,
     qualityEvaluator: definition.qualityEvaluator,
 
@@ -449,6 +450,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
     expectedIncludes: ["verify", "pass rate", "latency", "cost", "raw session path", "bench-output.txt", "verify-output.txt"],
     expectedPattern: /custom|1\.0|run-agent-abc/i,
+    timeoutMs: BENCH_TIMEOUTS_MS.focused,
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["layer1 PASS", "p50", "1200", "0.42", "run-agent-abc"],
       specificMarkers: ["verify", "pass rate", "latency", "cost", "raw session path"],
