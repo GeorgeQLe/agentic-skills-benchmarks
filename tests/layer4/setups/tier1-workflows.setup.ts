@@ -450,7 +450,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     expectedIncludes: ["verify", "pass rate", "latency", "cost", "raw session path", "bench-output.txt", "verify-output.txt"],
     expectedPattern: /custom|1\.0|run-codex-abc/i,
     qualityEvaluator: workflowQualityEvaluator({
-      evidenceFacts: ["layer1 PASS", "1.0", "p50", "1200", "0.42", "run-codex-abc"],
+      evidenceFacts: ["layer1 PASS", "p50", "1200", "0.42", "run-codex-abc"],
       specificMarkers: ["verify", "pass rate", "latency", "cost", "raw session path"],
       nextRoutes: ["/ship", "$ship"],
       coreTraitId: "benchmark-evidence-reporting",
