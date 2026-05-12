@@ -443,7 +443,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "benchmark-test-skill",
     outputPath: "benchmark/test-run-2026-05-11.md",
-    prompt: "You have the benchmark-test-skill skill installed. Using bench-output.txt and verify-output.txt, write benchmark/test-run-2026-05-11.md with exact evidence from the fixture: `layer1 PASS`, `layer2 SKIPPED`, `passRate=1.0` or `100%`, `p50=1200`, `totalCost=0.42`, raw session path `run-agent-abc`, source file names, literal report path `benchmark/test-run-2026-05-11.md`, and a literal `Recommended next command:` line. Use your runner's command convention for the route, regardless of fixture file names or raw session path text: Claude `/ship`, Codex `$ship`. Do not run pnpm.",
+    prompt: "You have the benchmark-test-skill skill installed. Use only bench-output.txt and verify-output.txt; do not search the repository, read extra skill files, or run pnpm. Write benchmark/test-run-2026-05-11.md as a structured benchmark report with `## Verify`, `## Benchmark Metrics`, `## Raw Evidence`, and `## Next Route` sections. Use Markdown tables for the verify and benchmark metrics sections. Include exact evidence from the fixture: `layer1 PASS`, `layer2 SKIPPED`, `passRate=1.0` or `100%`, `p50=1200`, `totalCost=0.42`, raw session path `run-agent-abc`, source file names, literal report path `benchmark/test-run-2026-05-11.md`, and a literal `Recommended next command:` line. Use your runner's command convention for the route, regardless of fixture file names or raw session path text: Claude `/ship`, Codex `$ship`.",
     fixtureFiles: {
       "verify-output.txt": "layer1 PASS in 7.1s\nlayer2 SKIPPED no tests matched run\n",
       "bench-output.txt": "Benchmark coverage for run: custom\npassRate=1.0 p50=1200 totalCost=0.42 raw=tests/benchmarks/runs/run-agent-abc/report.json\n",
@@ -451,6 +451,11 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     expectedIncludes: [
       "layer1 PASS",
       "layer2 SKIPPED",
+      "## Verify",
+      "## Benchmark Metrics",
+      "## Raw Evidence",
+      "## Next Route",
+      "|",
       "p50=1200",
       "totalCost=0.42",
       "raw session path",
@@ -459,16 +464,16 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       "verify-output.txt",
       "benchmark/test-run-2026-05-11.md",
     ],
-    expectedPattern: /(?:passRate=1\.0|100%)/i,
-    timeoutMs: BENCH_TIMEOUTS_MS.focused,
+    expectedPattern: /## Verify[\s\S]*\|[\s\S]*(?:layer1 PASS)[\s\S]*## Benchmark Metrics[\s\S]*\|[\s\S]*(?:passRate=1\.0|100%)[\s\S]*## Raw Evidence[\s\S]*run-agent-abc[\s\S]*## Next Route/i,
+    timeoutMs: BENCH_TIMEOUTS_MS.standard,
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["layer1 PASS", "p50", "1200", "0.42", "run-agent-abc"],
       specificMarkers: ["verify", "pass rate", "latency", "cost", "raw session path"],
       nextRoutes: ["/ship", "$ship"],
       coreTraitId: "benchmark-evidence-reporting",
-      coreTraitDescription: "Reports benchmark evidence without overstating the result",
-      coreTraits: ["verify status", "benchmark pass rate", "latency", "cost", "raw session path"],
-      validationPatterns: [/passRate=1\.0|1\.0|100/i, /run-agent-abc/i],
+      coreTraitDescription: "Reports benchmark evidence in a structured operator-readable format without overstating the result",
+      coreTraits: ["layer1 PASS", "passRate", "p50", "totalCost", "raw session path", "## Verify", "## Benchmark Metrics"],
+      validationPatterns: [/passRate=1\.0|1\.0|100/i, /run-agent-abc/i, /## Verify[\s\S]*\|[\s\S]*## Benchmark Metrics[\s\S]*\|/i],
       concreteFiles: ["bench-output.txt", "verify-output.txt", "benchmark/test-run-2026-05-11.md"],
     }),
     recommendedRoutes: {
