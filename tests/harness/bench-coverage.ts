@@ -86,10 +86,6 @@ const TIER23_GLOBAL_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "block
     blocked_reason: "May create tags, version bumps, and publishable release artifacts; deterministic coverage needs a dry-run fixture first.",
     next_command: "$targeted-skill-builder release benchmark coverage",
   },
-  "sync": {
-    blocked_reason: "Requires live remote git fetch/pull state and can mutate the worktree from the network.",
-    next_command: "$targeted-skill-builder sync benchmark coverage",
-  },
   "uat-guide": {
     blocked_reason: "Claude-only manual UAT guidance skill without a Codex skill contract.",
     next_command: "$targeted-skill-builder uat-guide benchmark coverage",
@@ -363,6 +359,13 @@ const COVERAGE_OVERRIDES: Record<string, Partial<BenchCoverageRow>> = {
   "commit-and-push-by-feature": {
     coverage_status: "custom",
     setup_path: "tests/layer4/setups/git-fixture-commit-and-push.setup.ts",
+    priority_tier: 2,
+    agent_scope: "both",
+    fixture_type: "git-disposable-repo-fixture",
+  },
+  "sync": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/git-fixture-sync.setup.ts",
     priority_tier: 2,
     agent_scope: "both",
     fixture_type: "git-disposable-repo-fixture",
