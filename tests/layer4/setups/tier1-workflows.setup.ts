@@ -367,14 +367,13 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["benchmark coverage status", "reports", "list output"],
       specificMarkers: ["Overview", "Detailed Design", "Test Plan", "Acceptance Criteria"],
-      nextRoute: "$plan-phase",
+      nextRoute: "$roadmap",
       coreTraitId: "spec-completeness",
       coreTraitDescription: "Produces a complete implementation-ready spec from the draft",
       coreTraits: ["Overview", "Goals", "Non-Goals", "Detailed Design", "Edge Cases", "Test Plan", "Acceptance Criteria", "Assumptions & Risks"],
       validationPatterns: [/Test Plan|Acceptance Criteria/i],
-      concreteFiles: ["specs/draft.md", "specs/benchmark-reporting.md"],
     }),
-    recommendedRoute: "$plan-phase",
+    recommendedRoute: "$roadmap",
   },
   {
     skill: "investigate",
