@@ -8,23 +8,22 @@ Command: `$session-triage session-triage benchmark failure`
 Scope:
 
 - Benchmark report: `benchmark/test-session-triage-2026-05-13.md`
-- Persisted benchmark artifacts:
-  - `tests/benchmarks/runs/session-triage-claude-49cd4515/`
-  - `tests/benchmarks/runs/session-triage-codex-2717976e/`
-  - `tests/benchmarks/runs/session-triage-claude-790af5f0/`
-  - `tests/benchmarks/runs/session-triage-codex-1bc38d04/`
+- Current persisted benchmark artifacts:
+  - `tests/benchmarks/runs/session-triage-claude-7a8b6de9/`
+  - `tests/benchmarks/runs/session-triage-codex-fbec4404/`
 - Skill contracts:
   - `global/codex/session-triage/SKILL.md`
   - `global/claude/session-triage/SKILL.md`
-- Benchmark fixture and route helpers:
+- Benchmark fixture and tests:
   - `tests/layer4/setups/tier1-workflows.setup.ts`
-  - `tests/layer4/setup-helpers/routing.ts`
-  - `tests/layer4/setup-helpers/quality.ts`
-- Relevant lesson: `tasks/lessons.md`, "Benchmarks must respect Claude slash and Codex dollar route conventions"
+  - `tests/layer1/bench-setups.test.ts`
+- Relevant lessons:
+  - `tasks/lessons.md`, "Review reports need remediation-ready next steps"
+  - `tasks/lessons.md`, "Benchmark execution and subjective review are separate steps"
 
 ## User-Identified Issue
 
-The fresh `$benchmark-test-skill session-triage` run failed its deterministic hard assertions and routed to `$session-triage session-triage benchmark failure`.
+The current `$benchmark-test-skill session-triage` run failed and routed to `$session-triage session-triage benchmark failure`.
 
 ## Verification Verdict
 
@@ -32,63 +31,60 @@ Verdict: verified.
 
 Evidence:
 
-- Verify passed before benchmarking: layer1 passed, layer2 was skipped because no target-specific layer2 tests matched `session-triage`.
-- Initial benchmark results:
-  - Claude: 0/2 evaluated hard assertions, 1 infrastructure-blocked run.
-  - Codex: 2/3 evaluated hard assertions.
-- Latest persisted benchmark results reflected by `benchmark/test-session-triage-2026-05-13.md`:
-  - Claude: 0/2 evaluated hard assertions, 1 infrastructure-blocked run.
-  - Codex: 3/3 evaluated hard assertions.
-- Every evaluated hard assertion failure was `Output recommends $targeted-skill-builder`.
-- The `session-triage` skill contract says not to recommend a skill change when evidence points only to one-off agent noncompliance and the contract is already clear.
-- The fixture scenario is exactly that shape: `session-log.md` says an agent skipped planned validation, and `tasks/lessons.md` already says to run required validation before shipping.
-- The fixture nevertheless hard-codes `recommendedRoute: "$targeted-skill-builder"` and quality `nextRoute: "$targeted-skill-builder"`.
-- Claude outputs recommended `/targeted-skill-builder ...`, which follows the Claude slash-command convention but failed the hard assertion because `assertRecommendedRoute` checks for the literal dollar route.
-- One earlier Codex run recommended `none` / rerun validation instead of `$targeted-skill-builder`, which is consistent with the no-contract-change branch of the `session-triage` contract but inconsistent with the fixture's hard-coded route. The latest Codex session passed all hard assertions.
+- Verify passed before benchmarking: layer1 passed 1,350 tests in 8.4s; layer2 was skipped because no target-specific layer2 tests matched `session-triage`.
+- The current report shows no infrastructure-blocked runs.
+- Claude passed 3/3 hard assertions but had 68.4% output quality, 3 threshold failures, and 4 critical failures.
+- Codex passed 2/3 hard assertions with one failed assertion: `session-triage-report.md created in project root`.
+- `tests/benchmarks/runs/session-triage-codex-fbec4404/run-000.json` shows Codex exited successfully after reading the `session-triage` contract, `session-log.md`, `tasks/lessons.md`, and git status, but produced no `session-triage-report.md`.
+- The same Codex run hit the 180,000ms benchmark timeout exactly enough to return an exit code of 0 without the required artifact, making this a hard benchmark failure rather than an infrastructure-blocked run.
+- Quality evidence across current runs repeatedly flags `no-over-remediation-route`; Claude runs and Codex run #1 still recommended or conditionally steered toward skill/contract changes after framing the incident as one-off noncompliance or an adequate existing contract.
 
 ## Timeline
 
-1. `$benchmark-test-skill session-triage` confirmed custom benchmark coverage through `tests/layer4/setups/tier1-workflows.setup.ts`.
+1. `$benchmark-test-skill session-triage` confirmed `session-triage` has custom benchmark coverage in `tests/layer4/setups/tier1-workflows.setup.ts`.
 2. `pnpm verify --skill session-triage` passed layer1 and skipped layer2.
-3. `pnpm bench --skill session-triage --agent both --runs 3 --chunk-size 3 --pause 0` executed both runners.
-4. The initial Codex session passed 2/3 evaluated runs; the latest Codex session passed 3/3 evaluated runs.
-5. Claude produced evaluated reports that otherwise matched the fixture but used `/targeted-skill-builder`.
-6. Each Claude session had one infrastructure-blocked run due to agent runner budget.
-7. The harness marked Claude slash-route outputs as failures because it required the literal dollar route.
+3. `pnpm bench --skill session-triage --agent both --runs 3 --chunk-size 3 --pause 0` ran Claude and Codex with 3 iterations each.
+4. Claude completed all 3 hard-assertion runs but received low output-quality scores for over-remediation.
+5. Codex run #0 read narrow evidence but did not write `session-triage-report.md`, causing the hard failure.
+6. Codex runs #1 and #2 wrote reports; run #1 still failed the over-remediation quality criterion, while run #2 matched the intended no-skill-change branch.
+7. The benchmark report routed to this triage because deterministic hard assertions did not fully pass.
 
 ## Root Cause
 
-Primary root cause: benchmark harness fixture mismatch with the `session-triage` skill contract.
+Primary root cause: benchmark fixture robustness gap.
 
-The fixture asks `session-triage` to investigate a one-off validation skip where the existing `$run` contract and `tasks/lessons.md` are already adequate. The `session-triage` contract explicitly says not to recommend a skill change in that situation. A report that recommends no skill change can therefore be contract-compliant, but the benchmark hard assertion requires `$targeted-skill-builder`.
+The `session-triage` skill contracts already require the behavior the benchmark wants: start narrow, verify evidence, classify agent noncompliance with an adequate contract directly, and do not recommend a skill change for one-off noncompliance. The current hard failure is that one Codex run spent the whole 180s benchmark window gathering narrow evidence and never wrote the required report artifact. The fixture prompt asks for a report, but it does not force a bounded evidence pass or "write before optional exploration" behavior.
 
-Secondary root cause: the tier1 fixture does not use runner-specific route expectations for `session-triage`. Claude slash-command outputs failed because `assertRecommendedRoute` looked only for `$targeted-skill-builder`, despite the existing project lesson that Claude benchmarks should expect slash commands and Codex benchmarks should expect dollar commands.
+Secondary root cause: the benchmark fixture still leaves too much ambiguity around the no-skill-change branch. The fixture evidence is intentionally small: `session-log.md` says `$run` skipped coverage matrix validation, and `tasks/lessons.md` says required validation must run before shipping. That is enough to diagnose a validation-skip incident, but the benchmark expects agents to infer that this is one-off noncompliance with an adequate validation contract. Some runs still over-remediate by recommending `$targeted-skill-builder` or `/targeted-skill-builder` for `$run` even after recognizing the existing validation contract.
+
+This is not a mirrored `session-triage` contract drift. The Claude and Codex contracts are aligned except for expected slash versus dollar command syntax.
 
 ## Responsible Contract Gap
 
-Responsible gap: benchmark setup, not the `session-triage` skill contract.
+Responsible gap: benchmark setup and layer1 regression coverage, not the global `session-triage` skill contract.
 
 Files:
 
 - `tests/layer4/setups/tier1-workflows.setup.ts`
 - `tests/layer1/bench-setups.test.ts`
 
-No mirrored drift was found in the `global/codex/session-triage` and `global/claude/session-triage` contracts beyond expected `$` versus `/` command syntax.
+No project instruction or task-doc change is needed for the target skill itself.
 
 ## Recommended Fix
 
-Route to `$targeted-skill-builder session-triage benchmark fixture routing` for a narrow harness update.
+Route to `$targeted-skill-builder session-triage benchmark fixture robustness` for a narrow harness update.
 
-Recommended implementation options, in priority order:
+Recommended behavior change:
 
-1. Align the fixture with the current `session-triage` contract by removing the hard-coded `recommendedRoute` for `session-triage` and allowing a final next route of `none` when the report finds one-off noncompliance with an adequate contract.
-2. If the benchmark intentionally wants `$targeted-skill-builder`, rewrite the fixture evidence so the incident contains a real skill-contract gap. For example, make `tasks/lessons.md` show no existing lesson and make the relevant skill contract omit a required validation gate.
-3. If the fixture keeps a route assertion, use runner-specific route expectations:
-   - Claude: `/targeted-skill-builder`
-   - Codex: `$targeted-skill-builder`
-   Also update the quality route criterion to accept both forms where both runners are benchmarked.
+- Update the `session-triage` benchmark prompt in `tests/layer4/setups/tier1-workflows.setup.ts` to force a bounded evidence pass and report creation before optional exploration. Suggested wording:
 
-The cleanest fix is option 1 because it preserves the current fixture's actual evidence and the `session-triage` contract's "do not recommend a skill change for one-off noncompliance" rule.
+  ```text
+  You have the session-triage skill installed. Read session-log.md and tasks/lessons.md, then write session-triage-report.md in the project root before doing any optional exploration. Keep the report evidence-bound. Include Target, User-identified issue, Verification verdict, Timeline, Root cause, Responsible contract gap, Recommended fix, Validation plan, Confidence and evidence gaps, and Recommended next skill. If the evidence points to one-off agent noncompliance with an adequate existing validation rule, recommend no skill change.
+  ```
+
+- Add layer1 coverage proving the prompt contains an explicit root artifact requirement and a no-skill-change branch for one-off noncompliance.
+- Keep the current `no-over-remediation-route` criterion. It is catching real output-quality regressions and should not be weakened.
+- Do not edit `global/codex/session-triage/SKILL.md` or `global/claude/session-triage/SKILL.md` unless a future run shows the same failure despite the bounded fixture prompt.
 
 ## Validation Plan
 
@@ -103,16 +99,25 @@ git diff --check
 
 Specific checks:
 
-- Layer1 asserts `session-triage` no longer hard-requires `$targeted-skill-builder` for the current one-off noncompliance fixture, or asserts a rewritten fixture that actually justifies that route.
-- If route assertions remain, layer1 covers Claude `/targeted-skill-builder` and Codex `$targeted-skill-builder` separately.
-- The quality rubric no longer marks a contract-compliant `Recommended next skill: none` report as a route failure for the current fixture.
+- Layer1 asserts the fixture prompt requires `session-triage-report.md` in the project root.
+- Layer1 asserts the fixture prompt or rubric preserves the no-skill-change branch for one-off noncompliance with an adequate existing validation rule.
+- The one-run Codex smoke creates `session-triage-report.md` and includes the required triage sections.
+- The quality summary still reports over-remediation failures when outputs recommend unconditional skill changes after finding adequate existing validation rules.
 
 ## Confidence And Evidence Gaps
 
-Confidence: high.
+Confidence: high for the hard-failure diagnosis and medium-high for the prompt robustness fix.
 
-Evidence is sufficient from the benchmark report, run artifacts, skill contracts, fixture definition, and existing lessons. No broad `$analyze-sessions` recurrence scan is needed.
+Known:
 
-Evidence gap: the benchmark did not retain full generated report files for the Claude runs as standalone artifacts, but stdout and assertion data were enough to verify the route mismatch.
+- The failed Codex run did not create the required artifact.
+- The benchmark did not classify the run as infrastructure-blocked.
+- The current skill contract already contains the no-over-remediation rule.
+- Current run artifacts show both successful and failed examples, so the fixture is close but not reliable enough.
 
-Recommended next skill: `$targeted-skill-builder session-triage benchmark fixture routing`
+Evidence gaps:
+
+- The benchmark retained transcript JSON, not a standalone partial report for failed Codex run #0, because no report was created.
+- A single failed Codex run does not prove the skill contract is broadly defective; recurrence analysis is not needed before a fixture prompt hardening pass.
+
+Recommended next skill: `$targeted-skill-builder session-triage benchmark fixture robustness`
