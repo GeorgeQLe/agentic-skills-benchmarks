@@ -1,116 +1,119 @@
-# Session Triage: icon-handler benchmark failure
-
-Date: 2026-05-13
-Invocation: `$session-triage icon-handler benchmark failure`
+# Triage: icon-handler Benchmark Failure — 2026-05-13
 
 ## Target
 
-Scope: `icon-handler` benchmark failure from `$benchmark-test-skill icon-handler`.
-
-Evidence sources:
-
-- `benchmark/test-icon-handler-2026-05-13.md`
-- `tests/benchmarks/runs/icon-handler-claude-34290a7e/report.json`
-- `tests/benchmarks/runs/icon-handler-claude-34290a7e/run-000.json`
-- `tests/benchmarks/runs/icon-handler-claude-34290a7e/run-001.json`
-- `tests/benchmarks/runs/icon-handler-codex-eff077f4/report.json`
-- `tests/layer4/setups/tier23-global-workflows.setup.ts`
-- `tests/layer4/setup-helpers/routing.ts`
-- `tests/layer4/setup-helpers/quality.ts`
-- `global/codex/icon-handler/SKILL.md`
-- `global/claude/icon-handler/SKILL.md`
-- `tasks/lessons.md`
+- Scope: `$benchmark-test-skill icon-handler` failure from 2026-05-13.
+- Repository: `/Users/georgele/projects/tools/agentic-skills`
+- Skill under test: `global/claude/icon-handler/SKILL.md` and `global/codex/icon-handler/SKILL.md`
+- Benchmark setup: `tests/layer4/setups/tier23-global-workflows.setup.ts`
+- Persisted run evidence:
+  - `benchmark/test-icon-handler-2026-05-13.md`
+  - `tests/benchmarks/runs/icon-handler-claude-7d05699b/`
+  - `tests/benchmarks/runs/icon-handler-codex-e4f1a34a/`
 
 ## User-Identified Issue
 
-The deterministic `icon-handler` benchmark failed and needs triage.
+`icon-handler` benchmark failed and needs focused triage before remediation.
 
 ## Verification Verdict
 
-Partially verified.
+Verified.
 
-The benchmark failure is real: Claude reported 0.0% hard assertion pass rate across 2 evaluated runs, with 1 infrastructure-blocked run, while Codex reported 100.0% across 3 evaluated runs.
+The benchmark report shows Claude passed 1/3 evaluated hard-assertion runs while Codex passed 3/3, with no infrastructure-blocked runs recorded. Claude failed runs #0 and #1 on:
 
-The failure is not verified as an `icon-handler` skill-contract defect. The Codex and Claude skill contracts are mirrored except for their intended command syntax: Codex uses `$icon-handler`, while Claude uses `/icon-handler`. The passing Claude artifact in `run-000.json` created `icon-audit.md`, included the required fixture facts, and recommended `/icon-handler fix calc-mascot-icon.png`, which matches the Claude skill contract.
+- `Agent command exited successfully`
+- `icon-audit.md created in project root`
+
+The persisted failed Claude run JSON records the same stdout in both failed runs:
+
+```text
+API Error: 400 Could not process image
+```
+
+The failed runs did not produce `icon-audit.md`, so all downstream quality criteria also failed. Claude run #2 did pass by writing `icon-audit.md`, and all Codex runs passed. The passing runs treated `calc-mascot-icon.png` as a fixture placeholder, used local file inspection, identified stale/missing Next App Router icon surfaces, preserved the audit-first approval gate, and recommended the expected next route.
 
 ## Timeline
 
-1. `$benchmark-test-skill icon-handler` resolved `icon-handler` as a custom-covered skill using `tests/layer4/setups/tier23-global-workflows.setup.ts`.
-2. Verify passed layer1 in 8.7s; layer2 skipped because no target-specific layer2 tests matched `icon-handler`.
-3. Claude benchmark session `34290a7e` ran 3 iterations.
-4. Claude run #0 created `icon-audit.md` and produced a valid audit, but failed the hard assertion `Output recommends $icon-handler`.
-5. Claude run #1 exited with `API Error: 400 Could not process image` and did not create `icon-audit.md`.
-6. Claude run #2 was classified as infrastructure-blocked with reason `agent runner budget exceeded`.
-7. Codex benchmark session `eff077f4` ran 3 evaluated iterations and passed all hard assertions.
+1. `$benchmark-test-skill icon-handler` resolved `icon-handler` as a custom benchmark target in `tests/layer4/setups/tier23-global-workflows.setup.ts`.
+2. `pnpm verify --skill icon-handler` passed layer1; layer2 skipped because no target-specific layer2 tests matched.
+3. The benchmark fixture created a Next App Router project with root `calc-mascot-icon.png`, `src/app/favicon.ico`, and `src/app/icon.png` as ASCII placeholder files.
+4. Claude runs #0 and #1 exited before producing the audit artifact with `API Error: 400 Could not process image`.
+5. Claude run #2 and all Codex runs completed by auditing the placeholder files as invalid/stale local files and writing `icon-audit.md`.
+6. The final benchmark report routed to this triage because Claude hard assertions failed.
 
 ## Root Cause
 
-There are two distinct causes:
+The responsible issue is a benchmark fixture robustness gap, not an `icon-handler` skill contract gap.
 
-1. Benchmark setup route mismatch: `tests/layer4/setups/tier23-global-workflows.setup.ts` defines `recommendedRoute: "$icon-handler"` for `icon-handler`. `assertRecommendedRoute` then checks `content.includes("$icon-handler")` for every runner. That is wrong for Claude, whose mirrored skill contract explicitly routes to `/icon-handler fix <asset>`.
-2. Runner/input failure: Claude run #1 failed before skill execution completed with `API Error: 400 Could not process image`. The fixture intentionally writes placeholder text to `calc-mascot-icon.png`, and successful runs treat that as an invalid PNG to audit. This one failure should be tracked as runner/input handling or benchmark-fixture fragility, not as proof that the `icon-handler` contract is wrong.
+The fixture names the source asset `calc-mascot-icon.png` but writes ASCII text (`fixture-png-placeholder`) into that file. For `icon-handler`, the `.png` filename is semantically important because the skill searches root icon-like image filenames. But using invalid image bytes under a `.png` name can trigger runner/tooling behavior that attempts to process the file as an image before the agent can inspect it with `file`, `sips`, or equivalent commands. In the failed Claude runs, that produced an API-level image processing error and prevented the skill workflow from running.
 
-The existing lesson `2026-05-11 - Benchmarks must respect Claude slash and Codex dollar route conventions` already covers the route-mismatch pattern. This incident is another instance of that lesson, not a novel lesson requiring `tasks/lessons.md` changes.
+The mirrored skill contracts are adequate for the intended behavior:
+
+- Both Claude and Codex contracts require read-only audit by default.
+- Both require source asset format/dimension inspection using local tools.
+- Both require reporting missing/stale icon surfaces, proposed writes, verification commands, and approval before modification.
+- Both preserve runner-specific next routes (`/icon-handler` for Claude, `$icon-handler` for Codex).
+
+The benchmark setup recently fixed runner-specific route assertions, and the current failure is different: fixture bytes are not robust for a benchmark runner that may treat `.png` files as image inputs.
 
 ## Responsible Contract Gap
 
-Responsible gap: benchmark harness setup, not `global/codex/icon-handler/SKILL.md` or `global/claude/icon-handler/SKILL.md`.
+Benchmark harness fixture, specifically `tests/layer4/setups/tier23-global-workflows.setup.ts`.
 
-Exact files:
+No change is justified in:
 
-- `tests/layer4/setups/tier23-global-workflows.setup.ts`
-- `tests/layer4/setup-helpers/routing.ts`
-- `tests/layer4/setup-helpers/quality.ts`
-
-The setup model allows only a single `recommendedRoute` string for shared Claude/Codex benchmarks. Some Tier 1 setups already handle runner-specific routes, but the Tier 2/3 global workflow helper does not.
+- `global/claude/icon-handler/SKILL.md`
+- `global/codex/icon-handler/SKILL.md`
 
 ## Recommended Fix
 
-Route this to a narrow benchmark coverage repair, not an `icon-handler` rewrite.
+Update the `icon-handler` benchmark fixture so the root source asset is a small valid PNG rather than ASCII placeholder text.
 
-Proposed behavior:
+Concrete target:
 
-- Allow global workflow benchmark definitions to express runner-specific routes, for example `{ claude: "/icon-handler", codex: "$icon-handler" }`, or to accept a route set when both command syntaxes are valid for the assertion.
-- Update `assertRecommendedRoute` and `nextRouteCriterion` usage so the expected route is selected from the active runner, rather than hard-coded as a Codex dollar command.
-- Update the `icon-handler` benchmark definition to expect `/icon-handler` for Claude and `$icon-handler` for Codex.
-- Consider classifying `API Error: 400 Could not process image` as infrastructure-blocked when the runner fails before producing an artifact, because the skill contract explicitly supports auditing invalid placeholder image files as stale/invalid assets.
+- File: `tests/layer4/setups/tier23-global-workflows.setup.ts`
+- Section: `skill: "icon-handler"` fixture definition
+- Replace:
 
-Do not change the `icon-handler` skill contract unless a later replay fails after the route expectation is fixed.
+```ts
+"calc-mascot-icon.png": "fixture-png-placeholder\n",
+```
+
+with valid PNG fixture content written in a way the harness can persist as binary-safe data. If the fixture file map is text-only, use a small valid base64-decoded PNG helper or extend fixture creation to support binary fixture entries. Keep `src/app/favicon.ico` and `src/app/icon.png` as stale placeholders if the benchmark still needs stale-surface evidence, but make the canonical source asset decodable.
+
+Add layer1 regression coverage that proves the icon-handler fixture source asset is binary-valid or at least PNG-signature valid before benchmark execution. A focused assertion should fail if `calc-mascot-icon.png` is reintroduced as plain ASCII placeholder content.
+
+Suggested behavior wording for the fixture prompt:
+
+> Audit the Next App Router fixture using local file inspection tools. Treat stale existing icon files as stale if their format checks fail; do not call external image generation or image-analysis services.
+
+That wording is optional; the durable fix is valid source bytes. The prompt alone would not prevent pre-agent image processing failures.
 
 ## Validation Plan
 
-1. Static route check:
+Run:
 
-   ```sh
-   rg -n 'skill: "icon-handler"|recommendedRoute|/icon-handler|\\$icon-handler' tests/layer4/setups/tier23-global-workflows.setup.ts tests/layer4/setup-helpers
-   ```
+```bash
+pnpm --dir tests test:layer1 -- bench-setups bench-quality
+pnpm --dir tests bench:coverage
+pnpm --dir tests verify --skill icon-handler
+pnpm --dir tests bench --skill icon-handler --agent claude --runs 1 --chunk-size 1 --pause 0
+git diff --check
+```
 
-2. Contract alignment check:
+The smoke benchmark should produce a Claude run with:
 
-   ```sh
-   rg -n 'Recommended next command|\\$icon-handler|/icon-handler' global/codex/icon-handler/SKILL.md global/claude/icon-handler/SKILL.md
-   ```
+- `Agent command exited successfully`
+- `icon-audit.md created in project root`
+- `Output recommends /icon-handler`
+- no `API Error: 400 Could not process image`
 
-3. Harness verification:
+## Confidence And Evidence Gaps
 
-   ```sh
-   pnpm verify --skill icon-handler
-   ```
+Confidence: high.
 
-4. Benchmark replay after the harness fix:
+Evidence is direct from persisted benchmark JSON and the current fixture definition. The main unverified implementation detail is whether the fixture-writing helper currently supports binary files directly. If it does not, the remediation should add a narrowly scoped binary-fixture path or generate the tiny PNG inside the setup helper before running agents.
 
-   ```sh
-   pnpm bench --skill icon-handler --agent both --runs 3 --chunk-size 3 --pause 0
-   ```
+No broad `$analyze-sessions` pass is needed. This is a concrete benchmark fixture failure, not a recurrence question.
 
-Expected result after the route fix: Claude run #0-style outputs should no longer fail solely for recommending `/icon-handler`; any remaining failures should be separated into runner infrastructure, artifact creation, or genuine skill-output defects.
-
-## Confidence and Evidence Gaps
-
-Confidence: high that the route assertion is a benchmark setup bug. The failed assertion demanded `$icon-handler`, while the Claude skill contract says `/icon-handler` and the Claude output used `/icon-handler`.
-
-Confidence: medium on the `API Error: 400 Could not process image` classification. The raw run shows the error before artifact creation, but it does not expose the runner internals that caused Claude to treat the placeholder image as an image-processing request. A targeted harness replay after the route fix is needed to confirm whether this is intermittent or fixture-induced.
-
-No broad `$analyze-sessions` scan is needed because `tasks/lessons.md` already records the runner-specific route convention failure pattern.
-
-Recommended next skill: `$targeted-skill-builder icon-handler benchmark coverage`
+Recommended next skill: `$targeted-skill-builder icon-handler benchmark valid source asset`
