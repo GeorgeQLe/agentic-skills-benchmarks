@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { BenchAgent, SkillBenchSetup } from "../../harness/bench-types.js";
+import type { BenchAgent, QualityCriterion, SkillBenchSetup } from "../../harness/bench-types.js";
 import type { Assertion, RunResult } from "../../harness/types.js";
 import {
   assertContentIncludes,
@@ -56,6 +56,7 @@ function workflowQualityEvaluator(options: {
   concreteCommands?: string[];
   nextRoutes?: string[];
   forbidden?: string[];
+  extraCriteria?: QualityCriterion[];
 }): SkillBenchSetup["qualityEvaluator"] {
   return createSetupQualityEvaluator({
     minimumScore: options.minimumScore ?? 0.78,
@@ -131,9 +132,42 @@ function workflowQualityEvaluator(options: {
           ...(options.forbidden ?? []),
         ],
       }),
+      ...(options.extraCriteria ?? []),
     ],
   });
 }
+
+const sessionTriageNoOverRemediationCriterion: QualityCriterion = {
+  id: "no-over-remediation-route",
+  description: "Does not route one-off noncompliance with an adequate contract to an unconditional skill change",
+  weight: 2,
+  critical: true,
+  evaluate(output: string) {
+    const saysContractAdequate = /\b(contract|rule|instruction)s?\b[^.\n]{0,80}\b(already|adequate|clear|explicit|existing)\b/i.test(output)
+      || /\b(already|adequate|clear|explicit|existing)\b[^.\n]{0,80}\b(contract|rule|instruction)s?\b/i.test(output);
+    const saysOneOffNoncompliance = /one[- ]off|agent noncompliance|noncompliance with an adequate|do not change (a )?skill|no skill change/i.test(output);
+    const unconditionalSkillBuilderRoute = /Recommended next (skill|command):\s*[`'"]?\/?\$?targeted-skill-builder\b/im.test(output)
+      || /## Next command\s+[`'"]?\/?\$?targeted-skill-builder\b/im.test(output);
+
+    if (unconditionalSkillBuilderRoute && (saysContractAdequate || saysOneOffNoncompliance)) {
+      return {
+        score: 0,
+        notes: [
+          "output recommends targeted-skill-builder even though it frames the incident as one-off noncompliance or an adequate existing contract",
+        ],
+      };
+    }
+
+    if (/Recommended next skill:\s*[`'"]?none\b/im.test(output) || /Recommended next command:\s*[`'"]?\$?run\b/im.test(output) || !unconditionalSkillBuilderRoute) {
+      return { score: 1 };
+    }
+
+    return {
+      score: 0.5,
+      notes: ["output includes targeted-skill-builder language but does not clearly make it conditional on recurrence or a proven contract gap"],
+    };
+  },
+};
 
 function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBenchSetup {
   return {
@@ -414,6 +448,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       coreTraits: ["Verification verdict", "Timeline", "Root cause", "Recommended fix", "Validation plan"],
       validationPatterns: [/coverage matrix validation|validation plan/i],
       concreteFiles: ["session-log.md", "tasks/lessons.md"],
+      extraCriteria: [sessionTriageNoOverRemediationCriterion],
     }),
   },
   {
