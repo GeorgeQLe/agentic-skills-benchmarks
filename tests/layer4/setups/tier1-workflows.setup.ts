@@ -139,7 +139,7 @@ function workflowQualityEvaluator(options: {
 
 const sessionTriageNoOverRemediationCriterion: QualityCriterion = {
   id: "no-over-remediation-route",
-  description: "Does not route one-off noncompliance with an adequate contract to an unconditional skill change",
+  description: "Does not route one-off noncompliance with an adequate contract to an unconditional skill or contract change",
   weight: 2,
   critical: true,
   evaluate(output: string) {
@@ -148,17 +148,19 @@ const sessionTriageNoOverRemediationCriterion: QualityCriterion = {
     const saysOneOffNoncompliance = /one[- ]off|agent noncompliance|noncompliance with an adequate|do not change (a )?skill|no skill change/i.test(output);
     const unconditionalSkillBuilderRoute = /Recommended next (skill|command):\s*[`'"]?\/?\$?targeted-skill-builder\b/im.test(output)
       || /## Next command\s+[`'"]?\/?\$?targeted-skill-builder\b/im.test(output);
+    const rebrandsExistingRuleAsContractChange = /\b(add|patch|update|rewrite|harden|upgrade|tighten)\b[^.\n]{0,120}\b(pre-ship validation|validation evidence|evidence gate|validation gate|contract|run skill|\$run|\/run)\b/i.test(output)
+      || /\b(pre-ship validation|validation evidence|evidence gate|validation gate)\b[^.\n]{0,120}\b(contract change|skill change|targeted-skill-builder|patch|update|rewrite)\b/i.test(output);
 
-    if (unconditionalSkillBuilderRoute && (saysContractAdequate || saysOneOffNoncompliance)) {
+    if ((unconditionalSkillBuilderRoute || rebrandsExistingRuleAsContractChange) && (saysContractAdequate || saysOneOffNoncompliance)) {
       return {
         score: 0,
         notes: [
-          "output recommends targeted-skill-builder even though it frames the incident as one-off noncompliance or an adequate existing contract",
+          "output recommends a skill or contract change even though it frames the incident as one-off noncompliance or an adequate existing contract",
         ],
       };
     }
 
-    if (/Recommended next skill:\s*[`'"]?none\b/im.test(output) || /Recommended next command:\s*[`'"]?\$?run\b/im.test(output) || !unconditionalSkillBuilderRoute) {
+    if (/Recommended next skill:\s*[`'"]?none\b/im.test(output) || /Recommended next command:\s*[`'"]?\$?run\b/im.test(output) || (!unconditionalSkillBuilderRoute && !rebrandsExistingRuleAsContractChange)) {
       return { score: 1 };
     }
 
