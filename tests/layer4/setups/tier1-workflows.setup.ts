@@ -443,6 +443,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       "Keep the report evidence-bound.",
       "Include Target, User-identified issue, Verification verdict, Timeline, Root cause, Responsible contract gap, Recommended fix, Validation plan, Confidence and evidence gaps, and Recommended next skill.",
       "If the evidence points to one-off agent noncompliance with an adequate existing validation rule, recommend no skill change.",
+      "After writing the report, verify that session-triage-report.md exists in the project root. If it is missing, create it before responding.",
     ].join(" "),
     fixtureFiles: {
       "session-log.md": "# Session\n\nUser invoked $run. Agent skipped the planned coverage matrix validation and shipped anyway.\n",
