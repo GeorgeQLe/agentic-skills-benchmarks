@@ -24,6 +24,7 @@ export interface SingleRunResult {
   stdout: string;
   stderr: string;
   files: string[];
+  artifacts?: Record<string, string>;
   estimatedCostUsd: number;
   infrastructureBlocked?: boolean;
   infrastructureReason?: string;

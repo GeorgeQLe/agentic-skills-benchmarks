@@ -11,6 +11,8 @@ import {
   findResumeableSession,
 } from "./bench-persistence.js";
 
+const MAX_ARTIFACT_BYTES = 24_000;
+
 export interface ChunkResult {
   manifest: SessionManifest;
   runs: SingleRunResult[];
@@ -64,6 +66,7 @@ export async function runChunk(
     const infrastructureBlocked = Boolean(infrastructureReason);
     const assertions = infrastructureBlocked ? [] : setup.assertResult(result, { agent: manifest.config.agent });
     const output = collectQualityOutput(setup, result);
+    const artifacts = collectRunArtifacts(setup, result);
     const qualityResult = !infrastructureBlocked && setup.qualityEvaluator
       ? setup.qualityEvaluator.evaluate(output)
       : undefined;
@@ -80,6 +83,7 @@ export async function runChunk(
       stdout: result.stdout,
       stderr: result.stderr,
       files: result.files,
+      artifacts,
       estimatedCostUsd: setup.perRunBudgetUsd,
       infrastructureBlocked,
       infrastructureReason,
@@ -107,6 +111,34 @@ export async function runChunk(
   }
 
   return { manifest, runs, haltedByBudget };
+}
+
+function collectRunArtifacts(
+  setup: SkillBenchSetup,
+  result: RunResult,
+): Record<string, string> | undefined {
+  const paths = setup.qualityOutputPath
+    ? [setup.qualityOutputPath]
+    : result.files.filter((file) => /\.(md|txt|json|ya?ml)$/i.test(file)).slice(0, 5);
+
+  const artifacts: Record<string, string> = {};
+  for (const path of paths) {
+    try {
+      const content = readFileSync(join(result.workDir, path), "utf8");
+      artifacts[path] = truncateArtifact(content);
+    } catch {
+      // Missing artifacts are already covered by setup assertions.
+    }
+  }
+
+  return Object.keys(artifacts).length > 0 ? artifacts : undefined;
+}
+
+function truncateArtifact(content: string): string {
+  if (Buffer.byteLength(content, "utf8") <= MAX_ARTIFACT_BYTES) return content;
+
+  const suffix = "\n\n[artifact truncated for benchmark persistence]\n";
+  return `${content.slice(0, MAX_ARTIFACT_BYTES - suffix.length)}${suffix}`;
 }
 
 function collectQualityOutput(setup: SkillBenchSetup, result: RunResult): string {
