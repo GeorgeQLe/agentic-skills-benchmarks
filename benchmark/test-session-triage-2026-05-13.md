@@ -1,98 +1,84 @@
 # Benchmark Test: session-triage
 
 Date: 2026-05-13
-Command: `$benchmark-test-skill session-triage`
-Active workflow: `packs/agentic-skills-bench/codex/benchmark-test-skill/SKILL.md`
 Target skill: `session-triage`
-
-## Eligibility
-
-`session-triage` is a known repository benchmark target.
-
-| Skill | Coverage | Setup |
-| --- | --- | --- |
-| `session-triage` | custom | `tests/layer4/setups/tier1-workflows.setup.ts` |
+Active workflow: `$benchmark-test-skill session-triage`
+Coverage: `custom`
+Setup: `tests/layer4/setups/tier1-workflows.setup.ts`
 
 ## Verify
 
-Command run from `tests/`:
-
-```bash
-pnpm verify --skill session-triage
-```
-
-| Layer | Status | Wall Time | Notes |
+| Layer | Status | Wall time | Notes |
 | --- | --- | ---: | --- |
-| layer1 | PASS | 9.0s | 1,349 tests passed across 12 files |
-| layer2 | SKIP | -- | No layer2 tests matched skill `session-triage` |
+| layer1 | PASS | 8.8s | 12 files, 1,349 tests passed |
+| layer2 | SKIP | -- | No layer2 tests matched `session-triage`; target-specific layer2 verification skipped |
 
-## Benchmark
+## Benchmark Metrics
 
-Command run from `tests/`:
-
-```bash
-pnpm bench --skill session-triage --agent both --runs 3 --chunk-size 3 --pause 0
-```
-
-| Agent | Evaluated Pass Rate | Evaluated Runs | Infrastructure Blocked | Wilson 95% CI |
-| --- | ---: | ---: | ---: | --- |
-| Claude | 0.0% | 0/2 | 1 | [0.0%, 65.8%] |
-| Codex | 66.7% | 2/3 | 0 | [20.8%, 93.9%] |
+| Agent | Evaluated pass rate | Blocked runs | Wilson 95% CI | Failed assertions | Output-quality score | Threshold failures | Critical failures | Latency p50 | Latency p95 | Latency p99 | Cost per run | Total cost | Mean similarity | Outliers | Raw session path |
+| --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Claude | 0/2 (0.0%) | 1 | 0.0%-65.8% | Output recommends $targeted-skill-builder | 82.1% | 1 | 1 | 52.3s | 53.1s | 53.2s | $0.25 | $0.75 | 1.000 | 0 | `tests/benchmarks/runs/session-triage-claude-790af5f0/` |
+| Codex | 3/3 (100.0%) | 0 | 43.8%-100.0% | None | 100.0% | 0 | 0 | 58.7s | 60.4s | 60.6s | $0.25 | $0.75 | 0.874 | 0 | `tests/benchmarks/runs/session-triage-codex-1bc38d04/` |
 
 ## Failed Assertions
 
-| Agent | Run | Exit Code | Failed Assertion |
-| --- | ---: | ---: | --- |
-| Claude | 0 | 0 | Output recommends `$targeted-skill-builder` |
-| Claude | 2 | 0 | Output recommends `$targeted-skill-builder` |
-| Codex | 0 | 0 | Output recommends `$targeted-skill-builder` |
+Claude failed the hard assertion "Output recommends $targeted-skill-builder" on both evaluated runs (#0 and #2). Run #1 was infrastructure-blocked (agent runner budget exceeded).
+
+Codex had no failed hard assertions.
 
 ## Output Quality
 
-Output-quality scores are additional rubric scores, not a replacement for the hard assertion pass rate.
+The setup defines an output-quality evaluator. Claude averaged 82.1% with 1 threshold failure and 1 critical failure. Codex averaged 100.0% with no threshold or critical failures.
 
-| Agent | Average Quality Score | Quality Evaluated Runs | Threshold Failures | Critical Failures | Lowest-Scoring Criterion |
-| --- | ---: | ---: | ---: | ---: | --- |
-| Claude | 92.9% | 2 | 0 | 0 | `actionable-next-route` at 0.0% |
-| Codex | 97.6% | 3 | 0 | 0 | `actionable-next-route` at 66.7% |
+Claude per-criterion averages:
 
-## Infrastructure-Blocked Runs
+- `actionable-next-route`: 0.0%
+- `evidence-linked`: 50.0%
+- `file-reference`: 100.0%
+- `scope-control`: 100.0%
+- `incident-triage-specificity`: 100.0%
 
-| Agent | Run | Reason |
-| --- | ---: | --- |
-| Claude | 1 | agent runner budget exceeded |
+Codex per-criterion averages:
 
-## Latency
+- `evidence-linked`: 100.0%
+- `file-reference`: 100.0%
+- `scope-control`: 100.0%
+- `incident-triage-specificity`: 100.0%
+- `validation-specificity`: 100.0%
 
-| Agent | p50 | p95 | p99 |
-| --- | ---: | ---: | ---: |
-| Claude | 42.8s | 43.3s | 43.3s |
-| Codex | 55.5s | 60.3s | 60.8s |
+## Infrastructure Blocks
+
+Claude had 1 infrastructure-blocked run (#1): agent runner budget exceeded.
+
+Codex had no infrastructure-blocked runs.
 
 ## Cost
 
-| Agent | Cost Per Run | Total Cost |
-| --- | ---: | ---: |
-| Claude | $0.25 | $0.75 |
-| Codex | $0.25 | $0.75 |
-| Total | -- | $1.50 |
+Total estimated benchmark cost was $1.50:
+
+- Claude: $0.75 total, $0.25 per run
+- Codex: $0.75 total, $0.25 per run
 
 ## Consistency
 
-| Agent | Mean Pairwise Similarity | Outlier Count |
-| --- | ---: | ---: |
-| Claude | 1.000 | 0 |
-| Codex | 0.855 | 0 |
+Claude had mean pairwise similarity 1.000 with 0 outliers. Codex had mean pairwise similarity 0.874 with 0 outliers.
 
-## Raw Session Paths
+## Raw Sessions
 
-| Agent | Raw Session Path | Report JSON |
-| --- | --- | --- |
-| Claude | `tests/benchmarks/runs/session-triage-claude-49cd4515/` | `tests/benchmarks/runs/session-triage-claude-49cd4515/report.json` |
-| Codex | `tests/benchmarks/runs/session-triage-codex-2717976e/` | `tests/benchmarks/runs/session-triage-codex-2717976e/report.json` |
+- Claude: `tests/benchmarks/runs/session-triage-claude-790af5f0/report.json`
+- Codex: `tests/benchmarks/runs/session-triage-codex-1bc38d04/report.json`
 
-## Conclusion
+## Prior Run Comparison
 
-Verify passed, but the deterministic benchmark did not pass. The repeated failure is the hard next-route assertion: outputs did not consistently recommend `$targeted-skill-builder` for the benchmark failure fixture. One Claude run was infrastructure-blocked by runner budget and is not counted as a skill failure.
+| Run | Date | Agent | Pass rate | Quality | Notes |
+| --- | --- | --- | ---: | ---: | --- |
+| `49cd4515` | 2026-05-13 | Claude | 0/2 (0.0%) | 92.9% | 1 infra-blocked, 2 failed next-route assertion |
+| `2717976e` | 2026-05-13 | Codex | 2/3 (66.7%) | 97.6% | 1 failed next-route assertion |
+| `790af5f0` | 2026-05-13 | Claude | 0/2 (0.0%) | 82.1% | 1 infra-blocked, 2 failed next-route assertion |
+| `1bc38d04` | 2026-05-13 | Codex | 3/3 (100.0%) | 100.0% | Clean pass |
 
-Recommended next command: `$session-triage session-triage benchmark failure`
+## Verdict
+
+Mixed results. Codex improved from 66.7% to 100.0% pass rate and 100.0% output quality — a clean pass with no infrastructure blocks. Claude remains at 0% evaluated pass rate across both benchmark sessions, consistently failing the "Output recommends $targeted-skill-builder" hard assertion. The `actionable-next-route` criterion scored 0.0% for Claude, confirming the triage output did not route to the expected next skill.
+
+Recommended next skill: `$session-triage session-triage benchmark failure`
