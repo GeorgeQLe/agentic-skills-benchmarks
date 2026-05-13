@@ -10,31 +10,31 @@ Setup: `tests/layer4/setups/tier1-workflows.setup.ts`
 
 | Layer | Status | Wall time | Notes |
 | --- | --- | ---: | --- |
-| layer1 | PASS | 9.2s | 12 files, 1,312 tests passed |
+| layer1 | PASS | 9.5s | 12 files, 1,312 tests passed |
 | layer2 | SKIP | -- | No layer2 tests matched `benchmark-test-skill`; target-specific layer2 verification skipped |
 
 ## Benchmark Metrics
 
 | Agent | Evaluated pass rate | Blocked runs | Wilson 95% CI | Failed assertions | Output-quality score | Threshold failures | Critical failures | Latency p50 | Latency p95 | Latency p99 | Cost per run | Total cost | Mean similarity | Outliers | Raw session path |
 | --- | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Claude | 0/3 (0.0%) | 0 | 0.0%-56.2% | `Output matches workflow expectation` on runs 0, 1, 2 | 80.0% | 3 | 3 | 18.7s | 21.0s | 21.2s | $0.25 | $0.75 | 1.000 | 0 | `tests/benchmarks/runs/benchmark-test-skill-claude-92d5d568/` |
-| Codex | 3/3 (100.0%) | 0 | 43.8%-100.0% | None | 100.0% | 0 | 0 | 32.7s | 36.3s | 36.6s | $0.25 | $0.75 | 0.862 | 0 | `tests/benchmarks/runs/benchmark-test-skill-codex-234ee94c/` |
+| Claude | 3/3 (100.0%) | 0 | 43.8%-100.0% | None | 100.0% | 0 | 0 | 17.8s | 21.0s | 21.3s | $0.25 | $0.75 | 0.880 | 0 | `tests/benchmarks/runs/benchmark-test-skill-claude-46f32ef6/` |
+| Codex | 3/3 (100.0%) | 0 | 43.8%-100.0% | None | 100.0% | 0 | 0 | 30.5s | 33.2s | 33.4s | $0.25 | $0.75 | 0.812 | 0 | `tests/benchmarks/runs/benchmark-test-skill-codex-e4c6aef6/` |
 
 ## Failed Assertions
 
-Claude failed the hard workflow expectation in all three evaluated runs:
-
-- run 0: `Output matches workflow expectation`
-- run 1: `Output matches workflow expectation`
-- run 2: `Output matches workflow expectation`
-
-Codex had no failed hard assertions.
+No failed hard assertions were reported for either agent.
 
 ## Output Quality
 
-The setup defines an output-quality evaluator. Claude averaged 80.0% with 3 threshold failures and 3 critical failures. The lowest-scoring criterion was `metrics-table-structure` at 0.0 average score; all other listed criteria averaged 1.0.
+The setup defines an output-quality evaluator. Claude and Codex both averaged 100.0% with no threshold failures and no critical failures.
 
-Codex averaged 100.0% with no threshold failures and no critical failures. Its listed criteria all averaged 1.0.
+Lowest-scoring criteria were all at 100.0% for both agents:
+
+- `evidence-linked`
+- `file-reference`
+- `metrics-table-structure`
+- `scope-control`
+- `benchmark-evidence-reporting`
 
 ## Infrastructure Blocks
 
@@ -49,10 +49,15 @@ Total estimated benchmark cost was $1.50:
 
 ## Consistency
 
-Claude had mean pairwise similarity 1.000 with 0 outliers. Codex had mean pairwise similarity 0.862 with 0 outliers.
+Claude had mean pairwise similarity 0.880 with 0 outliers. Codex had mean pairwise similarity 0.812 with 0 outliers.
+
+## Raw Sessions
+
+- Claude: `tests/benchmarks/runs/benchmark-test-skill-claude-46f32ef6/report.json`
+- Codex: `tests/benchmarks/runs/benchmark-test-skill-codex-e4c6aef6/report.json`
 
 ## Verdict
 
-The deterministic benchmark did not pass overall because Claude failed 0/3 evaluated hard assertions and hit the critical `metrics-table-structure` quality criterion in all runs. Codex passed 3/3 evaluated hard assertions with 100.0% output quality.
+The deterministic benchmark passed overall. Both agents passed 3/3 evaluated hard assertions, both scored 100.0% on the configured output-quality rubric, and no runs were infrastructure-blocked.
 
-Recommended next command: `$session-triage benchmark-test-skill benchmark failure`
+Recommended next skill: `$benchmark-agent-review benchmark-test-skill`
