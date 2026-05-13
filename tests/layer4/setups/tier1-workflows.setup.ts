@@ -150,8 +150,10 @@ const sessionTriageNoOverRemediationCriterion: QualityCriterion = {
       || /## Next command\s+[`'"]?\/?\$?targeted-skill-builder\b/im.test(output);
     const rebrandsExistingRuleAsContractChange = /\b(add|patch|update|rewrite|harden|upgrade|tighten)\b[^.\n]{0,120}\b(pre-ship validation|validation evidence|evidence gate|validation gate|contract|run skill|\$run|\/run)\b/i.test(output)
       || /\b(pre-ship validation|validation evidence|evidence gate|validation gate)\b[^.\n]{0,120}\b(contract change|skill change|targeted-skill-builder|patch|update|rewrite)\b/i.test(output);
+    const explicitlyRejectsSkillChange = /\b(no skill change|do not change (a )?skill|not (the )?skill contract|no .*contract gap|none verified)\b/i.test(output)
+      || /\bunless\b[^.\n]{0,100}\b(additional evidence|recurrence|contract gap)\b/i.test(output);
 
-    if ((unconditionalSkillBuilderRoute || rebrandsExistingRuleAsContractChange) && (saysContractAdequate || saysOneOffNoncompliance)) {
+    if ((unconditionalSkillBuilderRoute || (rebrandsExistingRuleAsContractChange && !explicitlyRejectsSkillChange)) && (saysContractAdequate || saysOneOffNoncompliance)) {
       return {
         score: 0,
         notes: [
@@ -160,7 +162,7 @@ const sessionTriageNoOverRemediationCriterion: QualityCriterion = {
       };
     }
 
-    if (/Recommended next skill:\s*[`'"]?none\b/im.test(output) || /Recommended next command:\s*[`'"]?\$?run\b/im.test(output) || (!unconditionalSkillBuilderRoute && !rebrandsExistingRuleAsContractChange)) {
+    if (/Recommended next skill:?\s*(?:\n\s*)?[`'"]?none\b/im.test(output) || /Recommended next command:\s*[`'"]?\$?run\b/im.test(output) || (!unconditionalSkillBuilderRoute && !rebrandsExistingRuleAsContractChange)) {
       return { score: 1 };
     }
 
@@ -435,12 +437,18 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "session-triage",
     outputPath: "session-triage-report.md",
-    prompt: "You have the session-triage skill installed. Triage session-log.md and write session-triage-report.md with Target, Verification verdict, Timeline, Root cause, Recommended fix, Validation plan, and Next command.",
+    prompt: [
+      "You have the session-triage skill installed.",
+      "Read session-log.md and tasks/lessons.md, then write session-triage-report.md in the project root before doing any optional exploration.",
+      "Keep the report evidence-bound.",
+      "Include Target, User-identified issue, Verification verdict, Timeline, Root cause, Responsible contract gap, Recommended fix, Validation plan, Confidence and evidence gaps, and Recommended next skill.",
+      "If the evidence points to one-off agent noncompliance with an adequate existing validation rule, recommend no skill change.",
+    ].join(" "),
     fixtureFiles: {
       "session-log.md": "# Session\n\nUser invoked $run. Agent skipped the planned coverage matrix validation and shipped anyway.\n",
       "tasks/lessons.md": "# Lessons\n\n- Run required validation before shipping.\n",
     },
-    expectedIncludes: ["Verification verdict", "Timeline", "Root cause", "Validation plan"],
+    expectedIncludes: ["Verification verdict", "Timeline", "Root cause", "Responsible contract gap", "Validation plan"],
     expectedPattern: /coverage matrix validation|shipped anyway/i,
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["coverage matrix validation", "shipped anyway", "Run required validation before shipping"],
