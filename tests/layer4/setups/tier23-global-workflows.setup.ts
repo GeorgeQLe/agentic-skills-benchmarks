@@ -329,6 +329,21 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     recommendedRoute: "$run",
   },
   {
+    skill: "icon-handler",
+    outputPath: "icon-audit.md",
+    prompt: "You have the icon-handler skill installed. Audit the Next App Router fixture and write icon-audit.md with framework, source asset, missing/stale icon surfaces, proposed fix, approval requirement, verification commands, and Next command. Do not modify files.",
+    fixtureFiles: {
+      "package.json": "{\"dependencies\":{\"next\":\"15.5.15\"},\"scripts\":{\"build\":\"next build\"}}\n",
+      "calc-mascot-icon.png": "fixture-png-placeholder\n",
+      "src/app/layout.tsx": "export const metadata = { title: 'Fixture' }\n",
+      "src/app/favicon.ico": "stale-ico-placeholder\n",
+      "src/app/icon.png": "old-icon-placeholder\n",
+    },
+    expectedIncludes: ["framework", "source asset", "missing", "approval"],
+    expectedPattern: /favicon\.ico|apple-touch-icon|Next App Router/i,
+    recommendedRoute: "$icon-handler",
+  },
+  {
     skill: "migrate",
     outputPath: "migration-plan.md",
     prompt: "You have the migrate skill installed. Read migration-request.md and write migration-plan.md with phases, file changes, compatibility risks, validation, rollback, and Next command.",
