@@ -409,14 +409,12 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["coverage matrix validation", "shipped anyway", "Run required validation before shipping"],
       specificMarkers: ["Verification verdict", "Timeline", "Root cause", "Validation plan"],
-      nextRoute: "$targeted-skill-builder",
       coreTraitId: "incident-triage-specificity",
       coreTraitDescription: "Connects the session failure to a concrete validation gap",
       coreTraits: ["Verification verdict", "Timeline", "Root cause", "Recommended fix", "Validation plan"],
       validationPatterns: [/coverage matrix validation|validation plan/i],
       concreteFiles: ["session-log.md", "tasks/lessons.md"],
     }),
-    recommendedRoute: "$targeted-skill-builder",
   },
   {
     skill: "targeted-skill-builder",
