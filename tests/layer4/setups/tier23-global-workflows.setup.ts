@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { SkillBenchSetup } from "../../harness/bench-types.js";
+import type { BenchAgent, SkillBenchSetup } from "../../harness/bench-types.js";
 import type { Assertion, RunResult } from "../../harness/types.js";
 import {
   assertContentIncludes,
@@ -28,6 +28,22 @@ interface GlobalWorkflowDefinition {
   expectedIncludes: string[];
   expectedPattern?: RegExp;
   recommendedRoute?: string;
+  recommendedRoutes?: Partial<Record<BenchAgent, string>>;
+}
+
+function expectedRoute(definition: GlobalWorkflowDefinition, agent?: BenchAgent): string | undefined {
+  if (agent && definition.recommendedRoutes?.[agent]) {
+    return definition.recommendedRoutes[agent];
+  }
+  return definition.recommendedRoute;
+}
+
+function qualityRoutes(definition: GlobalWorkflowDefinition): string | string[] | undefined {
+  const routes = Object.values(definition.recommendedRoutes ?? {});
+  if (routes.length > 0) {
+    return routes;
+  }
+  return definition.recommendedRoute;
 }
 
 function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillBenchSetup {
@@ -46,7 +62,7 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
       }
     },
 
-    assertResult(result: RunResult): Assertion[] {
+    assertResult(result: RunResult, context?: { agent: BenchAgent }): Assertion[] {
       const assertions: Assertion[] = [
         {
           description: "Agent command exited successfully",
@@ -67,8 +83,9 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
       }
 
       assertions.push(assertNextCommand(content));
-      if (definition.recommendedRoute) {
-        assertions.push(assertRecommendedRoute(content, definition.recommendedRoute));
+      const route = expectedRoute(definition, context?.agent);
+      if (route) {
+        assertions.push(assertRecommendedRoute(content, route));
       }
 
       return assertions;
@@ -98,7 +115,7 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
         description: "Output includes the expected next command route.",
         weight: 2,
         critical: true,
-        route: definition.recommendedRoute,
+        route: qualityRoutes(definition),
       }),
       ...(definition.expectedPattern
         ? [
@@ -341,7 +358,10 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     },
     expectedIncludes: ["framework", "source asset", "missing", "approval"],
     expectedPattern: /favicon\.ico|apple-touch-icon|Next App Router/i,
-    recommendedRoute: "$icon-handler",
+    recommendedRoutes: {
+      claude: "/icon-handler",
+      codex: "$icon-handler",
+    },
   },
   {
     skill: "migrate",
