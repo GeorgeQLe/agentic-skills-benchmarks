@@ -140,7 +140,7 @@ function workflowQualityEvaluator(options: {
 const sessionTriageNoOverRemediationCriterion: QualityCriterion = {
   id: "no-over-remediation-route",
   description: "Does not route one-off noncompliance with an adequate contract to an unconditional skill or contract change",
-  weight: 2,
+  weight: 5,
   critical: true,
   evaluate(output: string) {
     const saysContractAdequate = /\b(contract|rule|instruction)s?\b[^.\n]{0,80}\b(already|adequate|clear|explicit|existing)\b/i.test(output)
