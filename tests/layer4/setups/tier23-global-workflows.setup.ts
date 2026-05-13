@@ -24,12 +24,18 @@ interface GlobalWorkflowDefinition {
   skill: string;
   outputPath: string;
   prompt: string;
-  fixtureFiles: Record<string, string>;
+  fixtureFiles: Record<string, string | Buffer>;
   expectedIncludes: string[];
   expectedPattern?: RegExp;
   recommendedRoute?: string;
   recommendedRoutes?: Partial<Record<BenchAgent, string>>;
+  perRunBudgetUsd?: number;
 }
+
+const TINY_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lT0W1wAAAABJRU5ErkJggg==",
+  "base64",
+);
 
 function expectedRoute(definition: GlobalWorkflowDefinition, agent?: BenchAgent): string | undefined {
   if (agent && definition.recommendedRoutes?.[agent]) {
@@ -50,7 +56,7 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
   return {
     skill: definition.skill,
     prompt: definition.prompt,
-    perRunBudgetUsd: BENCH_BUDGETS_USD.smoke,
+    perRunBudgetUsd: definition.perRunBudgetUsd ?? BENCH_BUDGETS_USD.smoke,
     timeoutMs: BENCH_TIMEOUTS_MS.smoke,
     qualityOutputPath: definition.outputPath,
     qualityEvaluator: createGlobalWorkflowQualityEvaluator(definition),
@@ -348,10 +354,10 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "icon-handler",
     outputPath: "icon-audit.md",
-    prompt: "You have the icon-handler skill installed. Audit the Next App Router fixture and write icon-audit.md with framework, source asset, missing/stale icon surfaces, proposed fix, approval requirement, verification commands, and Next command. Do not modify files.",
+    prompt: "You have the icon-handler skill installed. Audit the Next App Router fixture using local file inspection tools and write icon-audit.md with framework, source asset, missing/stale icon surfaces, proposed fix, approval requirement, verification commands, and Next command. Do not modify files. Do not call external image generation or image-analysis services.",
     fixtureFiles: {
       "package.json": "{\"dependencies\":{\"next\":\"15.5.15\"},\"scripts\":{\"build\":\"next build\"}}\n",
-      "calc-mascot-icon.png": "fixture-png-placeholder\n",
+      "calc-mascot-icon.png": TINY_PNG,
       "src/app/layout.tsx": "export const metadata = { title: 'Fixture' }\n",
       "src/app/favicon.ico": "stale-ico-placeholder\n",
       "src/app/icon.png": "old-icon-placeholder\n",
@@ -362,6 +368,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
       claude: "/icon-handler",
       codex: "$icon-handler",
     },
+    perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
   },
   {
     skill: "migrate",
