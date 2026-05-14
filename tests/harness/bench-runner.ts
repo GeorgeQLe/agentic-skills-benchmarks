@@ -214,5 +214,8 @@ function classifyInfrastructureBlock(result: RunResult): string | undefined {
   if (output.includes("exceeded usd budget")) {
     return "agent runner budget exceeded";
   }
+  if (output.includes("could not process image")) {
+    return "agent runner image processing error";
+  }
   return undefined;
 }
