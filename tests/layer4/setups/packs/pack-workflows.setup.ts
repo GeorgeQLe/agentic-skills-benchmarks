@@ -141,7 +141,7 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
       `Use pack-input.md to write ${outputPath} with:`,
       "- the pack and skill name",
       `- ${definition.focus}`,
-      "- concrete local-fixture evidence",
+      "- concrete local fixture evidence from pack-input.md or fixtures/local-evidence.md",
       "- risks or assumptions",
       "- a literal final handoff label accepted by the harness, such as `Recommended next skill: <command>` or `Recommended next command: <command>`",
       ...(knownRoutes ? [`- known runner-specific route for this benchmark: ${knownRoutes}`] : []),
@@ -226,7 +226,7 @@ function createPackQualityEvaluator(definition: PackWorkflowDefinition) {
         description: "Uses deterministic local fixture evidence instead of generic pack prose.",
         weight: 2,
         critical: true,
-        facts: ["local-fixture", ...definition.inputs.slice(0, 2)],
+        facts: ["pack-input.md", "fixtures/local-evidence.md", ...definition.inputs.slice(0, 2)],
       }),
       specificityCriterion({
         id: "pack-practical-risk-or-validation",
