@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { SkillBenchSetup } from "../../../harness/bench-types.js";
+import type { BenchAgent, SkillBenchSetup } from "../../../harness/bench-types.js";
 import type { Assertion, RunResult } from "../../../harness/types.js";
 import {
   assertContentIncludes,
@@ -17,7 +17,7 @@ import {
   requiredFactCoverageCriterion,
   specificityCriterion,
 } from "../../setup-helpers/quality.js";
-import { assertNextCommand } from "../../setup-helpers/routing.js";
+import { assertNextCommand, assertRecommendedNextRoute } from "../../setup-helpers/routing.js";
 
 interface PackWorkflowDefinition {
   skill: string;
@@ -26,6 +26,7 @@ interface PackWorkflowDefinition {
   inputs: string[];
   expectedPattern: RegExp;
   nextRoute?: string;
+  nextRoutes?: Partial<Record<BenchAgent, string>>;
   forbidden?: string[];
 }
 
@@ -112,8 +113,26 @@ const packFamilyContexts: Record<string, { id: string; facts: string[]; traits: 
   },
 };
 
+function expectedRoute(definition: PackWorkflowDefinition, agent?: BenchAgent): string | undefined {
+  if (agent && definition.nextRoutes?.[agent]) {
+    return definition.nextRoutes[agent];
+  }
+  return definition.nextRoute;
+}
+
+function qualityRoutes(definition: PackWorkflowDefinition): string | string[] | undefined {
+  const routes = Object.values(definition.nextRoutes ?? {});
+  if (routes.length > 0) {
+    return routes;
+  }
+  return definition.nextRoute;
+}
+
 function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBenchSetup {
   const outputPath = "pack-benchmark-output.md";
+  const knownRoutes = Object.entries(definition.nextRoutes ?? {})
+    .map(([agent, route]) => `${agent}: ${route}`)
+    .join(", ");
 
   return {
     skill: definition.skill,
@@ -124,7 +143,8 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
       `- ${definition.focus}`,
       "- concrete local-fixture evidence",
       "- risks or assumptions",
-      "- a Next command line",
+      "- a literal final handoff label accepted by the harness, such as `Recommended next skill: <command>` or `Recommended next command: <command>`",
+      ...(knownRoutes ? [`- known runner-specific route for this benchmark: ${knownRoutes}`] : []),
       "Use local context only. Do not call external services, mutate git remotes, install packages, or ask follow-up questions.",
     ].join("\n"),
     perRunBudgetUsd: BENCH_BUDGETS_USD.smoke,
@@ -157,7 +177,7 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
       );
     },
 
-    assertResult(result: RunResult): Assertion[] {
+    assertResult(result: RunResult, context?: { agent: BenchAgent }): Assertion[] {
       const assertions: Assertion[] = [
         {
           description: "Agent command exited successfully",
@@ -173,6 +193,10 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
       assertions.push(assertContentIncludes(content, definition.pack, "Output names the pack"));
       assertions.push(assertContentMatches(content, definition.expectedPattern, "Output matches pack workflow expectation"));
       assertions.push(assertNextCommand(content));
+      const route = expectedRoute(definition, context?.agent);
+      if (route) {
+        assertions.push(assertRecommendedNextRoute(content, route));
+      }
 
       return assertions;
     },
@@ -215,7 +239,7 @@ function createPackQualityEvaluator(definition: PackWorkflowDefinition) {
         id: "pack-next-route",
         description: "Provides a concrete next command handoff.",
         weight: 1,
-        route: definition.nextRoute ?? "$run",
+        route: qualityRoutes(definition),
       }),
       requiredFactCoverageCriterion({
         id: familyContext.id,
@@ -258,7 +282,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "clone-spec-store", pack: "project-fleet", focus: "spec-store clone plan without network execution", inputs: ["Spec store URL is unavailable in benchmark", "Need local checklist"], expectedPattern: /clone|spec|store/i },
   { skill: "cohort-review", pack: "business-ops", focus: "cohort retention and activation review", inputs: ["Week 1 activation: 42%", "Week 4 retained: 18%"], expectedPattern: /cohort|retention|activation/i },
   { skill: "competitive-analysis", pack: "business-discovery", focus: "competitor comparison and positioning gaps", inputs: ["Competitor A has onboarding templates", "Competitor B has integrations"], expectedPattern: /competitor|positioning|gap/i },
-  { skill: "content-programming", pack: "creator-foundation", focus: "creator content programming calendar", inputs: ["Audience wants practical build notes", "Cadence target: weekly"], expectedPattern: /content|calendar|cadence/i },
+  { skill: "content-programming", pack: "creator-foundation", focus: "creator content programming calendar", inputs: ["Audience wants practical build notes", "Cadence target: weekly"], expectedPattern: /content|calendar|cadence/i, nextRoutes: { claude: "/series-spec", codex: "$series-spec" } },
   { skill: "creator-evidence-schema", pack: "creator-foundation", focus: "evidence schema fields and provenance", inputs: ["YouTube export", "LinkedIn manual snapshot"], expectedPattern: /evidence|schema|provenance/i },
   { skill: "creator-metrics-review", pack: "creator-foundation", focus: "creator metrics interpretation", inputs: ["CTR: 4.5%", "Average view duration: 38%"], expectedPattern: /metrics|ctr|duration/i },
   { skill: "creator-platform-capability-matrix", pack: "creator-foundation", focus: "platform capability matrix", inputs: ["YouTube analytics available", "LinkedIn export manual"], expectedPattern: /platform|capability|matrix/i },
