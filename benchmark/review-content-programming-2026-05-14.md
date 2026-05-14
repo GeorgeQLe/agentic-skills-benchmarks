@@ -5,67 +5,70 @@ Date: 2026-05-14
 ## Source Evidence
 
 - Curated benchmark report: `benchmark/test-content-programming-2026-05-14.md`
-- Claude run directory: `tests/benchmarks/runs/content-programming-claude-9f0c62c8/`
-- Codex run directory: `tests/benchmarks/runs/content-programming-codex-ff03c35c/`
+- Claude run directory: `tests/benchmarks/runs/content-programming-claude-a8dda4dc/`
+- Codex run directory: `tests/benchmarks/runs/content-programming-codex-7f0f09f4/`
 - Reviewed artifacts: `pack-benchmark-output.md` snapshots retained in `run-000.json`, `run-001.json`, and `run-002.json` for both agents.
-- Fixture facts: `pack-input.md` identifies `creator-foundation`, `content-programming`, focus `creator content programming calendar`, audience wants practical build notes, and cadence target weekly. `fixtures/local-evidence.md` says the fixture is local and deterministic and avoids external services.
+- Fixture facts: `pack-input.md` identifies `creator-foundation`, `content-programming`, focus `creator content programming strategy`, weekly cadence, practical build-note audience need, durable pillars, recurring formats, portfolio balance axes, measurement axes, cleanup target `stale setup walkthroughs`, and next series candidate `local-first benchmark workflow`. `fixtures/local-evidence.md` says the fixture is local and deterministic and avoids external services.
 
 ## Deterministic Context
 
 | Runner | Run Directory | Hard Assertions | Deterministic Quality | Infrastructure Blocked |
 | --- | --- | ---: | ---: | ---: |
-| Claude | `tests/benchmarks/runs/content-programming-claude-9f0c62c8/` | 3/3 | 96.7% | 0 |
-| Codex | `tests/benchmarks/runs/content-programming-codex-ff03c35c/` | 3/3 | 97.5% | 0 |
+| Claude | `tests/benchmarks/runs/content-programming-claude-a8dda4dc/` | 3/3 | 96.8% | 0 |
+| Codex | `tests/benchmarks/runs/content-programming-codex-7f0f09f4/` | 3/3 | 98.1% | 0 |
 
 The deterministic scores are context only. This review judges the retained generated artifacts for usefulness to a next operator.
 
 ## Output-Quality Verdict
 
-The reviewed outputs are good overall. All six artifacts are fixture-grounded, avoid invented external evidence, respect the local-only constraint, include realistic risks, and route to the correct runner-specific `series-spec` successor. They are usable as benchmark smoke outputs and would let a next operator continue without redoing basic fixture discovery.
+The reviewed outputs are excellent overall. All six artifacts now behave like full creator programming strategies rather than calendar smoke outputs: they define a thesis, map durable pillars to audience jobs, map recurring formats to portfolio roles, handle weekly cadence constraints, balance acquisition/trust/proof/education/retention, define measurement and warning signs, plan cleanup for stale setup walkthroughs, identify next series candidates, cite local fixture evidence, and route correctly to `series-spec`.
 
-They are not excellent full `content-programming` outputs because the benchmark prompt only asks for a creator content programming calendar. The retained artifacts therefore omit large parts of the actual skill contract: durable pillars, recurring formats mapped to roles, portfolio balance, measurement plan, cleanup/refactor plan, and next series candidates. That is primarily a benchmark setup coverage gap, not a failure of the outputs against the narrow prompt.
+The outputs are not identical in depth. Claude run 1 and Codex runs 1-2 are the strongest because they connect fixture facts to practical operating choices without becoming a script or full calendar. Claude run 0 is a little more generic on measurement targets, and Codex run 0 is more basic on audience-job specificity. Those are normal variation, not remediation-worthy failures.
 
 ## Agent-Review Scores
 
 | Reviewer | Runner | Run | Score | Grade Band | Notes |
 | --- | --- | ---: | ---: | --- | --- |
-| Codex reviewer | Claude | 0 | 86 | Good | Clear four-week rotation with strong fixture citations and risks; platform-agnostic and light on measurement. |
-| Codex reviewer | Claude | 1 | 87 | Good | Best Claude artifact for handoff clarity; still template-like and not a full channel programming strategy. |
-| Codex reviewer | Claude | 2 | 84 | Good | Concise and honest about missing persona/backlog evidence; less concrete about validation and audience jobs. |
-| Codex reviewer | Codex | 0 | 88 | Good | Strong audience-job framing and evidence ties; risks are useful but measurement is deferred rather than scoped. |
-| Codex reviewer | Codex | 1 | 89 | Good | Most complete evidence section and clear final handoff; still lacks full contract dimensions. |
-| Codex reviewer | Codex | 2 | 90 | Excellent | Strongest output: thesis, audience jobs, evidence anchors, and explicit scope limits are all clear. |
+| Codex reviewer | Claude | 0 | 91 | Excellent | Complete strategy surface with strong fixture citations and risk handling; measurement targets are useful but somewhat generic. |
+| Codex reviewer | Claude | 1 | 94 | Excellent | Best cadence and portfolio operating model; cleanup and local-only constraints are concrete and actionable. |
+| Codex reviewer | Claude | 2 | 92 | Excellent | Strong measurement plan and cleanup/refactor sequence; slightly over-indexes on percentages that are fixture-informed but not evidenced by channel data. |
+| Codex reviewer | Codex | 0 | 90 | Excellent | Clear fixture grounding, practical scope control, and correct `$series-spec` route; less rich than the others on audience-job nuance. |
+| Codex reviewer | Codex | 1 | 93 | Excellent | Strongest Codex output for series candidates and stale-content cleanup; keeps the plan bounded to strategy rather than scripting. |
+| Codex reviewer | Codex | 2 | 92 | Excellent | Strong local-deterministic workflow framing and evidence mapping; adds an extra pillar from fixture context, but it is defensible as a series lane. |
 
-Median subjective score: 87.5. Score range: 84-90.
+Median subjective score: 92.0. Score range: 90-94.
 
 ## Common Strengths
 
 - Every output names the `creator-foundation` pack and `content-programming` skill.
-- Every output cites concrete local fixture facts from `pack-input.md` and `fixtures/local-evidence.md`.
-- The calendars are plausible for weekly practical build notes and avoid unsupported platform or audience metrics.
-- Risks and assumptions are generally useful, especially around missing creator niche, platform, backlog, analytics, and external validation.
-- Next-route ergonomics are correct for the runner mode: Claude outputs use `/series-spec`, and Codex outputs use `$series-spec`.
+- Every output cites concrete fixture facts from `pack-input.md` and `fixtures/local-evidence.md`.
+- The artifacts cover the full programming-strategy contract rather than stopping at a calendar.
+- Portfolio balance is explicit and tied to recurring formats.
+- Measurement plans include local, fixture-appropriate checks such as cadence completion, evidence coverage, artifact readiness, and series handoff readiness.
+- Cleanup/refactor plans are consistently tied to the fixture's stale setup walkthrough target.
+- Next-route ergonomics are correct for runner mode: Claude outputs use `/series-spec`, and Codex outputs use `$series-spec`.
+- The outputs avoid unsupported analytics, external services, install steps, or remote mutations.
 
 ## Common Weaknesses
 
-- The artifacts are mostly four-week content calendars, not full programming strategies.
-- Measurement is absent or deferred instead of proposing local, fixture-appropriate checks such as cadence completion, artifact readiness, or topic-to-evidence coverage.
-- Portfolio balance, cleanup/refactor planning, and next series candidates are not meaningfully exercised.
-- Several outputs are intentionally generic because the fixture lacks channel slug, creator niche, existing content inventory, and performance evidence.
+- Some artifacts use precise portfolio percentages even though the fixture has no channel history or performance data. The percentages are usable planning defaults, but a real channel artifact would label them more explicitly as initial targets.
+- Some outputs add a `local deterministic workflow` or `local-first benchmark workflow` lane beyond the three listed pillars. This is grounded in fixture context, but future real-channel runs should distinguish durable pillars from next-series candidates.
+- Claude run 0 and Codex run 0 are less specific about validation thresholds than the strongest outputs, though still actionable.
 
 ## Remediation Handoff
 
+No material remediation is needed. The common weaknesses are acceptable variation for a benchmark fixture that intentionally lacks a real creator slug, platform analytics, or existing content inventory.
+
 | Finding | Classification | Owner Target | Proposed Change | Validation Check | Route |
 | --- | --- | --- | --- | --- | --- |
-| The benchmark passes useful smoke outputs but does not exercise the full `content-programming` skill contract. | Harness/setup issue | `tests/layer4/setups/packs/pack-workflows.setup.ts` and related layer1 benchmark setup coverage for `content-programming` | Add a `content-programming`-specific fixture or extension that asks for pillars, formats, cadence, portfolio balance, measurement, cleanup/refactor plan, and next series candidates, while preserving runner-specific `/series-spec` and `$series-spec` routing. | Add/extend layer1 setup tests proving the prompt and rubric require full contract dimensions, then run `pnpm --dir tests exec vitest run --project layer1 bench-setups` and `pnpm --dir tests verify --skill content-programming`. | `$targeted-skill-builder content-programming full-contract benchmark coverage` |
-| Deterministic quality does not distinguish calendar-only output from a full programming strategy. | Benchmark rubric gap | `tests/layer4/setups/packs/pack-workflows.setup.ts` quality criteria for the `content-programming` route | Add non-critical scoring criteria for measurement plan, portfolio balance, cleanup/refactor plan, and next series candidate specificity once the richer fixture exists. | Add layer1 quality tests showing a calendar-only artifact scores lower than a full programming strategy without failing unrelated pack smoke skills. | `$targeted-skill-builder content-programming full-contract benchmark coverage` |
+| No remediation-worthy output-quality issue found in the reviewed full-contract artifacts. | none | none | Keep current `content-programming` benchmark setup and skill contracts unchanged. | Existing report-field checks, Skills Showcase data validation, and `git diff --check` are sufficient for this review artifact update. | `$ship` |
 
 ## Deterministic-Rubric Notes
 
-The deterministic rubric was not misleading for the narrow prompt: all outputs did satisfy the requested calendar, fixture evidence, risk, and next-route checks. The gap is coverage breadth. The benchmark should retain this smoke value but add a richer `content-programming` fixture if the report is meant to support domain-quality claims.
+The deterministic rubric correctly surfaced clean hard-assertion and quality results. The `pack-workflow-traits` criterion still penalized some outputs for missing generic `platform` or `provenance` wording, but the retained artifacts were not materially weaker for that in this local-only fixture. This is not worth changing now because the richer `content-programming`-specific criteria already carry the important behavior.
 
 ## Next Work
 
-Add full-contract benchmark coverage for `content-programming` so future deterministic and subjective reviews can evaluate the skill's actual programming-strategy obligations, not only the generic pack calendar smoke path.
+No follow-up remediation. The deterministic benchmark and subjective review both support the current `content-programming` full-contract coverage.
 
-Recommended next command: `$targeted-skill-builder content-programming full-contract benchmark coverage`
+Recommended next command: `$ship`
