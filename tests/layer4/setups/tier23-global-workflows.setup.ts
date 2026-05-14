@@ -12,13 +12,14 @@ import { BENCH_BUDGETS_USD, BENCH_TIMEOUTS_MS } from "../setup-helpers/budgets.j
 import {
   concreteFileReferenceCriterion,
   createSetupQualityEvaluator,
+  finalNextRouteCriterion,
   forbiddenFabricationCriterion,
   nextRouteCriterion,
   referenceTraitCriterion,
   requiredFactCoverageCriterion,
   requiredPatternCriterion,
 } from "../setup-helpers/quality.js";
-import { assertNextCommand, assertRecommendedRoute } from "../setup-helpers/routing.js";
+import { assertNextCommand, assertRecommendedNextRoute, assertRecommendedRoute } from "../setup-helpers/routing.js";
 
 interface GlobalWorkflowDefinition {
   skill: string;
@@ -29,13 +30,17 @@ interface GlobalWorkflowDefinition {
   expectedPattern?: RegExp;
   recommendedRoute?: string;
   recommendedRoutes?: Partial<Record<BenchAgent, string>>;
+  requireFinalRecommendedRoute?: boolean;
   perRunBudgetUsd?: number;
 }
 
-const TINY_PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAFgwJ/lT0W1wAAAABJRU5ErkJggg==",
-  "base64",
-);
+const ICON_SOURCE_SVG = [
+  '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">',
+  '<rect width="512" height="512" rx="96" fill="#111827"/>',
+  '<circle cx="256" cy="256" r="148" fill="#10b981"/>',
+  '<path d="M164 272h184M256 164v184" stroke="#fff" stroke-width="42" stroke-linecap="round"/>',
+  "</svg>\n",
+].join("");
 
 function expectedRoute(definition: GlobalWorkflowDefinition, agent?: BenchAgent): string | undefined {
   if (agent && definition.recommendedRoutes?.[agent]) {
@@ -91,7 +96,7 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
       assertions.push(assertNextCommand(content));
       const route = expectedRoute(definition, context?.agent);
       if (route) {
-        assertions.push(assertRecommendedRoute(content, route));
+        assertions.push(definition.requireFinalRecommendedRoute ? assertRecommendedNextRoute(content, route) : assertRecommendedRoute(content, route));
       }
 
       return assertions;
@@ -116,7 +121,7 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
         weight: 1,
         files: [definition.outputPath],
       }),
-      nextRouteCriterion({
+      (definition.requireFinalRecommendedRoute ? finalNextRouteCriterion : nextRouteCriterion)({
         id: "workflow-next-route",
         description: "Output includes the expected next command route.",
         weight: 2,
@@ -354,10 +359,10 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "icon-handler",
     outputPath: "icon-audit.md",
-    prompt: "You have the icon-handler skill installed. Audit the Next App Router fixture using local file inspection tools and write icon-audit.md with framework, source asset, missing/stale icon surfaces, proposed fix, approval requirement, verification commands, and Next command. Do not modify files. Do not call external image generation or image-analysis services.",
+    prompt: "You have the icon-handler skill installed. Audit the Next App Router fixture using local file inspection tools and write icon-audit.md with framework, source asset, missing/stale icon surfaces, proposed fix, approval requirement, verification commands, and Next command. Write icon-audit.md before the final response. Build commands belong under verification commands only after an approved fix; the final recommended next command must be the icon-handler fix approval route for this runner (/icon-handler fix calc-mascot-icon.svg for Claude, $icon-handler fix calc-mascot-icon.svg for Codex). Do not modify files. Do not call external image generation or image-analysis services.",
     fixtureFiles: {
       "package.json": "{\"dependencies\":{\"next\":\"15.5.15\"},\"scripts\":{\"build\":\"next build\"}}\n",
-      "calc-mascot-icon.png": TINY_PNG,
+      "calc-mascot-icon.svg": ICON_SOURCE_SVG,
       "src/app/layout.tsx": "export const metadata = { title: 'Fixture' }\n",
       "src/app/favicon.ico": "stale-ico-placeholder\n",
       "src/app/icon.png": "old-icon-placeholder\n",
@@ -368,6 +373,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
       claude: "/icon-handler",
       codex: "$icon-handler",
     },
+    requireFinalRecommendedRoute: true,
     perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
   },
   {
