@@ -14,27 +14,21 @@ Date: 2026-05-14
 
 | Layer | Status | Wall Time | Notes |
 | --- | --- | ---: | --- |
-| layer1 | PASS | 4.5s | 1,179 tests passed across 14 files. |
+| layer1 | PASS | 3.9s | 1,180 tests passed across 14 files. |
 | layer2 | SKIP | -- | No target-specific layer2 tests matched `content-programming`; benchmark evidence is from the custom layer4 pack workflow setup. |
 
 ## Benchmark Summary
 
 | Agent | Evaluated Pass Rate | Blocked Runs | Wilson 95% CI | Output Quality | Latency p50 | Latency p95 | Latency p99 | Cost / Run | Total Cost | Consistency | Outliers | Raw Session Path |
 | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Claude | 0.0% (0/3) | 0 | [0.0%, 56.2%] | 85.8% | 29.9s | 35.4s | 35.9s | $0.25 | $0.75 | 1.000 | 0 | `tests/benchmarks/runs/content-programming-claude-20ea1edd/` |
-| Codex | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 86.7% | 51.2s | 53.9s | 54.2s | $0.25 | $0.75 | 0.844 | 0 | `tests/benchmarks/runs/content-programming-codex-cb044e72/` |
+| Claude | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 89.2% | 29.0s | 30.5s | 30.6s | $0.25 | $0.75 | 0.934 | 0 | `tests/benchmarks/runs/content-programming-claude-d041146e/` |
+| Codex | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 98.3% | 68.0s | 69.1s | 69.2s | $0.25 | $0.75 | 0.876 | 0 | `tests/benchmarks/runs/content-programming-codex-f56f9728/` |
 
 Total benchmark cost: $1.50.
 
 ## Failed Assertions
 
-| Agent | Run | Exit Code | Failed Assertions |
-| --- | ---: | ---: | --- |
-| Claude | 0 | 0 | Output includes next command handoff |
-| Claude | 1 | 0 | Output includes next command handoff |
-| Claude | 2 | 0 | Output includes next command handoff |
-
-Codex had no failed hard assertions.
+None. Claude and Codex both passed all evaluated hard assertion runs.
 
 ## Output-Quality Rubric
 
@@ -42,8 +36,8 @@ The output-quality score is an additional deterministic rubric score, not a repl
 
 | Agent | Average Quality Score | Threshold Failures | Critical Failures | Lowest-Scoring Criteria |
 | --- | ---: | ---: | ---: | --- |
-| Claude | 85.8% | 0 | 0 | `pack-next-route` 0.0%; `pack-workflow-traits` 58.3%; `pack-skill-context` 100.0% |
-| Codex | 86.7% | 0 | 0 | `pack-next-route` 0.0%; `pack-workflow-traits` 66.7%; `pack-skill-context` 100.0% |
+| Claude | 89.2% | 0 | 1 | `pack-workflow-traits` 58.3%; `pack-fixture-evidence` 66.7%; `pack-skill-context` 100.0%; `pack-practical-risk-or-validation` 100.0%; `pack-next-route` 100.0% |
+| Codex | 98.3% | 0 | 0 | `pack-workflow-traits` 83.3%; `pack-skill-context` 100.0%; `pack-fixture-evidence` 100.0%; `pack-practical-risk-or-validation` 100.0%; `pack-next-route` 100.0% |
 
 ## Infrastructure-Blocked Runs
 
@@ -51,11 +45,11 @@ None.
 
 ## Raw Evidence
 
-- Claude report: `tests/benchmarks/runs/content-programming-claude-20ea1edd/report.json`
-- Codex report: `tests/benchmarks/runs/content-programming-codex-cb044e72/report.json`
+- Claude report: `tests/benchmarks/runs/content-programming-claude-d041146e/report.json`
+- Codex report: `tests/benchmarks/runs/content-programming-codex-f56f9728/report.json`
 
 ## Result
 
-Verification passed, but the benchmark failed because Claude passed 0/3 evaluated hard assertion runs. The failing assertion was the missing next-command handoff.
+Verification passed and both agents passed 3/3 evaluated hard assertion runs. Claude still recorded one output-quality critical failure, so this needs a separate triage/remediation pass before treating the skill as fully clean.
 
 Recommended next skill: `$session-triage content-programming benchmark failure`
