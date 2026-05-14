@@ -25,6 +25,8 @@ interface PackWorkflowDefinition {
   focus: string;
   inputs: string[];
   expectedPattern: RegExp;
+  promptRequirements?: string[];
+  requiredOutputPatterns?: Array<{ description: string; pattern: RegExp }>;
   nextRoute?: string;
   nextRoutes?: Partial<Record<BenchAgent, string>>;
   forbidden?: string[];
@@ -141,6 +143,7 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
       `Use pack-input.md to write ${outputPath} with:`,
       "- the pack and skill name",
       `- ${definition.focus}`,
+      ...(definition.promptRequirements ?? []),
       "- concrete local fixture evidence from pack-input.md or fixtures/local-evidence.md",
       "- risks or assumptions",
       "- a literal final handoff label accepted by the harness, such as `Recommended next skill: <command>` or `Recommended next command: <command>`",
@@ -192,6 +195,9 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
       assertions.push(assertContentIncludes(content, definition.skill, "Output names the skill"));
       assertions.push(assertContentIncludes(content, definition.pack, "Output names the pack"));
       assertions.push(assertContentMatches(content, definition.expectedPattern, "Output matches pack workflow expectation"));
+      for (const requiredPattern of definition.requiredOutputPatterns ?? []) {
+        assertions.push(assertContentMatches(content, requiredPattern.pattern, requiredPattern.description));
+      }
       assertions.push(assertNextCommand(content));
       const route = expectedRoute(definition, context?.agent);
       if (route) {
@@ -270,8 +276,42 @@ function createPackQualityEvaluator(definition: PackWorkflowDefinition) {
           "proprietary data",
         ],
       }),
+      ...extraPackQualityCriteria(definition),
     ],
   });
+}
+
+function extraPackQualityCriteria(definition: PackWorkflowDefinition) {
+  if (definition.skill !== "content-programming") {
+    return [];
+  }
+
+  return [
+    requiredFactCoverageCriterion({
+      id: "content-programming-full-contract",
+      description: "Covers the full programming-strategy contract, not just a calendar.",
+      weight: 2,
+      facts: [
+        "pillar",
+        "format",
+        "portfolio",
+        "measurement",
+        "cleanup",
+        "series candidate",
+      ],
+    }),
+    requiredFactCoverageCriterion({
+      id: "content-programming-fixture-strategy-facts",
+      description: "Uses fixture facts for programming strategy dimensions.",
+      weight: 1,
+      facts: [
+        "build-in-public notes",
+        "implementation tradeoffs",
+        "shipped artifact proof",
+        "stale setup walkthroughs",
+      ],
+    }),
+  ];
 }
 
 const packWorkflowDefinitions: PackWorkflowDefinition[] = [
@@ -282,7 +322,40 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "clone-spec-store", pack: "project-fleet", focus: "spec-store clone plan without network execution", inputs: ["Spec store URL is unavailable in benchmark", "Need local checklist"], expectedPattern: /clone|spec|store/i },
   { skill: "cohort-review", pack: "business-ops", focus: "cohort retention and activation review", inputs: ["Week 1 activation: 42%", "Week 4 retained: 18%"], expectedPattern: /cohort|retention|activation/i },
   { skill: "competitive-analysis", pack: "business-discovery", focus: "competitor comparison and positioning gaps", inputs: ["Competitor A has onboarding templates", "Competitor B has integrations"], expectedPattern: /competitor|positioning|gap/i },
-  { skill: "content-programming", pack: "creator-foundation", focus: "creator content programming calendar", inputs: ["Audience wants practical build notes", "Cadence target: weekly"], expectedPattern: /content|calendar|cadence/i, nextRoutes: { claude: "/series-spec", codex: "$series-spec" } },
+  {
+    skill: "content-programming",
+    pack: "creator-foundation",
+    focus: "creator content programming strategy",
+    inputs: [
+      "Audience wants practical build notes",
+      "Cadence target: weekly",
+      "Pillars: build-in-public notes, implementation tradeoffs, shipped artifact proof",
+      "Formats: build note, decision log, demo walkthrough, monthly retro",
+      "Portfolio balance: acquisition, trust, proof, education, retention",
+      "Measurement: cadence completion, evidence coverage, artifact readiness, series handoff readiness",
+      "Cleanup target: stale setup walkthroughs",
+      "Next series candidate: local-first benchmark workflow",
+    ],
+    promptRequirements: [
+      "- durable pillars with audience jobs",
+      "- recurring formats mapped to roles",
+      "- cadence and production constraints",
+      "- portfolio balance across acquisition, trust, proof, education, and retention",
+      "- measurement plan with warning signs",
+      "- cleanup or refactor plan for stale content",
+      "- next series candidates to specify",
+    ],
+    requiredOutputPatterns: [
+      { description: "Output covers durable pillars", pattern: /pillar/i },
+      { description: "Output covers recurring formats", pattern: /format/i },
+      { description: "Output covers portfolio balance", pattern: /portfolio|acquisition|trust|proof|education|retention/i },
+      { description: "Output covers measurement plan", pattern: /measurement|metric|warning sign/i },
+      { description: "Output covers cleanup or refactor plan", pattern: /cleanup|refactor|stale/i },
+      { description: "Output covers next series candidates", pattern: /series candidate|next series/i },
+    ],
+    expectedPattern: /programming|pillar|format|measurement|series/i,
+    nextRoutes: { claude: "/series-spec", codex: "$series-spec" },
+  },
   { skill: "creator-evidence-schema", pack: "creator-foundation", focus: "evidence schema fields and provenance", inputs: ["YouTube export", "LinkedIn manual snapshot"], expectedPattern: /evidence|schema|provenance/i },
   { skill: "creator-metrics-review", pack: "creator-foundation", focus: "creator metrics interpretation", inputs: ["CTR: 4.5%", "Average view duration: 38%"], expectedPattern: /metrics|ctr|duration/i },
   { skill: "creator-platform-capability-matrix", pack: "creator-foundation", focus: "platform capability matrix", inputs: ["YouTube analytics available", "LinkedIn export manual"], expectedPattern: /platform|capability|matrix/i },
