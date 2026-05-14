@@ -14,15 +14,15 @@ Date: 2026-05-14
 
 | Layer | Status | Wall Time | Notes |
 | --- | --- | ---: | --- |
-| layer1 | PASS | 3.7s | 1,181 tests passed across 14 files. |
+| layer1 | PASS | 3.6s | 1,182 tests passed across 14 files. |
 | layer2 | SKIP | -- | No target-specific layer2 tests matched `content-programming`; benchmark evidence is from the custom layer4 pack workflow setup. |
 
 ## Benchmark Summary
 
 | Agent | Evaluated Pass Rate | Blocked Runs | Wilson 95% CI | Output Quality | Latency p50 | Latency p95 | Latency p99 | Cost / Run | Total Cost | Consistency | Outliers | Raw Session Path |
 | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Claude | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 96.7% | 25.7s | 25.8s | 25.8s | $0.25 | $0.75 | 0.879 | 0 | `tests/benchmarks/runs/content-programming-claude-9f0c62c8/` |
-| Codex | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 97.5% | 49.0s | 53.9s | 54.4s | $0.25 | $0.75 | 0.861 | 0 | `tests/benchmarks/runs/content-programming-codex-ff03c35c/` |
+| Claude | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 96.8% | 45.9s | 126.4s | 133.6s | $0.25 | $0.75 | 0.884 | 0 | `tests/benchmarks/runs/content-programming-claude-a8dda4dc/` |
+| Codex | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 98.1% | 68.0s | 68.4s | 68.4s | $0.25 | $0.75 | 0.890 | 0 | `tests/benchmarks/runs/content-programming-codex-7f0f09f4/` |
 
 Total benchmark cost: $1.50.
 
@@ -36,8 +36,8 @@ The output-quality score is an additional deterministic rubric score, not a repl
 
 | Agent | Average Quality Score | Threshold Failures | Critical Failures | Lowest-Scoring Criteria |
 | --- | ---: | ---: | ---: | --- |
-| Claude | 96.7% | 0 | 0 | `pack-workflow-traits` 66.7%; `pack-skill-context` 100.0%; `pack-fixture-evidence` 100.0%; `pack-practical-risk-or-validation` 100.0%; `pack-next-route` 100.0% |
-| Codex | 97.5% | 0 | 0 | `pack-workflow-traits` 75.0%; `pack-skill-context` 100.0%; `pack-fixture-evidence` 100.0%; `pack-practical-risk-or-validation` 100.0%; `pack-next-route` 100.0% |
+| Claude | 96.8% | 0 | 0 | `pack-workflow-traits` 58.3%; `pack-skill-context` 100.0%; `pack-fixture-evidence` 100.0%; `pack-practical-risk-or-validation` 100.0%; `pack-next-route` 100.0% |
+| Codex | 98.1% | 0 | 0 | `pack-workflow-traits` 75.0%; `pack-skill-context` 100.0%; `pack-fixture-evidence` 100.0%; `pack-practical-risk-or-validation` 100.0%; `pack-next-route` 100.0% |
 
 ## Infrastructure-Blocked Runs
 
@@ -45,8 +45,8 @@ None.
 
 ## Raw Evidence
 
-- Claude report: `tests/benchmarks/runs/content-programming-claude-9f0c62c8/report.json`
-- Codex report: `tests/benchmarks/runs/content-programming-codex-ff03c35c/report.json`
+- Claude report: `tests/benchmarks/runs/content-programming-claude-a8dda4dc/report.json`
+- Codex report: `tests/benchmarks/runs/content-programming-codex-7f0f09f4/report.json`
 
 ## Result
 
