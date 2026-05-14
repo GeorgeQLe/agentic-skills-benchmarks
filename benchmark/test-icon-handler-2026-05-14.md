@@ -10,29 +10,29 @@
 
 | Layer | Status | Wall Time | Notes |
 |---|---:|---:|---|
-| layer1 | PASS | 10.8s | 1,446 tests passed across 13 files. |
+| layer1 | PASS | 12.3s | 1,446 tests passed across 13 files. |
 | layer2 | SKIP | -- | No target-specific layer2 tests matched `icon-handler`. |
 
 ## Benchmark Summary
 
 | Agent | Evaluated Pass Rate | Blocked Runs | Wilson 95% CI | Output Quality | p50 | p95 | p99 | Cost / Run | Total Cost | Consistency | Outliers | Raw Session |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| Claude | 66.7% (2/3) | 0 | [20.8%, 93.9%] | 78.0% | 40.5s | 44.2s | 44.5s | $1.00 | $3.00 | 0.790 | 0 | `tests/benchmarks/runs/icon-handler-claude-ba6ebaf0/` |
-| Codex | 66.7% (2/3) | 0 | [20.8%, 93.9%] | 81.1% | 65.0s | 7621.6s | 8293.3s | $1.00 | $3.00 | 0.898 | 0 | `tests/benchmarks/runs/icon-handler-codex-dc9c3d30/` |
+| Claude | 66.7% (2/3) | 0 | [20.8%, 93.9%] | 62.1% | 38.5s | 41.6s | 41.9s | $1.00 | $3.00 | 0.764 | 0 | `tests/benchmarks/runs/icon-handler-claude-86ed23d1/` |
+| Codex | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 84.1% | 73.0s | 143.5s | 149.7s | $1.00 | $3.00 | 0.888 | 0 | `tests/benchmarks/runs/icon-handler-codex-35de8ee4/` |
 
 ## Failed Assertions
 
 | Agent | Run | Exit Code | Failed Assertions |
 |---|---:|---:|---|
-| Claude | #2 | 0 | `Output recommends /icon-handler` |
-| Codex | #2 | 0 | `icon-audit.md created in project root` |
+| Claude | #2 | 1 | `Agent command exited successfully`; `icon-audit.md created in project root` |
+| Codex | -- | -- | none |
 
 ## Output-Quality Details
 
 | Agent | Average Score | Threshold Failures | Critical Failures | Lowest-Scoring Criteria |
 |---|---:|---:|---:|---|
-| Claude | 78.0% | 1 | 1 | `workflow-artifact-reference` 0.0%, `workflow-actionability` 25.0%, `workflow-next-route` 66.7% |
-| Codex | 81.1% | 1 | 1 | `workflow-actionability` 25.0%, `workflow-artifact-reference` 33.3%, `workflow-next-route` 66.7% |
+| Claude | 62.1% | 1 | 3 | `workflow-artifact-reference` 0.0%, `workflow-actionability` 16.7%, `workflow-fixture-facts` 66.7%, `workflow-next-route` 66.7%, `workflow-domain-specificity` 66.7% |
+| Codex | 84.1% | 0 | 0 | `workflow-artifact-reference` 0.0%, `workflow-actionability` 25.0%, `workflow-fixture-facts` 100.0%, `workflow-next-route` 100.0%, `workflow-domain-specificity` 100.0% |
 
 Output-quality score is an additional deterministic rubric score, not a statistical confidence measure.
 
@@ -42,20 +42,20 @@ None. All 6 benchmark runs completed and were evaluated.
 
 ## Notes
 
-- The previous `icon-handler` benchmark fixture issue from 2026-05-13, where an ASCII placeholder named `calc-mascot-icon.png` could trigger image-processing failures, did not recur. The current failures are normal evaluated-output failures.
-- Claude run #2 created `icon-audit.md` and identified the Next App Router icon issues, but its final handoff routed to `npx next build` instead of the expected `/icon-handler` route.
-- Codex run #2 exited successfully but did not create `icon-audit.md` in the project root. Its stderr shows it began the task and then stopped after the initial response, with no audit artifact written.
-- Codex run #2 duration was 8,461.2s, which drives the very high p95/p99 latency values.
+- `icon-handler` remained on custom benchmark coverage through `tests/layer4/setups/tier23-global-workflows.setup.ts`.
+- Verify passed before benchmarking. Layer2 was skipped only because no target-specific layer2 tests matched `icon-handler`.
+- Claude run #2 failed before producing `icon-audit.md`; stdout was `API Error: 400 Could not process image`. The harness did not classify this run as infrastructure-blocked, so it is reported as an evaluated benchmark failure.
+- Codex passed all hard assertions after the route-clarity fix, with no blocked runs and no quality threshold or critical failures.
 
 ## Raw Evidence
 
-- Claude report: `tests/benchmarks/runs/icon-handler-claude-ba6ebaf0/report.json`
-- Claude Markdown: `tests/benchmarks/runs/icon-handler-claude-ba6ebaf0/report.md`
-- Codex report: `tests/benchmarks/runs/icon-handler-codex-dc9c3d30/report.json`
-- Codex Markdown: `tests/benchmarks/runs/icon-handler-codex-dc9c3d30/report.md`
+- Claude report: `tests/benchmarks/runs/icon-handler-claude-86ed23d1/report.json`
+- Claude Markdown: `tests/benchmarks/runs/icon-handler-claude-86ed23d1/report.md`
+- Codex report: `tests/benchmarks/runs/icon-handler-codex-35de8ee4/report.json`
+- Codex Markdown: `tests/benchmarks/runs/icon-handler-codex-35de8ee4/report.md`
 
 ## Result
 
-Verify passed, but both runners had one failed evaluated benchmark run. Treat this as a skill or harness behavior failure requiring triage rather than an infrastructure block.
+Verify passed, Codex passed 3/3 hard assertions, and Claude passed 2/3 hard assertions with one evaluated failure. Treat this as a benchmark failure requiring triage rather than an infrastructure block.
 
 Recommended next command: `$session-triage icon-handler benchmark failure`
