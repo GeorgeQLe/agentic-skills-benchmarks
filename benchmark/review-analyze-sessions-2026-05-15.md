@@ -5,11 +5,11 @@ Date: 2026-05-15
 ## Source Evidence
 
 - Curated benchmark report: `benchmark/test-analyze-sessions-2026-05-15.md`
-- Claude run directory: `tests/benchmarks/runs/analyze-sessions-claude-b5357730/`
-- Codex run directory: `tests/benchmarks/runs/analyze-sessions-codex-8f7e860a/`
-- Reviewed artifacts: `session-analysis.md` snapshots retained in `run-000.json`, `run-001.json`, and `run-002.json` for both agents.
+- Claude run directory: `tests/benchmarks/runs/analyze-sessions-claude-fa3b696a/`
+- Codex run directory: `tests/benchmarks/runs/analyze-sessions-codex-e68803b1/`
+- Reviewed artifacts: retained `session-analysis.md` snapshots in `run-000.json`, `run-001.json`, and `run-002.json` for both agents.
 - Benchmark setup: `tests/layer4/setups/tier23-global-workflows.setup.ts`
-- Target skill contracts: `global/claude/analyze-sessions/SKILL.md` and `global/codex/analyze-sessions/SKILL.md`
+- Target skill contract checked for rubric context: `global/codex/analyze-sessions/SKILL.md`
 
 ## Benchmark Context
 
@@ -26,53 +26,52 @@ The deterministic scores are context only. This review judges the retained gener
 
 ## Output-Quality Verdict
 
-The reviewed outputs are good to excellent overall. Every artifact identifies the central recurring workflow gap: task, roadmap, or todo documentation edits repeatedly missed validation proof and lessons capture until the user intervened. The outputs preserve the three fixture dates, separate explicit evidence from inference, identify a likely run/ship or task-document owner surface, include a validation expectation, and avoid unsupported external services or repository claims.
+The reviewed outputs are excellent overall. All six artifacts identify the same repeated workflow gap: task, roadmap, or todo documentation edits repeatedly missed validation proof and lessons capture until the user intervened. They preserve the three dated fixture records, separate explicit evidence from inference, avoid over-claiming runner ownership, identify a likely `run` or post-doc-edit owner surface, and include a concrete validation expectation.
 
-The prior major weakness, broad or dual-mode handoffs, is mostly fixed. Claude outputs now end with one slash command, and Codex outputs consistently use the dollar command family. The remaining ergonomic issue is narrower: all three Codex artifacts append `for Codex` to the final command argument. That is traceable to ambiguous benchmark prompt wording, but it still makes the retained artifact less clean for a next operator because the intended command is `$targeted-skill-builder run post-doc-edit validation and lessons capture gate`.
+The prior route-exactness weakness is fixed in this fresh run. Claude artifacts end with the slash command, Codex artifacts end with the dollar command, and none append runner-label suffixes. The retained outputs are immediately usable by a next operator because the owner surface, gap phrase, and validation expectation are all present without requiring another discovery pass.
 
 ## Agent-Review Scores
 
 | Reviewer | Runner | Run | Score | Grade Band | Notes |
 | --- | --- | ---: | ---: | --- | --- |
-| Codex reviewer | Claude | 0 | 92 | Excellent | Strong scope control, evidence labels, exact final route, and clear owner/validation handoff. Slightly speculative on slash-side parity, but flags the evidence limit. |
-| Codex reviewer | Claude | 1 | 94 | Excellent | Best overall artifact: precise attribution, concrete gate behavior, block-before-ship expectation, and clean runner-native command. |
-| Codex reviewer | Claude | 2 | 90 | Excellent | Clear recurring-pattern and risk analysis with useful acceptance-check language. Slightly broader owner surface, but still actionable. |
-| Codex reviewer | Codex | 0 | 88 | Good | Strong evidence/inference split and remediation shape. Final command appends `for Codex`, which is less exact than the intended route. |
-| Codex reviewer | Codex | 1 | 89 | Good | Concise and useful with explicit evidence and validation expectations. Final command again includes the unnecessary `for Codex` suffix. |
-| Codex reviewer | Codex | 2 | 90 | Excellent | Strongest Codex artifact: good source comparison, owner caution, and benchmark-validation expectation. Final command still carries the suffix. |
+| Codex reviewer | Claude | 0 | 94 | Excellent | Strongest source-attribution table, exact slash route, clear likely owner surface, and useful block-before-ship validation expectation. |
+| Codex reviewer | Claude | 1 | 91 | Excellent | Good recurrence summary and clean route. Slightly proposes a "new skill / gate" before narrowing to the `run` surface, but stays actionable. |
+| Codex reviewer | Claude | 2 | 93 | Excellent | Precise explicit-vs-inferred section, strong risk framing, and a deterministic gate expectation. |
+| Codex reviewer | Codex | 0 | 90 | Excellent | Correct dollar route and useful remediation table. Slightly broader than necessary by listing secondary automation opportunities. |
+| Codex reviewer | Codex | 1 | 91 | Excellent | Clear inference boundaries and owner caution with a remediation-ready validation expectation. |
+| Codex reviewer | Codex | 2 | 92 | Excellent | Concise and well-scoped: names the likely `run`/task-doc owner surface, exact route, and fixture-backed validation check. |
 
-Median subjective score: 90.0. Score range: 88-94.
+Median subjective score: 91.5. Score range: 90-94.
 
 ## Common Strengths
 
-- Every output treats the fixture as a recurring cross-session workflow gap, not a single incident for session triage.
-- Every output names both recurring misses: validation skipped after task/planning documentation edits and lessons capture missed before shipping or final handoff.
+- Every output treats the fixture as a recurring cross-session workflow gap, not a one-off incident for session triage.
+- Every output names both recurring misses: validation skipped after task or planning documentation edits and lessons capture missed before shipping or final handoff.
 - Every output uses all three dated fixture logs and avoids unsupported broad history claims.
-- Evidence attribution is much cleaner than the previous review: runner-unknown entries stay runner-unknown, and owner surface is marked as inferred when appropriate.
-- Owner and validation expectations are now consistently remediation-ready enough for targeted follow-up.
+- Evidence attribution is careful: runner-unknown entries stay runner-unknown, `$run` is treated as a signal, and Codex is only called explicit where the fixture says so.
+- Owner and validation expectations are consistently remediation-ready enough for targeted follow-up.
+- Final routes are runner-native and exact in the reviewed artifacts.
 - No reviewed output invents external services, GitHub Actions, deploys, package-manager mutations, or nonexistent benchmark results.
 
 ## Common Weaknesses
 
-- Codex outputs include `for Codex` as part of the final command line. The route family is correct, but the command argument is not as exact or clean as the intended handoff.
-- Some owner-surface language remains broad (`shared runner/task-document workflow`) before converging on `run`; this is acceptable given the sparse fixture, but it leaves a small amount of discovery for the next operator.
-- The deterministic rubric still reports `workflow-artifact-reference` at 0.0% even when outputs mention the artifact in stdout or the retained benchmark evidence clearly identifies `session-analysis.md`; this is not material to operator usefulness here.
+- Some outputs list more than one automation opportunity before selecting the highest-impact gate. This does not block operator use, but the best artifacts keep the next work centered on one remediation.
+- Owner surface remains partly inferred because the fixture itself is sparse: one log names `$run`, one names Codex, and one names no runner. The outputs handle this honestly; stronger owner certainty would require stronger fixture evidence.
+- The deterministic rubric still reports `workflow-artifact-reference` at 0.0% because it expects the generated artifact path in the output text. Subjectively this is not material: the retained artifact itself is `session-analysis.md`, and operator usefulness is not reduced by the report title being `Session Analysis`.
 
 ## Remediation Handoff
 
 | Finding | Classification | Owner Target | Proposed Change | Validation Check | Route |
 | --- | --- | --- | --- | --- | --- |
-| Codex artifacts append `for Codex` to the final command, making an otherwise correct handoff less exact. | harness/setup issue | `tests/layer4/setups/tier23-global-workflows.setup.ts` | Reword the `analyze-sessions` benchmark prompt so `for Claude` / `for Codex` are explanatory labels outside the literal command, and tighten the final-route assertion or quality criterion to reject trailing runner-label suffixes when exact final command text is required. | `pnpm --dir tests exec vitest run --project layer1 bench-setups` plus a one-run Codex benchmark smoke for `analyze-sessions` showing the final command is exactly `$targeted-skill-builder run post-doc-edit validation and lessons capture gate`. | `$targeted-skill-builder analyze-sessions benchmark final-route exactness` |
-| The reviewed outputs sometimes name a broad shared owner surface before `run`, reflecting sparse fixture evidence. | retained-evidence gap | `tests/layer4/setups/tier23-global-workflows.setup.ts` fixture logs | If future reviews need stronger owner certainty, add one more fixture log or prompt fact that explicitly establishes whether the owner is `run`, `ship`, or a shared post-doc-edit gate. Keep the current cautious wording acceptable until that evidence exists. | Add/adjust a fixture assertion only if owner specificity becomes a required quality dimension; rerun `pnpm --dir tests verify --skill analyze-sessions`. | `$targeted-skill-builder analyze-sessions benchmark owner-evidence fixture` |
+| No material generated-output weakness remains after this rerun. | none | n/a | No skill or benchmark remediation is recommended from this subjective review. | Existing evidence is sufficient: both agents passed 3/3 hard assertions, scored 92.3% deterministic quality, and all six subjective scores were excellent. | `$ship` |
+| `workflow-artifact-reference` scores 0.0% despite excellent retained artifacts. | deterministic-rubric note, non-blocking | `tests/layer4/setups/tier23-global-workflows.setup.ts` or shared quality helper | Optional future cleanup: decide whether this criterion should inspect retained artifact metadata instead of requiring the artifact filename inside the report body. Do not prioritize unless it creates misleading triage later. | Focused layer1 quality test only if the criterion becomes actionable. | none |
 
 ## Deterministic-Rubric Notes
 
-The deterministic rubric aligned with the broad result: all runs passed hard assertions, preserved fixture facts, used the correct route family, and included owner/validation/evidence-attribution details. It did not surface the `for Codex` command suffix because the route check accepts the expected route as a substring of the final command. Subjectively, this is worth tightening because the benchmark prompt says the final command must be exact.
-
-The `workflow-artifact-reference` 0.0% score is not the important weakness in these artifacts. The generated artifact path is retained by the benchmark, and several outputs name `session-analysis.md` in stdout or scope. Route exactness is the higher-value rubric improvement.
+The deterministic rubric correctly surfaced the broad result: all runs passed hard assertions, preserved fixture facts, used exact runner-native routes, and included owner/validation/evidence-attribution details. The remaining 0.0% `workflow-artifact-reference` criterion is not misleading in this run because the overall quality score still passed and the missing filename does not harm the generated artifact's usefulness.
 
 ## Next Work
 
-Tighten the `analyze-sessions` benchmark setup so the runner-native final command is unambiguous and exact, especially for Codex outputs that currently append `for Codex`.
+No follow-up remediation is needed for `analyze-sessions` benchmark output quality from this reviewed run.
 
-Recommended next command: `$targeted-skill-builder analyze-sessions benchmark final-route exactness`
+Recommended next command: `$ship`
