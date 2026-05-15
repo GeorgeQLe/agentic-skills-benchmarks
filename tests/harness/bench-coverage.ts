@@ -25,7 +25,7 @@ export interface BenchCoverageValidationResult {
   errors: string[];
 }
 
-const LAST_VERIFIED = "2026-05-14";
+const LAST_VERIFIED = "2026-05-15";
 const TIER23_GLOBAL_SETUP_PATH = "tests/layer4/setups/tier23-global-workflows.setup.ts";
 const PACK_WORKFLOW_SETUP_PATH = "tests/layer4/setups/packs/pack-workflows.setup.ts";
 

@@ -31,6 +31,7 @@ interface GlobalWorkflowDefinition {
   recommendedRoute?: string;
   recommendedRoutes?: Partial<Record<BenchAgent, string>>;
   requireFinalRecommendedRoute?: boolean;
+  remediationReadyPatterns?: RegExp[];
   perRunBudgetUsd?: number;
 }
 
@@ -139,6 +140,17 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
           }),
         ]
         : []),
+      ...(definition.remediationReadyPatterns
+        ? [
+          requiredPatternCriterion({
+            id: "workflow-remediation-ready-handoff",
+            description: "Output includes a concrete owner surface and validation expectation for targeted-skill-builder handoff.",
+            weight: 2,
+            critical: true,
+            patterns: definition.remediationReadyPatterns,
+          }),
+        ]
+        : []),
       referenceTraitCriterion({
         id: "workflow-actionability",
         description: "Output has practical workflow evidence, validation, risk, or action language.",
@@ -180,19 +192,24 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "analyze-sessions",
     outputPath: "session-analysis.md",
-    prompt: "You have the analyze-sessions skill installed. Analyze all local session history files under sessions/ and write session-analysis.md with recurring patterns, automation opportunities, risks, and a final Recommended next command. The fixture intentionally contains repeated validation and lessons misses across multiple sessions, so recommend the targeted-skill-builder follow-up for this runner (/targeted-skill-builder for Claude, $targeted-skill-builder for Codex).",
+    prompt: "You have the analyze-sessions skill installed. Analyze all local session history files under sessions/ and write session-analysis.md with recurring patterns, automation opportunities, risks, and a final Recommended next command. The fixture intentionally contains repeated validation and lessons misses across multiple sessions, so recommend a remediation-ready targeted-skill-builder follow-up for this runner. Include the likely owner surface and validation expectation in the report, distinguish explicit evidence from inference, and do not put both route spellings in the final handoff. The final command must be exactly runner-native: /targeted-skill-builder run post-doc-edit validation and lessons capture gate for Claude, or $targeted-skill-builder run post-doc-edit validation and lessons capture gate for Codex.",
     fixtureFiles: {
       "sessions/2026-05-01-log.md": "$run skipped validation after task-doc edits. User corrected missing lessons update.",
       "sessions/2026-05-08-log.md": "After roadmap edits, validation was skipped until the user asked for proof. Lessons update was missing again.",
       "sessions/2026-05-15-log.md": "Codex omitted task-doc validation after a todo update; the user requested lesson capture before shipping.",
     },
-    expectedIncludes: ["recurring patterns", "automation opportunities", "risks"],
+    expectedIncludes: ["recurring pattern", "automation opportunit", "risks"],
     expectedPattern: /validation|lessons/i,
     recommendedRoutes: {
-      claude: "/targeted-skill-builder",
-      codex: "$targeted-skill-builder",
+      claude: "/targeted-skill-builder run post-doc-edit validation and lessons capture gate",
+      codex: "$targeted-skill-builder run post-doc-edit validation and lessons capture gate",
     },
     requireFinalRecommendedRoute: true,
+    remediationReadyPatterns: [
+      /\b(?:owner surface|owning surface|likely owner|owner)\b[\s\S]{0,160}\b(?:run|ship-end|workflow|skill)\b/i,
+      /\b(?:validation expectation|validation check|validation plan|layer1|contract test|benchmark smoke|verify --skill)\b/i,
+      /\b(?:explicit evidence|explicitly says|implies|not stated|inferred)\b/i,
+    ],
     perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
   },
   {
