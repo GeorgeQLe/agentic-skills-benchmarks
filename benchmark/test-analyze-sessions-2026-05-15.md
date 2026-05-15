@@ -14,15 +14,15 @@ Date: 2026-05-15
 
 | Layer | Status | Wall Time | Notes |
 | --- | --- | ---: | --- |
-| layer1 | PASS | 4.0s | 1,197 tests passed across 15 files. |
+| layer1 | PASS | 4.0s | 1,198 tests passed across 15 files. |
 | layer2 | SKIP | -- | No target-specific layer2 tests matched `analyze-sessions`; benchmark evidence is from the custom layer4 global workflow setup. |
 
 ## Benchmark Summary
 
 | Agent | Evaluated Pass Rate | Blocked Runs | Wilson 95% CI | Output Quality | Latency p50 | Latency p95 | Latency p99 | Cost / Run | Total Cost | Consistency | Outliers | Raw Session Path |
 | --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Claude | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 89.4% | 44.1s | 47.4s | 47.7s | $1.00 | $3.00 | 0.840 | 0 | `tests/benchmarks/runs/analyze-sessions-claude-bc867ac4/` |
-| Codex | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 90.9% | 43.8s | 50.4s | 50.9s | $1.00 | $3.00 | 0.872 | 0 | `tests/benchmarks/runs/analyze-sessions-codex-f4218901/` |
+| Claude | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 92.3% | 54.5s | 59.9s | 60.4s | $1.00 | $3.00 | 0.855 | 0 | `tests/benchmarks/runs/analyze-sessions-claude-b5357730/` |
+| Codex | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 92.3% | 61.1s | 64.5s | 64.8s | $1.00 | $3.00 | 0.924 | 0 | `tests/benchmarks/runs/analyze-sessions-codex-8f7e860a/` |
 
 Total benchmark cost: $6.00.
 
@@ -36,8 +36,8 @@ The output-quality score is an additional deterministic rubric score, not a repl
 
 | Agent | Average Quality Score | Threshold Failures | Critical Failures | Lowest-Scoring Criteria |
 | --- | ---: | ---: | ---: | --- |
-| Claude | 89.4% | 0 | 0 | `workflow-artifact-reference` 0.0%; `workflow-actionability` 83.3%; `workflow-fixture-facts` 100.0%; `workflow-next-route` 100.0%; `workflow-domain-specificity` 100.0% |
-| Codex | 90.9% | 0 | 0 | `workflow-artifact-reference` 0.0%; `workflow-fixture-facts` 100.0%; `workflow-next-route` 100.0%; `workflow-domain-specificity` 100.0%; `workflow-actionability` 100.0% |
+| Claude | 92.3% | 0 | 0 | `workflow-artifact-reference` 0.0%; `workflow-fixture-facts` 100.0%; `workflow-next-route` 100.0%; `workflow-domain-specificity` 100.0%; `workflow-remediation-ready-handoff` 100.0% |
+| Codex | 92.3% | 0 | 0 | `workflow-artifact-reference` 0.0%; `workflow-fixture-facts` 100.0%; `workflow-next-route` 100.0%; `workflow-domain-specificity` 100.0%; `workflow-remediation-ready-handoff` 100.0% |
 
 ## Infrastructure-Blocked Runs
 
@@ -45,8 +45,8 @@ None.
 
 ## Raw Evidence
 
-- Claude report: `tests/benchmarks/runs/analyze-sessions-claude-bc867ac4/report.json`
-- Codex report: `tests/benchmarks/runs/analyze-sessions-codex-f4218901/report.json`
+- Claude report: `tests/benchmarks/runs/analyze-sessions-claude-b5357730/report.json`
+- Codex report: `tests/benchmarks/runs/analyze-sessions-codex-8f7e860a/report.json`
 
 ## Result
 
