@@ -4,7 +4,7 @@ import {
   type QualityRubric,
 } from "../../harness/bench-quality.js";
 import type { QualityCriterion, QualityEvaluator } from "../../harness/bench-types.js";
-import { nextCommandHandoffPattern, recommendedNextRoutePattern } from "./routing.js";
+import { nextCommandHandoffPattern, recommendedExactNextRoutePattern, recommendedNextRoutePattern } from "./routing.js";
 
 type CriterionOptions = {
   id: string;
@@ -106,6 +106,16 @@ export function finalNextRouteCriterion(options: CriterionOptions & { route?: st
     ...options,
     patterns: routes.length > 0
       ? [nextCommandHandoffPattern, new RegExp(routes.map((route) => recommendedNextRoutePattern(route).source).join("|"), "i")]
+      : [nextCommandHandoffPattern],
+  });
+}
+
+export function exactFinalNextRouteCriterion(options: CriterionOptions & { route?: string | string[] }): QualityCriterion {
+  const routes = Array.isArray(options.route) ? options.route : options.route ? [options.route] : [];
+  return requiredPatternCriterion({
+    ...options,
+    patterns: routes.length > 0
+      ? [nextCommandHandoffPattern, new RegExp(routes.map((route) => recommendedExactNextRoutePattern(route).source).join("|"), "i")]
       : [nextCommandHandoffPattern],
   });
 }

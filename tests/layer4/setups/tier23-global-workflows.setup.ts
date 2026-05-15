@@ -12,6 +12,7 @@ import { BENCH_BUDGETS_USD, BENCH_TIMEOUTS_MS } from "../setup-helpers/budgets.j
 import {
   concreteFileReferenceCriterion,
   createSetupQualityEvaluator,
+  exactFinalNextRouteCriterion,
   finalNextRouteCriterion,
   forbiddenFabricationCriterion,
   nextRouteCriterion,
@@ -19,7 +20,7 @@ import {
   requiredFactCoverageCriterion,
   requiredPatternCriterion,
 } from "../setup-helpers/quality.js";
-import { assertNextCommand, assertRecommendedNextRoute, assertRecommendedRoute } from "../setup-helpers/routing.js";
+import { assertNextCommand, assertRecommendedExactNextRoute, assertRecommendedNextRoute, assertRecommendedRoute } from "../setup-helpers/routing.js";
 
 interface GlobalWorkflowDefinition {
   skill: string;
@@ -31,6 +32,7 @@ interface GlobalWorkflowDefinition {
   recommendedRoute?: string;
   recommendedRoutes?: Partial<Record<BenchAgent, string>>;
   requireFinalRecommendedRoute?: boolean;
+  requireExactFinalRecommendedRoute?: boolean;
   remediationReadyPatterns?: RegExp[];
   perRunBudgetUsd?: number;
 }
@@ -97,7 +99,13 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
       assertions.push(assertNextCommand(content));
       const route = expectedRoute(definition, context?.agent);
       if (route) {
-        assertions.push(definition.requireFinalRecommendedRoute ? assertRecommendedNextRoute(content, route) : assertRecommendedRoute(content, route));
+        assertions.push(
+          definition.requireExactFinalRecommendedRoute
+            ? assertRecommendedExactNextRoute(content, route)
+            : definition.requireFinalRecommendedRoute
+              ? assertRecommendedNextRoute(content, route)
+              : assertRecommendedRoute(content, route),
+        );
       }
 
       return assertions;
@@ -122,7 +130,11 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
         weight: 1,
         files: [definition.outputPath],
       }),
-      (definition.requireFinalRecommendedRoute ? finalNextRouteCriterion : nextRouteCriterion)({
+      (definition.requireExactFinalRecommendedRoute
+        ? exactFinalNextRouteCriterion
+        : definition.requireFinalRecommendedRoute
+          ? finalNextRouteCriterion
+          : nextRouteCriterion)({
         id: "workflow-next-route",
         description: "Output includes the expected next command route.",
         weight: 2,
@@ -192,7 +204,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "analyze-sessions",
     outputPath: "session-analysis.md",
-    prompt: "You have the analyze-sessions skill installed. Analyze all local session history files under sessions/ and write session-analysis.md with recurring patterns, automation opportunities, risks, and a final Recommended next command. The fixture intentionally contains repeated validation and lessons misses across multiple sessions, so recommend a remediation-ready targeted-skill-builder follow-up for this runner. Include the likely owner surface and validation expectation in the report, distinguish explicit evidence from inference, and do not put both route spellings in the final handoff. The final command must be exactly runner-native: /targeted-skill-builder run post-doc-edit validation and lessons capture gate for Claude, or $targeted-skill-builder run post-doc-edit validation and lessons capture gate for Codex.",
+    prompt: "You have the analyze-sessions skill installed. Analyze all local session history files under sessions/ and write session-analysis.md with recurring patterns, automation opportunities, risks, and a final Recommended next command. The fixture intentionally contains repeated validation and lessons misses across multiple sessions, so recommend a remediation-ready targeted-skill-builder follow-up for this runner. Include the likely owner surface and validation expectation in the report, distinguish explicit evidence from inference, and do not put both route spellings in the final handoff. The final command line must contain exactly one command and no runner label suffix. Use exactly `/targeted-skill-builder run post-doc-edit validation and lessons capture gate` when running as Claude. Use exactly `$targeted-skill-builder run post-doc-edit validation and lessons capture gate` when running as Codex.",
     fixtureFiles: {
       "sessions/2026-05-01-log.md": "$run skipped validation after task-doc edits. User corrected missing lessons update.",
       "sessions/2026-05-08-log.md": "After roadmap edits, validation was skipped until the user asked for proof. Lessons update was missing again.",
@@ -205,6 +217,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
       codex: "$targeted-skill-builder run post-doc-edit validation and lessons capture gate",
     },
     requireFinalRecommendedRoute: true,
+    requireExactFinalRecommendedRoute: true,
     remediationReadyPatterns: [
       /\b(?:owner surface|owning surface|likely owner|owner)\b[\s\S]{0,160}\b(?:run|ship-end|workflow|skill)\b/i,
       /\b(?:validation expectation|validation check|validation plan|layer1|contract test|benchmark smoke|verify --skill)\b/i,

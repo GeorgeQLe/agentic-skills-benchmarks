@@ -31,9 +31,23 @@ export function assertRecommendedNextRoute(content: string, command: string): As
   };
 }
 
+export function assertRecommendedExactNextRoute(content: string, command: string): Assertion {
+  return {
+    description: `Output recommends exactly ${command}`,
+    pass: recommendedExactNextRoutePattern(command).test(content),
+  };
+}
+
 export function recommendedNextRoutePattern(command: string): RegExp {
   return new RegExp(
     String.raw`${nextRoutePrefix}[\s\S]{0,300}${escapeRegExp(command)}`,
+    "i",
+  );
+}
+
+export function recommendedExactNextRoutePattern(command: string): RegExp {
+  return new RegExp(
+    String.raw`${nextRoutePrefix}\s*:?\s*${optionalStrongMarker}\s*(?:\x60{1,3}\s*)?${escapeRegExp(command)}(?:\s*\x60{1,3})?\s*(?:\r?\n|$)`,
     "i",
   );
 }
