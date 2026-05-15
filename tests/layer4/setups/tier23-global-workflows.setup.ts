@@ -219,8 +219,8 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     requireFinalRecommendedRoute: true,
     requireExactFinalRecommendedRoute: true,
     remediationReadyPatterns: [
-      /\b(?:owner surface|owning surface|likely owner|owner)\b[\s\S]{0,160}\b(?:run|ship-end|workflow|skill)\b/i,
-      /\b(?:validation expectation|validation check|validation plan|layer1|contract test|benchmark smoke|verify --skill)\b/i,
+      /\b(?:owner surface|owning surface|likely owner|owner)\b[\s\S]{0,500}\b(?:run|ship-end|workflow|skill|post-edit hook|documentation surface|doc-edit boundary)\b/i,
+      /\b(?:validation expectation|validation check|validation plan|validation command|validation pass|lessons-file update|layer1|contract test|benchmark smoke|verify --skill)\b/i,
       /\b(?:explicit evidence|explicitly says|implies|not stated|inferred)\b/i,
     ],
     perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
