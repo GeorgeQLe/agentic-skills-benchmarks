@@ -180,13 +180,20 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "analyze-sessions",
     outputPath: "session-analysis.md",
-    prompt: "You have the analyze-sessions skill installed. Analyze sessions/log-1.md and write session-analysis.md with recurring patterns, automation opportunities, risks, and Next command.",
+    prompt: "You have the analyze-sessions skill installed. Analyze all local session history files under sessions/ and write session-analysis.md with recurring patterns, automation opportunities, risks, and a final Recommended next command. The fixture intentionally contains repeated validation and lessons misses across multiple sessions, so recommend the targeted-skill-builder follow-up for this runner (/targeted-skill-builder for Claude, $targeted-skill-builder for Codex).",
     fixtureFiles: {
-      "sessions/log-1.md": "Skipped validation twice after task-doc edits. User corrected missing lessons update.",
+      "sessions/2026-05-01-log.md": "$run skipped validation after task-doc edits. User corrected missing lessons update.",
+      "sessions/2026-05-08-log.md": "After roadmap edits, validation was skipped until the user asked for proof. Lessons update was missing again.",
+      "sessions/2026-05-15-log.md": "Codex omitted task-doc validation after a todo update; the user requested lesson capture before shipping.",
     },
     expectedIncludes: ["recurring patterns", "automation opportunities", "risks"],
     expectedPattern: /validation|lessons/i,
-    recommendedRoute: "$targeted-skill-builder",
+    recommendedRoutes: {
+      claude: "/targeted-skill-builder",
+      codex: "$targeted-skill-builder",
+    },
+    requireFinalRecommendedRoute: true,
+    perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
   },
   {
     skill: "bootstrap-repo",

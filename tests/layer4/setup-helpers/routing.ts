@@ -1,7 +1,14 @@
 import type { Assertion } from "../../harness/types.js";
 
-export const nextCommandHandoffPattern =
-  /(?:^|\n)\s*(?:[-*]\s*)?(?:#{1,6}\s*)?(?:(?:recommended\s+)?next\s+(?:command|skill)(?:\s+line)?|next\s+work)\b\s*:?\s*(?:\n|`|\$|\/|\S)/i;
+const nextRouteLabel = String.raw`(?:(?:recommended\s+)?next\s+(?:command|skill)(?:\s+line)?|next\s+work)`;
+const optionalStrongMarker = String.raw`(?:\*\*|__)?`;
+const nextRouteLabelPattern = String.raw`${optionalStrongMarker}${nextRouteLabel}\b${optionalStrongMarker}`;
+const nextRoutePrefix = String.raw`(?:^|\n)\s*(?:[-*]\s*)?(?:#{1,6}\s*)?${nextRouteLabelPattern}`;
+
+export const nextCommandHandoffPattern = new RegExp(
+  String.raw`${nextRoutePrefix}\s*:?\s*(?:\n|\x60|\$|\/|\S)`,
+  "i",
+);
 
 export function assertNextCommand(content: string): Assertion {
   return {
@@ -25,9 +32,8 @@ export function assertRecommendedNextRoute(content: string, command: string): As
 }
 
 export function recommendedNextRoutePattern(command: string): RegExp {
-  const nextRouteLabel = String.raw`(?:(?:recommended\s+)?next\s+(?:command|skill)(?:\s+line)?|next\s+work)`;
   return new RegExp(
-    String.raw`(?:^|\n)\s*(?:[-*]\s*)?(?:#{1,6}\s*)?${nextRouteLabel}\b[\s\S]{0,300}${escapeRegExp(command)}`,
+    String.raw`${nextRoutePrefix}[\s\S]{0,300}${escapeRegExp(command)}`,
     "i",
   );
 }
