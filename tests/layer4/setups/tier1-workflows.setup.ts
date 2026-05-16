@@ -173,6 +173,39 @@ const sessionTriageNoOverRemediationCriterion: QualityCriterion = {
   },
 };
 
+const shipGoalSpecificityCriterion: QualityCriterion = {
+  id: "ship-goal-specificity",
+  description: "Frames the User goal as the completed validated fixture step, not merely writing a manifest",
+  weight: 3,
+  critical: true,
+  evaluate(output: string) {
+    const userGoalSection = output.match(
+      /(?:^|\n)(?:##\s*)?User goal[:\s]*([\s\S]*?)(?=\n(?:##\s*)?(?:Changed files|Tests run|Deploy status|Rollback note|Next command)\b|$)/i,
+    )?.[1] ?? "";
+    const inspectedText = userGoalSection || output;
+    const namesCompletedWork = /\b(completed|validated|validation passed|fixture step|shipping handoff|wrap up)\b/i.test(inspectedText);
+    const metaManifestGoal = /^\s*(?:write|create|record|produce|prepare)\b[^.\n]{0,80}\b(?:manifest|shipping summary|handoff)\b/i
+      .test(inspectedText);
+
+    if (!userGoalSection.trim()) {
+      return { score: 0, notes: ["missing User goal section text"] };
+    }
+    if (metaManifestGoal) {
+      return {
+        score: 0,
+        notes: ["User goal is framed as writing the manifest instead of summarizing the completed fixture work"],
+      };
+    }
+    if (!namesCompletedWork) {
+      return {
+        score: 0,
+        notes: ["User goal does not connect the handoff to the completed validated fixture step"],
+      };
+    }
+    return { score: 1 };
+  },
+};
+
 function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBenchSetup {
   return {
     skill: definition.skill,
@@ -307,6 +340,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       validationPatterns: [/validation\b[\s\S]{0,80}\bpassed/i],
       concreteFiles: ["tests/example.test.ts", "tasks/todo.md"],
       extraCriteria: [
+        shipGoalSpecificityCriterion,
         requiredPatternCriterion({
           id: "validation-evidence",
           description: "Names validation evidence without requiring exact fixture wording",
