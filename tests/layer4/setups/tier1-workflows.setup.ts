@@ -84,7 +84,7 @@ function workflowQualityEvaluator(options: {
         description: "Keeps the answer scoped to the supplied workflow fixture",
         weight: 2,
         requiredAny: options.specificMarkers,
-        forbiddenPhrases: ["production deploy", "GitHub Actions", "database migration"],
+        forbiddenPhrases: ["deployed to production", "production deploy completed", "GitHub Actions", "database migration"],
       }),
       referenceTraitCriterion({
         id: options.coreTraitId,
@@ -128,7 +128,8 @@ function workflowQualityEvaluator(options: {
           "GitHub Actions",
           "Postgres",
           "OpenAI Evals API",
-          "production deploy",
+          "deployed to production",
+          "production deploy completed",
           ...(options.forbidden ?? []),
         ],
       }),
@@ -179,9 +180,13 @@ const shipGoalSpecificityCriterion: QualityCriterion = {
   weight: 3,
   critical: true,
   evaluate(output: string) {
-    const userGoalSection = output.match(
+    const headingUserGoal = output.match(
       /(?:^|\n)(?:##\s*)?User goal[:\s]*([\s\S]*?)(?=\n(?:##\s*)?(?:Changed files|Tests run|Deploy status|Rollback note|Next command)\b|$)/i,
-    )?.[1] ?? "";
+    )?.[1];
+    const fieldUserGoal = output.match(
+      /(?:^|\n)\s*(?:[-*]\s*)?(?:\*\*)?User goal(?:\*\*)?\s*:\s*([^\n]+)/i,
+    )?.[1];
+    const userGoalSection = headingUserGoal ?? fieldUserGoal ?? "";
     const inspectedText = userGoalSection || output;
     const namesCompletedWork = /\b(completed|validated|validation passed|fixture step|shipping handoff|wrap up)\b/i.test(inspectedText);
     const metaManifestGoal = /^\s*(?:write|create|record|produce|prepare)\b[^.\n]{0,80}\b(?:manifest|shipping summary|handoff)\b/i
