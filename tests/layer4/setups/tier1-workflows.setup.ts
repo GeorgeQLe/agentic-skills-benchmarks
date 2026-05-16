@@ -298,14 +298,23 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     expectedIncludes: ["User goal", "Changed files", "Tests run", "Rollback note"],
     expectedPattern: /Deploy status|Deploy skipped/i,
     qualityEvaluator: workflowQualityEvaluator({
-      evidenceFacts: ["Validation passed", "tests/example.test.ts", "tasks/todo.md"],
+      evidenceFacts: ["tests/example.test.ts", "tasks/todo.md"],
       specificMarkers: ["User goal", "Changed files", "Rollback note"],
       nextRoutes: ["/run", "$run"],
       coreTraitId: "shipping-manifest-completeness",
       coreTraitDescription: "Includes the required shipping manifest fields",
       coreTraits: ["User goal", "Changed files", "Tests run", "Deploy status", "Rollback note"],
-      validationPatterns: [/Validation passed|Tests run/i],
+      validationPatterns: [/validation\b[\s\S]{0,80}\bpassed/i],
       concreteFiles: ["tests/example.test.ts", "tasks/todo.md"],
+      extraCriteria: [
+        requiredPatternCriterion({
+          id: "validation-evidence",
+          description: "Names validation evidence without requiring exact fixture wording",
+          weight: 2,
+          critical: true,
+          patterns: [/validation\b[\s\S]{0,80}\bpassed/i],
+        }),
+      ],
     }),
     recommendedRoutes: {
       claude: "/run",
