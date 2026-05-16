@@ -1,103 +1,94 @@
 # Triage: ship Benchmark Failure
 
 **Date:** 2026-05-16
-**Workflow:** `$session-triage ship benchmark failure`
-**Target:** `ship` benchmark quality failure from `benchmark/test-ship-2026-05-16.md`
+**Command:** `$session-triage ship benchmark failure`
+**Target:** `ship` deterministic benchmark failure from `benchmark/test-ship-2026-05-16.md`
+**Verdict:** verified benchmark harness false negative
 
 ## Evidence Sources
 
-- `benchmark/test-ship-2026-05-16.md`
-- `tests/benchmarks/runs/ship-claude-422763ac/run-000.json`
-- `tests/benchmarks/runs/ship-claude-422763ac/run-001.json`
-- `tests/benchmarks/runs/ship-claude-422763ac/run-002.json`
-- `tests/benchmarks/runs/ship-claude-422763ac/report.json`
-- `tests/benchmarks/runs/ship-codex-2dbe4b8c/report.json`
-- `tests/layer4/setups/tier1-workflows.setup.ts`
-- `tests/layer1/bench-setups.test.ts`
-- `tests/harness/bench-quality.ts`
-- `global/codex/ship/SKILL.md`
-- `global/claude/ship/SKILL.md`
-- `tasks/lessons.md`
+- Fresh benchmark report: `benchmark/test-ship-2026-05-16.md`
+- Raw Claude run evidence: `tests/benchmarks/runs/ship-claude-d6121a8f/run-002.json`
+- Raw Claude summary: `tests/benchmarks/runs/ship-claude-d6121a8f/report.json`
+- Raw Codex summary: `tests/benchmarks/runs/ship-codex-a2685d9f/report.json`
+- Benchmark setup: `tests/layer4/setups/tier1-workflows.setup.ts`
+- Focused layer1 coverage: `tests/layer1/bench-setups.test.ts`
+- Mirrored skill contracts: `global/codex/ship/SKILL.md`, `global/claude/ship/SKILL.md`
+- Relevant lessons: `tasks/lessons.md`
 
 ## User-Identified Issue
 
-The fresh `$benchmark-test-skill ship` run reported a deterministic `ship` benchmark quality failure. The benchmark report shows one Claude critical failure on the `evidence-linked` criterion.
+The user invoked `$session-triage ship benchmark failure` after `$benchmark-test-skill ship` reported a Claude output-quality critical failure in `ship-goal-specificity`.
 
 ## Verification Verdict
 
-**Verified, but classified as a benchmark rubric false negative rather than a `ship` skill contract failure.**
+Verified. The benchmark report shows Claude passed 3/3 hard assertions with no infrastructure blocks, but scored 94.7% output quality with 1 critical `ship-goal-specificity` failure. Codex passed 3/3 hard assertions and scored 100.0%.
 
-The benchmark report shows all hard assertions passed and no runs were infrastructure-blocked:
+The failing Claude run `run-002.json` wrote a `ship-manifest.md` artifact with a bullet-style field:
 
-- Claude: 3/3 hard assertions passed; quality 92.9%; one critical failure.
-- Codex: 3/3 hard assertions passed; quality 100.0%; no critical failures.
+- `- **User goal:** Wrap up the completed fixture step and prepare it for shipping.`
+- Changed files: `tests/example.test.ts`, `tasks/todo.md`
+- Tests run: fixture validation passed
+- Next command: `/run`
 
-The failing Claude artifact still included the required evidence semantically:
-
-```md
-- **Changed files:**
-  - `tests/example.test.ts` (modified)
-  - `tasks/todo.md` (modified)
-- **Tests run:** None executed in this session -- fixture review notes validation already passed for the completed step.
-```
-
-The quality result for Claude run 2 failed only because `evidence-linked` reported:
-
-```text
-missing required fact: Validation passed
-```
-
-That is a literal wording miss, not missing validation evidence. The artifact says "validation already passed" and separately passes the `validation-specificity` criterion.
+That output is semantically aligned with the benchmark intent and the Claude `ship` route convention. The failure note was `missing User goal section text`, not a finding that the user goal was meta, vague, or disconnected from completed work.
 
 ## Timeline
 
-1. `$benchmark-test-skill ship` resolved `ship` as the benchmark target and ran custom coverage through `tests/layer4/setups/tier1-workflows.setup.ts`.
-2. Verify passed: layer1 PASS in 3.9s; layer2 skipped because no target-specific layer2 tests matched `ship`.
-3. Both-agent benchmark completed with no infrastructure blocks.
-4. Claude and Codex each passed 3/3 hard assertions, including manifest creation, required sections, deploy status, and runner-native next route.
-5. Claude runs 0 and 1 passed all quality criteria.
-6. Claude run 2 failed the critical `evidence-linked` criterion because it wrote "validation already passed" instead of the contiguous fixture phrase "Validation passed."
-7. Codex passed all quality criteria in all three runs.
+1. `$benchmark-test-skill ship` ran verify and both-agent benchmarks.
+2. Verify passed: layer1 PASS in 3.8s; layer2 SKIP because no target-specific layer2 tests matched.
+3. Claude session `d6121a8f` completed 3/3 evaluated hard assertions with no infrastructure blocks.
+4. Claude run 2 emitted a valid bullet-style ship manifest field for `User goal`.
+5. The `ship-goal-specificity` quality criterion failed only that run because its extractor expects a heading-style `User goal` section.
+6. The curated benchmark report correctly routed to `$session-triage ship benchmark failure`.
 
 ## Root Cause
 
-The `ship` quality evaluator overfits the validation evidence fact to one exact contiguous phrase:
+The `ship-goal-specificity` benchmark quality criterion is too narrow. It extracts only heading-style sections:
 
-```ts
-evidenceFacts: ["Validation passed", "tests/example.test.ts", "tasks/todo.md"]
+```text
+## User goal
+...
+## Changed files
 ```
 
-The shared `requiredFacts` assertion does case-insensitive substring matching, but it still requires the exact word sequence. It accepts "Validation passed" and rejects "validation already passed", even though that wording preserves the same fixture fact and the manifest names both changed files.
+It does not extract valid manifest fields formatted as bold bullets:
 
-This is not mirrored skill drift. Both `global/codex/ship/SKILL.md` and `global/claude/ship/SKILL.md` require validation evidence in a manifest; neither requires quoting the exact phrase from `tasks/todo.md`.
+```text
+- **User goal:** Wrap up the completed fixture step and prepare it for shipping.
+```
+
+The mirrored `ship` contracts require the manifest to include a `User goal` field, but they do not require heading-only Markdown. The same run passed `shipping-manifest-completeness`, which means the setup already recognized the bullet-style manifest as containing required manifest fields. The specificity criterion should use a field extractor consistent with the manifest-completeness criterion.
+
+## Classification
+
+Benchmark harness defect. This is not a `ship` skill contract gap, not a runner infrastructure issue, and not proven agent noncompliance.
 
 ## Responsible Contract Gap
 
-**Responsible surface:** benchmark harness quality coverage for `ship`.
+Responsible file: `tests/layer4/setups/tier1-workflows.setup.ts`
 
-Exact owner files:
+Responsible criterion: `shipGoalSpecificityCriterion`
 
-- `tests/layer4/setups/tier1-workflows.setup.ts`
-- `tests/layer1/bench-setups.test.ts`
+Related focused coverage: `tests/layer1/bench-setups.test.ts`
 
-The `ship` skill contracts are adequate for this specific incident.
+No mirrored `ship` skill contract change is justified by this evidence.
 
 ## Recommended Fix
 
-Route to a targeted benchmark-harness update. Do not change the mirrored `ship` skill contracts for this incident.
+Update the `ship-goal-specificity` evaluator to parse both heading-style and field-style manifest formats before applying the existing specificity checks.
 
-Update `tests/layer4/setups/tier1-workflows.setup.ts` so the `ship` evidence-linked criterion accepts validation evidence with flexible wording. The smallest durable fix is to stop using the exact phrase `Validation passed` as a required fact and add a validation evidence pattern such as:
+Suggested behavior:
 
-```ts
-/validation\b[\s\S]{0,80}\bpassed/i
-```
+- Extract `User goal` from heading sections such as `## User goal`.
+- Also extract `User goal` from bullet or bold field formats such as `- **User goal:** ...` and `**User goal:** ...`.
+- Preserve the existing rejection of meta manifest goals such as `Record the completed fixture shipping summary...`.
+- Keep the criterion critical because it catches a real output-quality issue when the field is present but frames the user goal as writing a manifest instead of shipping completed work.
 
-or otherwise split the validation evidence into a criterion that accepts equivalent wording like "validation already passed" while still rejecting manifests that omit validation evidence.
+Suggested next implementation target:
 
-Add or update layer1 coverage in `tests/layer1/bench-setups.test.ts` to prove:
-
-- A `ship` manifest with `validation already passed` passes `evidence-linked` or the replacement validation-evidence criterion.
-- A manifest that names changed files but omits validation evidence still fails quality.
+- `tests/layer4/setups/tier1-workflows.setup.ts`: broaden `shipGoalSpecificityCriterion` field extraction.
+- `tests/layer1/bench-setups.test.ts`: add a regression case using the failing Claude bullet manifest and retain the current meta-goal rejection case.
 
 ## Validation Plan
 
@@ -106,28 +97,17 @@ Run:
 ```bash
 pnpm --dir tests exec vitest run --project layer1 bench-setups
 pnpm --dir tests verify --skill ship
-pnpm --dir tests bench --skill ship --agent codex --runs 1 --chunk-size 1 --pause 0
+pnpm --dir tests bench --skill ship --agent claude --runs 1 --chunk-size 1 --pause 0
+rg -n "ship-goal-specificity|User goal" tests/layer4/setups/tier1-workflows.setup.ts tests/layer1/bench-setups.test.ts
 git diff --check
 ```
 
-Optional stronger check after the targeted fix:
-
-```bash
-pnpm --dir tests bench --skill ship --agent both --runs 3 --chunk-size 3 --pause 0
-```
-
-Expected result: hard assertions remain green, and semantically valid validation evidence such as "validation already passed" no longer triggers a critical `evidence-linked` failure.
+If the fix changes only benchmark harness code and not curated benchmark/review reports, Skills Showcase generated data should not need refresh.
 
 ## Confidence And Evidence Gaps
 
-**Confidence:** high.
+Confidence is high. The raw failed run shows a valid completed-work `User goal` field, and the failure note identifies extraction rather than semantic mismatch.
 
-The failure reason is directly visible in `run-002.json`, and the generated artifact includes the fixture facts semantically. No broad `$analyze-sessions` recurrence scan is needed.
+Evidence gaps are narrow: this triage did not inspect all historical `ship` benchmark runs because the current failure is directly explained by the fresh raw artifact and current rubric implementation. `$analyze-sessions` is not needed for recurrence analysis.
 
-Evidence gap: this triage did not implement or run the proposed harness change because this workflow is analysis-focused. The proposed validation commands should be run by the targeted fix workflow.
-
-## Result
-
-The fresh benchmark failure is verified as a deterministic quality-rubric false negative caused by exact phrase matching on `Validation passed`. The durable fix belongs in the `ship` benchmark setup and layer1 coverage, not in the mirrored `ship` skill contracts.
-
-Recommended next skill: `$targeted-skill-builder ship benchmark validation evidence`
+Recommended next skill: `$targeted-skill-builder ship benchmark goal field extraction`
