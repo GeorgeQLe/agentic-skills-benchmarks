@@ -298,7 +298,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     expectedIncludes: ["User goal", "Changed files", "Tests run", "Rollback note"],
     expectedPattern: /Deploy status|Deploy skipped/i,
     qualityEvaluator: workflowQualityEvaluator({
-      evidenceFacts: ["Validation passed", "M tests/example.test.ts", "M tasks/todo.md"],
+      evidenceFacts: ["Validation passed", "tests/example.test.ts", "tasks/todo.md"],
       specificMarkers: ["User goal", "Changed files", "Rollback note"],
       nextRoutes: ["/run", "$run"],
       coreTraitId: "shipping-manifest-completeness",
