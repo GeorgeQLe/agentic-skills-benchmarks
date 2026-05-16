@@ -7,105 +7,97 @@
 ## Evidence Sources
 
 - `benchmark/test-ship-2026-05-16.md`
-- `tests/benchmarks/runs/ship-claude-a11036e8/run-000.json`
-- `tests/benchmarks/runs/ship-claude-a11036e8/report.json`
-- `tests/benchmarks/runs/ship-codex-7e3f4bab/run-000.json`
-- `tests/benchmarks/runs/ship-codex-7e3f4bab/report.json`
+- `tests/benchmarks/runs/ship-claude-422763ac/run-000.json`
+- `tests/benchmarks/runs/ship-claude-422763ac/run-001.json`
+- `tests/benchmarks/runs/ship-claude-422763ac/run-002.json`
+- `tests/benchmarks/runs/ship-claude-422763ac/report.json`
+- `tests/benchmarks/runs/ship-codex-2dbe4b8c/report.json`
 - `tests/layer4/setups/tier1-workflows.setup.ts`
+- `tests/layer1/bench-setups.test.ts`
 - `tests/harness/bench-quality.ts`
 - `global/codex/ship/SKILL.md`
 - `global/claude/ship/SKILL.md`
-- `docs/quality-gate-contract.md`
 - `tasks/lessons.md`
 
 ## User-Identified Issue
 
-The fresh `$benchmark-test-skill ship` run reported a `ship` benchmark failure because both Claude and Codex had deterministic output-quality critical failures on `evidence-linked`.
+The fresh `$benchmark-test-skill ship` run reported a deterministic `ship` benchmark quality failure. The benchmark report shows one Claude critical failure on the `evidence-linked` criterion.
 
 ## Verification Verdict
 
-**Verified, but classified as a benchmark harness defect rather than a `ship` skill contract failure.**
+**Verified, but classified as a benchmark rubric false negative rather than a `ship` skill contract failure.**
 
-The benchmark report shows both runners passed all hard assertions and had no infrastructure-blocked runs:
+The benchmark report shows all hard assertions passed and no runs were infrastructure-blocked:
 
-- Claude: 3/3 evaluated hard assertions passed; quality 78.6%; 3 critical failures.
-- Codex: 3/3 evaluated hard assertions passed; quality 78.6%; 3 critical failures.
+- Claude: 3/3 hard assertions passed; quality 92.9%; one critical failure.
+- Codex: 3/3 hard assertions passed; quality 100.0%; no critical failures.
 
-The critical quality failure is repeatable across the evaluated artifacts. The quality criterion requires exact fixture facts `M tests/example.test.ts` and `M tasks/todo.md`, but generated manifests name the changed files as `tests/example.test.ts` and `tasks/todo.md` without the `M ` status prefix.
-
-Example Codex artifact:
+The failing Claude artifact still included the required evidence semantically:
 
 ```md
-## Changed files
-
-- `tests/example.test.ts`
-- `tasks/todo.md`
+- **Changed files:**
+  - `tests/example.test.ts` (modified)
+  - `tasks/todo.md` (modified)
+- **Tests run:** None executed in this session -- fixture review notes validation already passed for the completed step.
 ```
 
-Example Claude artifact:
+The quality result for Claude run 2 failed only because `evidence-linked` reported:
 
-```md
-## Changed files
-- `tests/example.test.ts`
-- `tasks/todo.md`
+```text
+missing required fact: Validation passed
 ```
 
-The mirrored `ship` contracts require an exact changed-file boundary, but do not require preserving `git diff --stat` or `git status --short` prefixes inside the manifest. `docs/quality-gate-contract.md` likewise says the manifest must include "Exact changed files in the shipping boundary," not raw status markers.
+That is a literal wording miss, not missing validation evidence. The artifact says "validation already passed" and separately passes the `validation-specificity` criterion.
 
 ## Timeline
 
 1. `$benchmark-test-skill ship` resolved `ship` as the benchmark target and ran custom coverage through `tests/layer4/setups/tier1-workflows.setup.ts`.
-2. Verify passed: layer1 PASS in 4.5s; layer2 skipped because no target-specific layer2 tests matched.
+2. Verify passed: layer1 PASS in 3.9s; layer2 skipped because no target-specific layer2 tests matched `ship`.
 3. Both-agent benchmark completed with no infrastructure blocks.
-4. All hard assertions passed for both agents, including file creation, required manifest sections, deploy status, and runner-native next route.
-5. The additional deterministic quality rubric failed critically for both agents on `evidence-linked`.
-6. Raw run evidence shows the agents used the fixture facts semantically but normalized the status-prefixed diff summary into clean file names.
+4. Claude and Codex each passed 3/3 hard assertions, including manifest creation, required sections, deploy status, and runner-native next route.
+5. Claude runs 0 and 1 passed all quality criteria.
+6. Claude run 2 failed the critical `evidence-linked` criterion because it wrote "validation already passed" instead of the contiguous fixture phrase "Validation passed."
+7. Codex passed all quality criteria in all three runs.
 
 ## Root Cause
 
-The `ship` setup's `evidenceFacts` overfits to raw diff-summary line formatting:
+The `ship` quality evaluator overfits the validation evidence fact to one exact contiguous phrase:
 
 ```ts
-evidenceFacts: ["Validation passed", "M tests/example.test.ts", "M tasks/todo.md"]
+evidenceFacts: ["Validation passed", "tests/example.test.ts", "tasks/todo.md"]
 ```
 
-The shared `requiredFacts` assertion performs literal folded substring matching. Because `M tests/example.test.ts` is not present verbatim, artifacts that correctly cite `tests/example.test.ts` still fail the critical `evidence-linked` criterion.
+The shared `requiredFacts` assertion does case-insensitive substring matching, but it still requires the exact word sequence. It accepts "Validation passed" and rejects "validation already passed", even though that wording preserves the same fixture fact and the manifest names both changed files.
 
-This is not runner infrastructure and not mirrored skill drift. It is not one-off agent noncompliance either: all six evaluated artifacts included the changed file names and validation evidence, and the `file-reference` and `validation-specificity` criteria passed.
+This is not mirrored skill drift. Both `global/codex/ship/SKILL.md` and `global/claude/ship/SKILL.md` require validation evidence in a manifest; neither requires quoting the exact phrase from `tasks/todo.md`.
 
 ## Responsible Contract Gap
 
-**Responsible surface:** benchmark harness coverage for `ship`.
+**Responsible surface:** benchmark harness quality coverage for `ship`.
 
 Exact owner files:
 
 - `tests/layer4/setups/tier1-workflows.setup.ts`
 - `tests/layer1/bench-setups.test.ts`
 
-The mirrored skill contracts are adequate for this specific issue:
-
-- `global/codex/ship/SKILL.md`
-- `global/claude/ship/SKILL.md`
+The `ship` skill contracts are adequate for this specific incident.
 
 ## Recommended Fix
 
-Route to a targeted benchmark-harness update. Do not change the `ship` skill contracts for this incident.
+Route to a targeted benchmark-harness update. Do not change the mirrored `ship` skill contracts for this incident.
 
-Update `tests/layer4/setups/tier1-workflows.setup.ts` so the `ship` quality evaluator treats changed-file evidence as file names, not raw git-status lines. The smallest fix is to change:
-
-```ts
-evidenceFacts: ["Validation passed", "M tests/example.test.ts", "M tasks/todo.md"]
-```
-
-to:
+Update `tests/layer4/setups/tier1-workflows.setup.ts` so the `ship` evidence-linked criterion accepts validation evidence with flexible wording. The smallest durable fix is to stop using the exact phrase `Validation passed` as a required fact and add a validation evidence pattern such as:
 
 ```ts
-evidenceFacts: ["Validation passed", "tests/example.test.ts", "tasks/todo.md"]
+/validation\b[\s\S]{0,80}\bpassed/i
 ```
 
-Keep `concreteFiles: ["tests/example.test.ts", "tasks/todo.md"]` as an independent file-reference check.
+or otherwise split the validation evidence into a criterion that accepts equivalent wording like "validation already passed" while still rejecting manifests that omit validation evidence.
 
-Add layer1 regression coverage proving a valid `ship` manifest that names clean changed-file paths passes the quality evaluator without requiring `M ` prefixes. If practical, also add a negative case that still fails when the changed files are omitted entirely.
+Add or update layer1 coverage in `tests/layer1/bench-setups.test.ts` to prove:
+
+- A `ship` manifest with `validation already passed` passes `evidence-linked` or the replacement validation-evidence criterion.
+- A manifest that names changed files but omits validation evidence still fails quality.
 
 ## Validation Plan
 
@@ -124,18 +116,18 @@ Optional stronger check after the targeted fix:
 pnpm --dir tests bench --skill ship --agent both --runs 3 --chunk-size 3 --pause 0
 ```
 
-Expected result: hard assertions remain green and the `evidence-linked` criterion no longer fails when the artifact names `tests/example.test.ts`, `tasks/todo.md`, and `Validation passed`.
+Expected result: hard assertions remain green, and semantically valid validation evidence such as "validation already passed" no longer triggers a critical `evidence-linked` failure.
 
 ## Confidence And Evidence Gaps
 
 **Confidence:** high.
 
-The failure reason is directly visible in every raw run's `qualityResult.notes`, and the generated artifacts show the expected semantic evidence. No broad `$analyze-sessions` history scan is needed.
+The failure reason is directly visible in `run-002.json`, and the generated artifact includes the fixture facts semantically. No broad `$analyze-sessions` recurrence scan is needed.
 
-Evidence gap: this triage did not run a modified benchmark setup because this workflow is analysis-only. The proposed validation commands should be run by the targeted fix workflow.
+Evidence gap: this triage did not implement or run the proposed harness change because this workflow is analysis-focused. The proposed validation commands should be run by the targeted fix workflow.
 
 ## Result
 
-The fresh benchmark failure is verified as a deterministic quality-rubric false negative caused by exact matching on raw `M ` diff-status prefixes. The durable fix belongs in the `ship` benchmark setup and layer1 coverage, not in the mirrored `ship` skill contracts.
+The fresh benchmark failure is verified as a deterministic quality-rubric false negative caused by exact phrase matching on `Validation passed`. The durable fix belongs in the `ship` benchmark setup and layer1 coverage, not in the mirrored `ship` skill contracts.
 
-Recommended next skill: `$targeted-skill-builder ship benchmark evidence-linked file status prefix`
+Recommended next skill: `$targeted-skill-builder ship benchmark validation evidence`
