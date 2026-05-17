@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { BenchAgent, SkillBenchSetup } from "../../harness/bench-types.js";
+import type { BenchAgent, QualityCriterion, SkillBenchSetup } from "../../harness/bench-types.js";
 import type { Assertion, RunResult } from "../../harness/types.js";
 import {
   assertContentIncludes,
@@ -28,6 +28,7 @@ interface GlobalWorkflowDefinition {
   prompt: string;
   fixtureFiles: Record<string, string | Buffer>;
   expectedIncludes: string[];
+  expectedEvidence?: Array<{ description: string; pattern: RegExp }>;
   expectedPattern?: RegExp;
   recommendedRoute?: string;
   recommendedRoutes?: Partial<Record<BenchAgent, string>>;
@@ -93,6 +94,10 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
         assertions.push(assertContentIncludes(content, expected, `Output includes ${expected}`));
       }
 
+      for (const expected of definition.expectedEvidence ?? []) {
+        assertions.push(assertContentMatches(content, expected.pattern, expected.description));
+      }
+
       if (definition.expectedPattern) {
         assertions.push(assertContentMatches(content, definition.expectedPattern, "Output matches workflow expectation"));
       }
@@ -133,6 +138,15 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
         critical: true,
         facts: definition.expectedIncludes,
       }),
+      ...((definition.expectedEvidence ?? []).map((expected): QualityCriterion => (
+        requiredPatternCriterion({
+          id: `workflow-${slugifyCriterionId(expected.description)}`,
+          description: expected.description,
+          weight: 2,
+          critical: true,
+          patterns: [expected.pattern],
+        })
+      ))),
       concreteFileReferenceCriterion({
         id: "workflow-artifact-reference",
         description: "Output names the generated workflow artifact.",
@@ -188,6 +202,13 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
     ],
   });
 }
+
+function slugifyCriterionId(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+const UPDATE_PACKAGES_VERIFICATION_EVIDENCE_PATTERN =
+  /verification commands|(?:^|\n)#{1,6}\s*Verification\b[\s\S]*(pnpm install --frozen-lockfile|pnpm run build|pnpm run test|pnpm test|pnpm outdated)/i;
 
 const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
@@ -587,7 +608,13 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
       }, null, 2),
       "package-lock-note.md": "This fixture has package-lock.json in the source project and no pnpm-lock.yaml. There are no deployment notes requiring npm.",
     },
-    expectedIncludes: ["pnpm", "older than 8 days", "verification commands", ".npmrc", "min-release-age"],
+    expectedIncludes: ["pnpm", "older than 8 days", ".npmrc", "min-release-age"],
+    expectedEvidence: [
+      {
+        description: "Output includes verification command evidence",
+        pattern: UPDATE_PACKAGES_VERIFICATION_EVIDENCE_PATTERN,
+      },
+    ],
     expectedPattern: /(19\.2\.0|3\.25\.76|3\.2\.4).*(min-release-age=8|minimum-release-age=11520|minimumReleaseAge|11520)|(\.npmrc|min-release-age=8|minimum-release-age=11520).*(19\.2\.0|3\.25\.76|3\.2\.4)/is,
     recommendedRoutes: {
       claude: "/run",
