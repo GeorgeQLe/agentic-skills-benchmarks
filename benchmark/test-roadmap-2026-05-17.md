@@ -10,45 +10,55 @@
 
 | Layer | Status | Wall Time | Notes |
 |---|---:|---:|---|
-| layer1 | FAIL | 3.9s | `layer1/benchmark-results-matrix.test.ts` expected the older `ship-codex-a2685d9f` raw report row, while the generated benchmark matrix now points at `ship-codex-898663d6`. |
-| layer2 | SKIP | -- | Verification stopped after layer1 failure; no target-specific layer2 tests ran for `roadmap`. |
+| layer1 | PASS | 3.6s | 15 files, 1202 tests passed. |
+| layer2 | SKIP | -- | No target-specific layer2 tests matched `roadmap`; benchmark evidence is from the custom layer4 setup. |
 
 ## Benchmark Summary
 
 | Agent | Evaluated Pass Rate | Blocked Runs | Wilson 95% CI | Output Quality | p50 | p95 | p99 | Cost / Run | Total Cost | Consistency | Outliers | Raw Session |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| Claude | not run | 0 | not available | not scored | not available | not available | not available | $0.00 | $0.00 | not available | not available | none: verify failed before benchmark execution |
-| Codex | not run | 0 | not available | not scored | not available | not available | not available | $0.00 | $0.00 | not available | not available | none: verify failed before benchmark execution |
+| Claude | 0.0% (0/0 evaluated) | 3 | [0.0%, 0.0%] | not scored | 0.0s | 0.0s | 0.0s | $0.25 | $0.75 | 1.000 | 0 | `tests/benchmarks/runs/roadmap-claude-ceadee35/` |
+| Codex | 0.0% (0/3 evaluated) | 0 | [0.0%, 56.2%] | 78.6% | 44.3s | 70.5s | 72.9s | $0.25 | $0.75 | 1.000 | 0 | `tests/benchmarks/runs/roadmap-codex-43f41fa9/` |
 
 ## Failed Assertions
 
-- `layer1/benchmark-results-matrix.test.ts` failed because its expected `ship` Codex row is stale:
-  - Expected raw report: `tests/benchmarks/runs/ship-codex-a2685d9f/report.json`
-  - Current matrix raw report: `tests/benchmarks/runs/ship-codex-898663d6/report.json`
+Codex completed three evaluated runs. Each run failed one hard assertion:
 
-No `roadmap` benchmark hard assertions were evaluated.
+| Agent | Run | Failed Assertion |
+|---|---:|---|
+| Codex | 0 | `Output recommends $run` |
+| Codex | 1 | `Output recommends $run` |
+| Codex | 2 | `Output recommends $run` |
+
+Claude had no evaluated hard assertions because all three runs were infrastructure-blocked.
 
 ## Output-Quality Details
 
-No output-quality evaluator ran. Output-quality score is an additional deterministic rubric score, not a statistical confidence measure.
+Output-quality scoring is an additional deterministic rubric score, not a statistical confidence measure.
+
+| Agent | Evaluated Runs | Average Score | Threshold Failures | Critical Failures | Lowest-Scoring Criteria |
+|---|---:|---:|---:|---:|---|
+| Claude | 0 | not scored | 0 | 0 | none |
+| Codex | 3 | 78.6% | 1 | 4 | `file-reference` 0.0%, `actionable-next-route` 0.0%, `evidence-linked` 66.7%, `scope-control` 100.0%, `roadmap-phase-structure` 100.0% |
 
 ## Infrastructure Blocks
 
-None reported. The run is verification-blocked by a layer1 harness assertion failure, not by runner capacity, quota, or rate limits.
+| Agent | Blocked Runs | Reason |
+|---|---:|---|
+| Claude | 3 | agent runner budget exceeded |
+| Codex | 0 | none |
 
-## Notes
-
-- `roadmap` is known to the benchmark harness with custom coverage through `tests/layer4/setups/tier1-workflows.setup.ts`.
-- `pnpm bench --skill roadmap --agent both --runs 3 --chunk-size 3 --pause 0` was intentionally not run because `pnpm verify --skill roadmap` failed.
-- The observed failure is a benchmark-results matrix maintenance issue, not evidence that the `roadmap` skill failed its benchmark behavior.
+The Claude result is infrastructure-blocked, not an evaluated skill failure. The Codex result is an evaluated benchmark failure.
 
 ## Raw Evidence
 
 - Verify command: `pnpm verify --skill roadmap`
-- Raw benchmark session path: none, because verification failed before benchmark execution.
+- Benchmark command: `pnpm bench --skill roadmap --agent both --runs 3 --chunk-size 3 --pause 0`
+- Claude report: `tests/benchmarks/runs/roadmap-claude-ceadee35/report.json`
+- Codex report: `tests/benchmarks/runs/roadmap-codex-43f41fa9/report.json`
 
 ## Result
 
-Verify failed at layer1, so no Claude or Codex benchmark runs were executed. There are no pass-rate, latency, consistency, or benchmark cost metrics for `roadmap` from this invocation.
+`roadmap` is eligible and verified successfully, but the deterministic benchmark did not pass. Claude was fully infrastructure-blocked by runner budget. Codex completed three evaluated runs with 0/3 hard assertion pass rate because each output missed the expected `$run` recommendation assertion, with a 78.6% output-quality score and critical failures in next-route/file-reference criteria.
 
 Recommended next skill: `$session-triage roadmap benchmark failure`
