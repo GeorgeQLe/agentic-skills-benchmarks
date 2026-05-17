@@ -550,6 +550,45 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     recommendedRoute: "$run",
   },
   {
+    skill: "update-packages",
+    outputPath: "package-update-plan.md",
+    prompt: "You have the update-packages skill installed. Read package.json, npm-view-times.json, and package-lock-note.md, then write package-update-plan.md with package-manager migration strategy, eligible versions older than 8 days, skipped packages, verification commands, and Next command. Prefer pnpm over npm when safe.",
+    fixtureFiles: {
+      "package.json": JSON.stringify({
+        scripts: {
+          test: "vitest run",
+          build: "tsc -p tsconfig.json",
+        },
+        dependencies: {
+          react: "^18.2.0",
+          zod: "^3.22.0",
+        },
+        devDependencies: {
+          vitest: "^1.6.0",
+        },
+      }, null, 2),
+      "npm-view-times.json": JSON.stringify({
+        react: {
+          "18.3.1": "2024-04-26T16:30:00.000Z",
+          "19.2.0": "2026-05-01T10:00:00.000Z",
+          "19.3.0": "2026-05-15T10:00:00.000Z",
+        },
+        zod: {
+          "3.25.76": "2026-05-01T08:00:00.000Z",
+          "4.1.12": "2026-05-16T08:00:00.000Z",
+        },
+        vitest: {
+          "3.2.4": "2026-05-02T09:00:00.000Z",
+          "4.0.0": "2026-05-16T09:00:00.000Z",
+        },
+      }, null, 2),
+      "package-lock-note.md": "This fixture has package-lock.json in the source project and no pnpm-lock.yaml. There are no deployment notes requiring npm.",
+    },
+    expectedIncludes: ["pnpm", "older than 8 days", "verification commands"],
+    expectedPattern: /19\.2\.0|3\.25\.76|3\.2\.4/i,
+    recommendedRoute: "$run",
+  },
+  {
     skill: "uat",
     outputPath: "uat-journeys.md",
     prompt: "You have the uat skill installed. Read specs/ui-layout-variations-dashboard.md and write uat-journeys.md with variant evaluation, acceptance criteria, evidence capture, and Next command.",

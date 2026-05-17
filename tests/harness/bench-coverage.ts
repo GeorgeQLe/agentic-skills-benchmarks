@@ -25,7 +25,7 @@ export interface BenchCoverageValidationResult {
   errors: string[];
 }
 
-const LAST_VERIFIED = "2026-05-15";
+const LAST_VERIFIED = "2026-05-17";
 const TIER23_GLOBAL_SETUP_PATH = "tests/layer4/setups/tier23-global-workflows.setup.ts";
 const PACK_WORKFLOW_SETUP_PATH = "tests/layer4/setups/packs/pack-workflows.setup.ts";
 
@@ -61,6 +61,7 @@ const TIER23_GLOBAL_CUSTOM_SKILLS = [
   "slim-audit",
   "spec-drift",
   "trace",
+  "update-packages",
   "uat",
   "ui-consolidate",
   "ui-interview",
@@ -327,6 +328,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "transaction-map",
   "targeted-skill-builder",
   "trace",
+  "update-packages",
   "uat",
   "uat-guide",
   "ui-consolidate",
