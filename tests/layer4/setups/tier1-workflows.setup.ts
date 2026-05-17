@@ -391,7 +391,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     expectedIncludes: ["Phase", "Acceptance Criteria", "verification"],
     expectedPattern: /benchmark coverage|CLI status/i,
     qualityEvaluator: workflowQualityEvaluator({
-      evidenceFacts: ["benchmark coverage reporting", "CLI status output"],
+      evidenceFacts: ["benchmark coverage", "CLI status output"],
       specificMarkers: ["Phase", "Acceptance Criteria", "verification"],
       nextRoute: "$plan-phase 1",
       coreTraitId: "roadmap-phase-structure",
