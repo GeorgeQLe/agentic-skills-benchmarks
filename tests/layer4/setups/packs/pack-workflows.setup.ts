@@ -316,7 +316,27 @@ function extraPackQualityCriteria(definition: PackWorkflowDefinition) {
 
 const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "assumption-tracker", pack: "business-ops", focus: "assumption inventory with owner and validation cadence", inputs: ["Unverified pricing assumption", "Unknown onboarding conversion"], expectedPattern: /assumption|validation|owner/i },
-  { skill: "benchmark-agent-review", pack: "agentic-skills-bench", focus: "subjective quality review of persisted skill output artifacts", inputs: ["Hard assertions: 100%", "Deterministic quality score: 78.6%", "Reviewed output: ship-manifest.md is compliant but lacks residual-risk awareness", "Reviewer concern: do not judge benchmark laxness as the primary issue"], expectedPattern: /output|quality|review|score/i, nextRoute: "$targeted-skill-builder", forbidden: ["google analytics", "stripe dashboard", "salesforce", "hubspot", "api dashboard", "industry-leading", "best-in-class", "proprietary data"] },
+  {
+    skill: "benchmark-agent-review",
+    pack: "agentic-skills-bench",
+    focus: "subjective quality review of persisted skill output artifacts",
+    inputs: [
+      "Hard assertions: 100%",
+      "Deterministic quality score: 78.6%",
+      "Reviewed output: ship-manifest.md is compliant but lacks residual-risk awareness",
+      "Reviewer concern: do not judge benchmark laxness as the primary issue",
+    ],
+    expectedPattern: /output|quality|review|score/i,
+    promptRequirements: [
+      "- include a remediation-ready handoff for the residual-risk-awareness output-quality gap",
+      "- use the exact runner-specific targeted-skill-builder route listed below as the final handoff",
+    ],
+    nextRoutes: {
+      claude: "/targeted-skill-builder benchmark-agent-review residual-risk-awareness output-quality gap",
+      codex: "$targeted-skill-builder benchmark-agent-review residual-risk-awareness output-quality gap",
+    },
+    forbidden: ["google analytics", "stripe dashboard", "salesforce", "hubspot", "api dashboard", "industry-leading", "best-in-class", "proprietary data"],
+  },
   { skill: "brainstorm-kanban", pack: "kanban", focus: "board-aware idea generation and card routing", inputs: ["Backlog has three stale discovery cards", "Need one next experiment"], expectedPattern: /kanban|card|board/i },
   { skill: "burn-rate", pack: "business-ops", focus: "runway and burn-rate analysis", inputs: ["Cash: 120000", "Monthly burn: 18000"], expectedPattern: /burn|runway|cash/i },
   { skill: "clone-spec-store", pack: "project-fleet", focus: "spec-store clone plan without network execution", inputs: ["Spec store URL is unavailable in benchmark", "Need local checklist"], expectedPattern: /clone|spec|store/i },
