@@ -34,6 +34,7 @@ interface GlobalWorkflowDefinition {
   requireFinalRecommendedRoute?: boolean;
   requireExactFinalRecommendedRoute?: boolean;
   remediationReadyPatterns?: RegExp[];
+  allowedFixtureTerms?: string[];
   perRunBudgetUsd?: number;
 }
 
@@ -114,6 +115,14 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
 }
 
 function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefinition) {
+  const forbiddenFixtureTerms = [
+    "Lorem ipsum",
+    "production deployment completed",
+    "package-lock.json",
+    "AWS account",
+    "Vercel project configured",
+  ].filter((term) => !definition.allowedFixtureTerms?.includes(term));
+
   return createSetupQualityEvaluator({
     minimumScore: 0.8,
     criteria: [
@@ -174,13 +183,7 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
         description: "Output avoids generic filler and external actions not present in fixtures.",
         weight: 2,
         critical: true,
-        forbidden: [
-          "Lorem ipsum",
-          "production deployment completed",
-          "package-lock.json",
-          "AWS account",
-          "Vercel project configured",
-        ],
+        forbidden: forbiddenFixtureTerms,
       }),
     ],
   });
@@ -552,7 +555,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "update-packages",
     outputPath: "package-update-plan.md",
-    prompt: "You have the update-packages skill installed. Read package.json, npm-view-times.json, and package-lock-note.md, then write package-update-plan.md with package-manager migration strategy, .npmrc/package-manager age-gate config, eligible versions older than 8 days, skipped packages, verification commands, and Next command. Prefer pnpm over npm when safe.",
+    prompt: "You have the update-packages skill installed. Read package.json, npm-view-times.json, and package-lock-note.md, then write package-update-plan.md with package-manager migration strategy, .npmrc/package-manager age-gate config, eligible versions older than 8 days, skipped packages, verification commands, and Next command. Prefer pnpm over npm when safe. The package-update-plan.md artifact must name `package-update-plan.md` and include these exact literal strings: `older than 8 days`, `min-release-age=8`, `minimum-release-age=11520`, and a runner-native recommended next-command line. Use exactly `Recommended next command: /run` when running as Claude and exactly `Recommended next command: $run` when running as Codex. Put package-manager shell commands in a verification or implementation section, not as the final Next command.",
     fixtureFiles: {
       "package.json": JSON.stringify({
         scripts: {
@@ -585,8 +588,13 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
       "package-lock-note.md": "This fixture has package-lock.json in the source project and no pnpm-lock.yaml. There are no deployment notes requiring npm.",
     },
     expectedIncludes: ["pnpm", "older than 8 days", "verification commands", ".npmrc", "min-release-age"],
-    expectedPattern: /(19\.2\.0|3\.25\.76|3\.2\.4).*(minimum-release-age|minimumReleaseAge|11520)|(\.npmrc|min-release-age).*(19\.2\.0|3\.25\.76|3\.2\.4)/is,
-    recommendedRoute: "$run",
+    expectedPattern: /(19\.2\.0|3\.25\.76|3\.2\.4).*(min-release-age=8|minimum-release-age=11520|minimumReleaseAge|11520)|(\.npmrc|min-release-age=8|minimum-release-age=11520).*(19\.2\.0|3\.25\.76|3\.2\.4)/is,
+    recommendedRoutes: {
+      claude: "/run",
+      codex: "$run",
+    },
+    requireFinalRecommendedRoute: true,
+    allowedFixtureTerms: ["package-lock.json"],
   },
   {
     skill: "uat",
