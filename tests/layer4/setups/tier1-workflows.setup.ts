@@ -46,6 +46,7 @@ function expectedRoute(definition: Tier1WorkflowDefinition, agent?: BenchAgent):
 function workflowQualityEvaluator(options: {
   minimumScore?: number;
   evidenceFacts: string[];
+  evidenceCriterion?: QualityCriterion;
   specificMarkers: string[];
   nextRoute?: string;
   coreTraitId: string;
@@ -61,7 +62,7 @@ function workflowQualityEvaluator(options: {
   return createSetupQualityEvaluator({
     minimumScore: options.minimumScore ?? 0.78,
     criteria: [
-      requiredFactCoverageCriterion({
+      options.evidenceCriterion ?? requiredFactCoverageCriterion({
         id: "evidence-linked",
         description: "Names concrete fixture facts used as evidence",
         weight: 3,
@@ -392,6 +393,16 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     expectedPattern: /benchmark coverage|CLI status/i,
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["benchmark coverage", "CLI status output"],
+      evidenceCriterion: requiredPatternCriterion({
+        id: "evidence-linked",
+        description: "Names concrete fixture facts used as evidence",
+        weight: 3,
+        critical: true,
+        patterns: [
+          /benchmark coverage/i,
+          /(?:CLI[\s\S]{0,120}status output|status output[\s\S]{0,120}CLI)/i,
+        ],
+      }),
       specificMarkers: ["Phase", "Acceptance Criteria", "verification"],
       nextRoute: "$plan-phase 1",
       coreTraitId: "roadmap-phase-structure",
@@ -425,7 +436,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "feature-interview",
     outputPath: "specs/benchmark-reporting-feature-interview.md",
-    prompt: "You have the feature-interview skill installed. Interview the supplied idea without asking follow-up questions by writing specs/benchmark-reporting-feature-interview.md with assumptions, evidence, decision, risks, and Next command. Treat the planning destination as confirmed for roadmap sequencing; do not route directly to spec-interview.",
+    prompt: "You have the feature-interview skill installed. Interview the supplied idea without asking follow-up questions by writing specs/benchmark-reporting-feature-interview.md with an explicit Artifact path line, assumptions, evidence, decision, risks, and Next command. Treat the planning destination as confirmed for roadmap sequencing; do not route directly to spec-interview.",
     fixtureFiles: {
       "feature-idea.md": "# Idea\n\nBenchmark reports should show whether a skill has custom, generic, or blocked coverage.\n",
     },
