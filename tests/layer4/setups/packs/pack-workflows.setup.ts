@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import type { BenchAgent, SkillBenchSetup } from "../../../harness/bench-types.js";
 import type { Assertion, RunResult } from "../../../harness/types.js";
 import {
@@ -27,6 +27,7 @@ interface PackWorkflowDefinition {
   expectedPattern: RegExp;
   promptRequirements?: string[];
   requiredOutputPatterns?: Array<{ description: string; pattern: RegExp }>;
+  retainedArtifacts?: Array<{ path: string; content: string[] }>;
   nextRoute?: string;
   nextRoutes?: Partial<Record<BenchAgent, string>>;
   forbidden?: string[];
@@ -178,6 +179,11 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
           "",
         ].join("\n"),
       );
+      for (const artifact of definition.retainedArtifacts ?? []) {
+        const artifactPath = join(workDir, artifact.path);
+        mkdirSync(dirname(artifactPath), { recursive: true });
+        writeFileSync(artifactPath, `${artifact.content.join("\n")}\n`);
+      }
     },
 
     assertResult(result: RunResult, context?: { agent: BenchAgent }): Assertion[] {
@@ -329,7 +335,39 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
     expectedPattern: /output|quality|review|score/i,
     promptRequirements: [
       "- include a remediation-ready handoff for the residual-risk-awareness output-quality gap",
+      "- inspect retained artifact text in ship-manifest.md directly before grading the output",
       "- use the exact runner-specific targeted-skill-builder route listed below as the final handoff",
+    ],
+    retainedArtifacts: [
+      {
+        path: "ship-manifest.md",
+        content: [
+          "# Ship Manifest",
+          "",
+          "## Shipped",
+          "- Route prompt alignment for benchmark-agent-review was merged.",
+          "- Deterministic route assertions now pass for Claude and Codex.",
+          "",
+          "## Verification",
+          "- Layer1 route checks passed.",
+          "- One Codex smoke benchmark passed after the route fix.",
+          "",
+          "## Residual Risks",
+          "- Not captured.",
+          "",
+          "## Post-Ship Monitoring",
+          "- Not specified.",
+          "",
+          "## Known Unknowns",
+          "- Whether future subjective reviews can inspect the actual artifact text is not documented.",
+        ],
+      },
+    ],
+    requiredOutputPatterns: [
+      {
+        description: "Output cites retained ship-manifest.md evidence",
+        pattern: /ship-manifest\.md[\s\S]*(Residual Risks|Post-Ship Monitoring|Known Unknowns|Not captured|Not specified)/i,
+      },
     ],
     nextRoutes: {
       claude: "/targeted-skill-builder benchmark-agent-review residual-risk-awareness output-quality gap",
