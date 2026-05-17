@@ -18,7 +18,7 @@ Coverage note: this is custom layer4 evidence with skill-specific assertions and
 
 | Layer | Status | Wall Time | Notes |
 | --- | --- | ---: | --- |
-| layer1 | PASS | 4.6s | 1,202 tests passed across 15 files |
+| layer1 | PASS | 3.9s | 1,204 tests passed across 15 files |
 | layer2 | SKIP | -- | No target-specific layer2 tests matched `feature-interview` |
 
 Verify command:
@@ -37,26 +37,21 @@ pnpm bench --skill feature-interview --agent both --runs 3 --chunk-size 3 --paus
 
 | Agent | Session | Evaluated Pass Rate | Blocked Runs | Wilson 95% CI | Quality Score | Quality Failures | p50 | p95 | p99 | Cost / Run | Total Cost | Consistency | Outliers | Raw Session Path |
 | --- | --- | ---: | ---: | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| Claude | `52b6ef8a` | 0.0% (0/1) | 2 | [0.0%, 79.3%] | 85.7% | 0 threshold, 1 critical | 43.2s | 43.2s | 43.2s | $0.25 | $0.75 | 1.000 | 0 | `tests/benchmarks/runs/feature-interview-claude-52b6ef8a/` |
-| Codex | `3d90c865` | 0.0% (0/3) | 0 | [0.0%, 56.2%] | 90.5% | 0 threshold, 1 critical | 66.1s | 66.6s | 66.6s | $0.25 | $0.75 | 1.000 | 0 | `tests/benchmarks/runs/feature-interview-codex-3d90c865/` |
+| Claude | `e5b18930` | 100.0% (1/1) | 2 | [20.7%, 100.0%] | 92.9% | 0 threshold, 1 critical | 35.0s | 35.0s | 35.0s | $0.25 | $0.75 | 1.000 | 0 | `tests/benchmarks/runs/feature-interview-claude-e5b18930/` |
+| Codex | `1ff31029` | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 97.6% | 0 threshold, 1 critical | 68.2s | 73.9s | 74.4s | $0.25 | $0.75 | 0.878 | 0 | `tests/benchmarks/runs/feature-interview-codex-1ff31029/` |
 
 Output-quality score is an additional rubric score, not a replacement for hard assertion pass rate or a statistical confidence measure.
 
 ## Failed Assertions
 
-| Agent | Run | Exit Code | Failed Assertions |
-| --- | ---: | ---: | --- |
-| Claude | 0 | 0 | Output recommends `$spec-interview` |
-| Codex | 0 | 0 | Output recommends `$spec-interview` |
-| Codex | 1 | 0 | Output recommends `$spec-interview` |
-| Codex | 2 | 0 | Output recommends `$spec-interview` |
+No failed hard assertions were reported in evaluated runs.
 
 ## Output Quality Details
 
 | Agent | Lowest-Scoring Criteria |
 | --- | --- |
-| Claude | `file-reference` 0.0%; `actionable-next-route` 0.0%; `evidence-linked` 100.0%; `scope-control` 100.0%; `interview-decision-quality` 100.0% |
-| Codex | `actionable-next-route` 0.0%; `file-reference` 66.7%; `evidence-linked` 100.0%; `scope-control` 100.0%; `interview-decision-quality` 100.0% |
+| Claude | `file-reference` 0.0%; `evidence-linked` 100.0%; `scope-control` 100.0%; `interview-decision-quality` 100.0%; `validation-specificity` 100.0% |
+| Codex | `file-reference` 66.7%; `evidence-linked` 100.0%; `scope-control` 100.0%; `interview-decision-quality` 100.0%; `validation-specificity` 100.0% |
 
 ## Infrastructure Blocks
 
@@ -67,13 +62,13 @@ Output-quality score is an additional rubric score, not a replacement for hard a
 
 ## Raw Reports
 
-- Claude JSON: `tests/benchmarks/runs/feature-interview-claude-52b6ef8a/report.json`
-- Claude Markdown: `tests/benchmarks/runs/feature-interview-claude-52b6ef8a/report.md`
-- Codex JSON: `tests/benchmarks/runs/feature-interview-codex-3d90c865/report.json`
-- Codex Markdown: `tests/benchmarks/runs/feature-interview-codex-3d90c865/report.md`
+- Claude JSON: `tests/benchmarks/runs/feature-interview-claude-e5b18930/report.json`
+- Claude Markdown: `tests/benchmarks/runs/feature-interview-claude-e5b18930/report.md`
+- Codex JSON: `tests/benchmarks/runs/feature-interview-codex-1ff31029/report.json`
+- Codex Markdown: `tests/benchmarks/runs/feature-interview-codex-1ff31029/report.md`
 
 ## Verdict
 
-Verify passed, but both evaluated agents failed the custom hard benchmark assertions. Claude also had two infrastructure-blocked runs from runner budget exhaustion. The repeated evaluated-run failure is the final next-route expectation: outputs recommended `$spec-interview` instead of the route expected by the `feature-interview` benchmark setup.
+Verify passed, and the post-route-alignment benchmark passed hard assertions for all evaluated runs. Claude had two infrastructure-blocked runs from runner budget exhaustion, and the single evaluated Claude run retained one critical output-quality failure for missing concrete file-reference evidence. Codex passed 3/3 evaluated runs and retained one critical output-quality failure from one run's missing concrete file-reference evidence.
 
-Recommended next skill: `$session-triage feature-interview benchmark failure`
+Recommended next skill: `$benchmark-agent-review feature-interview`
