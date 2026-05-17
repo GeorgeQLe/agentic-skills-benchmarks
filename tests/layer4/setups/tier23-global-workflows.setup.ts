@@ -552,7 +552,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "update-packages",
     outputPath: "package-update-plan.md",
-    prompt: "You have the update-packages skill installed. Read package.json, npm-view-times.json, and package-lock-note.md, then write package-update-plan.md with package-manager migration strategy, eligible versions older than 8 days, skipped packages, verification commands, and Next command. Prefer pnpm over npm when safe.",
+    prompt: "You have the update-packages skill installed. Read package.json, npm-view-times.json, and package-lock-note.md, then write package-update-plan.md with package-manager migration strategy, .npmrc/package-manager age-gate config, eligible versions older than 8 days, skipped packages, verification commands, and Next command. Prefer pnpm over npm when safe.",
     fixtureFiles: {
       "package.json": JSON.stringify({
         scripts: {
@@ -584,8 +584,8 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
       }, null, 2),
       "package-lock-note.md": "This fixture has package-lock.json in the source project and no pnpm-lock.yaml. There are no deployment notes requiring npm.",
     },
-    expectedIncludes: ["pnpm", "older than 8 days", "verification commands"],
-    expectedPattern: /19\.2\.0|3\.25\.76|3\.2\.4/i,
+    expectedIncludes: ["pnpm", "older than 8 days", "verification commands", ".npmrc", "min-release-age"],
+    expectedPattern: /(19\.2\.0|3\.25\.76|3\.2\.4).*(minimum-release-age|minimumReleaseAge|11520)|(\.npmrc|min-release-age).*(19\.2\.0|3\.25\.76|3\.2\.4)/is,
     recommendedRoute: "$run",
   },
   {
