@@ -425,7 +425,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "feature-interview",
     outputPath: "specs/benchmark-reporting-feature-interview.md",
-    prompt: "You have the feature-interview skill installed. Interview the supplied idea without asking follow-up questions by writing specs/benchmark-reporting-feature-interview.md with assumptions, evidence, decision, risks, and Next command.",
+    prompt: "You have the feature-interview skill installed. Interview the supplied idea without asking follow-up questions by writing specs/benchmark-reporting-feature-interview.md with assumptions, evidence, decision, risks, and Next command. Treat the planning destination as confirmed for roadmap sequencing; do not route directly to spec-interview.",
     fixtureFiles: {
       "feature-idea.md": "# Idea\n\nBenchmark reports should show whether a skill has custom, generic, or blocked coverage.\n",
     },
@@ -434,14 +434,17 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["custom", "generic", "blocked", "Benchmark reports"],
       specificMarkers: ["Assumptions", "evidence", "decision", "risks"],
-      nextRoute: "$spec-interview",
+      nextRoutes: ["/roadmap", "$roadmap"],
       coreTraitId: "interview-decision-quality",
       coreTraitDescription: "Frames the product idea with evidence, decision, and risk",
       coreTraits: ["Assumptions", "evidence", "decision", "risks"],
       validationPatterns: [/custom|generic|blocked/i],
       concreteFiles: ["feature-idea.md", "specs/benchmark-reporting-feature-interview.md"],
     }),
-    recommendedRoute: "$spec-interview",
+    recommendedRoutes: {
+      claude: "/roadmap",
+      codex: "$roadmap",
+    },
   },
   {
     skill: "spec-interview",
