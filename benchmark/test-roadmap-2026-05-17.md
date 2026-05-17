@@ -75,4 +75,4 @@ The Claude lane was fully infrastructure-blocked by runner budget, so it provide
 
 `roadmap` is eligible and verified successfully. Claude was fully infrastructure-blocked by runner budget, while Codex completed all three evaluated runs, passed hard assertions, and passed the configured output-quality rubric with no threshold or critical failures.
 
-Recommended next skill: `$benchmark-test-skill roadmap`
+Recommended next skill: `$benchmark-agent-review roadmap`
