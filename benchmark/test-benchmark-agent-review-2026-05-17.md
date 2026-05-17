@@ -12,15 +12,15 @@ Recommended next skill: `$benchmark-agent-review benchmark-agent-review`
 
 | Layer | Status | Wall Time | Notes |
 |---|---:|---:|---|
-| layer1 | PASS | 3.3s | 1,208 tests passed across 15 files. |
+| layer1 | PASS | 3.2s | 1,210 tests passed across 15 files. |
 | layer2 | SKIP | -- | No target-specific layer2 tests matched `benchmark-agent-review`; skipped per harness workflow. |
 
 ## Benchmark Results
 
 | Agent | Evaluated Pass Rate | Blocked Runs | Wilson 95% CI | Output Quality | Threshold Failures | Critical Failures | p50 | p95 | p99 | Cost / Run | Total Cost | Similarity | Outliers | Raw Session Path |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| claude | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 100.0% | 0 | 0 | 41.1s | 42.1s | 42.2s | $0.25 | $0.75 | 0.887 | 0 | `tests/benchmarks/runs/benchmark-agent-review-claude-10351b11/` |
-| codex | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 98.3% | 0 | 0 | 45.6s | 63.6s | 65.2s | $0.25 | $0.75 | 0.873 | 0 | `tests/benchmarks/runs/benchmark-agent-review-codex-558b7ba6/` |
+| claude | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 99.2% | 0 | 0 | 48.2s | 52.7s | 53.1s | $0.25 | $0.75 | 0.832 | 0 | `tests/benchmarks/runs/benchmark-agent-review-claude-3378af86/` |
+| codex | 100.0% (3/3) | 0 | [43.8%, 100.0%] | 99.2% | 0 | 0 | 56.1s | 59.6s | 59.9s | $0.25 | $0.75 | 0.929 | 0 | `tests/benchmarks/runs/benchmark-agent-review-codex-0ceac781/` |
 
 ## Failed Assertions
 
@@ -30,8 +30,8 @@ None.
 
 | Agent | Lowest-Scoring Criteria |
 |---|---|
-| claude | `pack-skill-context` 100.0%; `pack-fixture-evidence` 100.0%; `pack-practical-risk-or-validation` 100.0%; `pack-next-route` 100.0%; `agentic-skills-bench-context` 100.0% |
-| codex | `pack-workflow-traits` 83.3%; `pack-skill-context` 100.0%; `pack-fixture-evidence` 100.0%; `pack-practical-risk-or-validation` 100.0%; `pack-next-route` 100.0% |
+| claude | `pack-workflow-traits` 91.7%; `pack-skill-context` 100.0%; `pack-fixture-evidence` 100.0%; `pack-practical-risk-or-validation` 100.0%; `pack-next-route` 100.0% |
+| codex | `pack-workflow-traits` 91.7%; `pack-skill-context` 100.0%; `pack-fixture-evidence` 100.0%; `pack-practical-risk-or-validation` 100.0%; `pack-next-route` 100.0% |
 
 ## Infrastructure Blocks
 
@@ -39,8 +39,8 @@ None.
 
 ## Raw Reports
 
-- Claude: `tests/benchmarks/runs/benchmark-agent-review-claude-10351b11/report.json`
-- Codex: `tests/benchmarks/runs/benchmark-agent-review-codex-558b7ba6/report.json`
+- Claude: `tests/benchmarks/runs/benchmark-agent-review-claude-3378af86/report.json`
+- Codex: `tests/benchmarks/runs/benchmark-agent-review-codex-0ceac781/report.json`
 
 ## Next Route
 
