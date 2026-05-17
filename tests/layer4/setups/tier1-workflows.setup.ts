@@ -384,7 +384,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "roadmap",
     outputPath: "tasks/roadmap.md",
-    prompt: "You have the roadmap skill installed. Convert specs/feature.md into tasks/roadmap.md with phases, acceptance criteria, verification, and Next command. Keep it concise.",
+    prompt: "You have the roadmap skill installed. Convert specs/feature.md into tasks/roadmap.md with phases, acceptance criteria, verification, and an exact `## Next Command` section containing `$plan-phase 1`. Keep it concise.",
     fixtureFiles: {
       "specs/feature.md": "# Feature\n\nBuild benchmark coverage reporting with CLI status output and validation.\n",
     },
@@ -393,14 +393,14 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["benchmark coverage reporting", "CLI status output"],
       specificMarkers: ["Phase", "Acceptance Criteria", "verification"],
-      nextRoute: "$run",
+      nextRoute: "$plan-phase 1",
       coreTraitId: "roadmap-phase-structure",
       coreTraitDescription: "Turns the fixture idea into phased, verifiable project work",
-      coreTraits: ["Phase", "Acceptance Criteria", "verification", "Next command"],
+      coreTraits: ["Phase", "Acceptance Criteria", "verification", "Next Command"],
       validationPatterns: [/verification|test|validate/i],
-      concreteFiles: ["specs/feature.md", "tasks/roadmap.md"],
+      concreteFiles: ["specs/feature.md"],
     }),
-    recommendedRoute: "$run",
+    recommendedRoute: "$plan-phase 1",
   },
   {
     skill: "plan-phase",
