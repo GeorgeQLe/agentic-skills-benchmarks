@@ -288,6 +288,52 @@ function createPackQualityEvaluator(definition: PackWorkflowDefinition) {
 }
 
 function extraPackQualityCriteria(definition: PackWorkflowDefinition) {
+  if (definition.skill === "benchmark-agent-review") {
+    return [
+      requiredFactCoverageCriterion({
+        id: "benchmark-agent-review-remediation-owner-target",
+        description: "Names a concrete owner target for remediation, not only broad advice.",
+        weight: 2,
+        facts: [
+          "owner target",
+          "benchmark-agent-review",
+          "SKILL.md",
+        ],
+      }),
+      specificityCriterion({
+        id: "benchmark-agent-review-validation-specificity",
+        description: "Includes a concrete validation check or assertion for the remediation.",
+        weight: 2,
+        critical: true,
+        requiredAny: [
+          "validation check",
+          "validation command",
+          "layer1",
+          "contract-lint",
+          "assertion",
+          "fixture",
+          "$benchmark-test-skill benchmark-agent-review",
+          "/benchmark-test-skill benchmark-agent-review",
+        ],
+        forbiddenPhrases: [
+          "rerun the fixture",
+          "update the skill",
+          "tighten the rubric",
+          "make it better",
+        ],
+      }),
+      requiredFactCoverageCriterion({
+        id: "benchmark-agent-review-subjective-score-separation",
+        description: "Separates subjective scoring from deterministic quality context.",
+        weight: 1,
+        facts: [
+          "subjective",
+          "deterministic",
+        ],
+      }),
+    ];
+  }
+
   if (definition.skill !== "content-programming") {
     return [];
   }
@@ -336,6 +382,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
     promptRequirements: [
       "- include a remediation-ready handoff for the residual-risk-awareness output-quality gap",
       "- inspect retained artifact text in ship-manifest.md directly before grading the output",
+      "- name the owner target, proposed behavior change, and validation check for every material remediation finding",
       "- use the exact runner-specific targeted-skill-builder route listed below as the final handoff",
     ],
     retainedArtifacts: [
@@ -367,6 +414,10 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
       {
         description: "Output cites retained ship-manifest.md evidence",
         pattern: /ship-manifest\.md[\s\S]*(Residual Risks|Post-Ship Monitoring|Known Unknowns|Not captured|Not specified)/i,
+      },
+      {
+        description: "Output includes remediation owner target and validation check",
+        pattern: /(owner target|owner file|owner surface|owner|target)[\s\S]*(validation check|validation command|contract-lint|layer1|fixture|assertion)/i,
       },
     ],
     nextRoutes: {
