@@ -8,8 +8,8 @@ Source benchmark report: `benchmark/test-ship-end-2026-05-18.md`
 
 Reviewed runs:
 
-- Claude: `tests/benchmarks/runs/ship-end-claude-0190fdda/`
-- Codex: `tests/benchmarks/runs/ship-end-codex-4fbde9d6/`
+- Claude: `tests/benchmarks/runs/ship-end-claude-9bf5f843/`
+- Codex: `tests/benchmarks/runs/ship-end-codex-d7d92d34/`
 
 ## Benchmark Context
 
@@ -17,7 +17,7 @@ The benchmark prompt asked the agent to write `session-handoff.md` from fixture 
 
 - `tasks/todo.md` marks `Step 1.1 complete` and leaves `Step 1.2 next` unchecked.
 - `tasks/history.md` records `Completed Step 1.1 with tests.`
-- The final Next command should be `/run` for Claude and `$run` for Codex.
+- The final Next command should contain exactly one active-runner command: `/run` for Claude or `$run` for Codex.
 
 Deterministic benchmark result:
 
@@ -28,50 +28,53 @@ Deterministic benchmark result:
 
 ## Subjective Verdict
 
-The retained outputs are good to excellent. All six artifacts preserve the fixture source of truth, name completed work, identify Step 1.2 as next work, avoid invented git/deploy facts, and surface the limited validation evidence honestly.
+The retained outputs are excellent overall. All six artifacts preserve the fixture source of truth, identify Step 1.1 as completed, carry Step 1.2 forward as the next work, avoid invented git/deploy/service facts, and now end with exactly one active-runner next command.
 
-Claude outputs are excellent because they provide a single runner-native `/run` handoff and concise residual risk. Codex outputs are usable to good, but all three include both Claude and Codex route spellings in the final Next Command section. That is compliant with the current deterministic benchmark after the route fix, but it is less ergonomic for a real next operator because the handoff should contain one active-runner command, not a menu.
+The remaining differences are ergonomic rather than material. Claude outputs are consistently concise and precise about validation limits. Codex run 000 is more terse than the others and gives less detail about the missing test command/output, but it is still usable and correctly scoped. Codex runs 001 and 002 include stronger source-of-truth and residual-risk language.
+
+No remediation is recommended from this review. The previous dual-route handoff weakness is resolved in the retained Codex artifacts and enforced by the benchmark assertion `Output uses single active-runner final route`.
 
 ## Score Table
 
 | Reviewer | Runner | Run | Score | Grade | Notes |
 | --- | --- | ---: | ---: | --- | --- |
-| Codex review | Claude | 0 | 94 | Excellent | Clear source mapping, honest validation limitation, single `/run` handoff. |
-| Codex review | Claude | 1 | 95 | Excellent | Best balance of concise next work and residual-risk context. |
-| Codex review | Claude | 2 | 93 | Excellent | Strong, with slightly speculative regression-risk wording. |
-| Codex review | Codex | 0 | 86 | Good | Useful artifact, but final route section lists both runner commands. |
-| Codex review | Codex | 1 | 84 | Good | Clear evidence, but dual-route handoff adds operator friction and mentions absent config files from the fixture scan. |
-| Codex review | Codex | 2 | 88 | Good | Strong source-of-truth section, but still emits dual route list. |
+| Codex review | Claude | 0 | 95 | Excellent | Clear fixture grounding, single `/run` route, and useful risk notes about missing test output. |
+| Codex review | Claude | 1 | 95 | Excellent | Strongest validation-depth caveat and concise next-work handoff. |
+| Codex review | Claude | 2 | 94 | Excellent | Precise source mapping and route; slightly less explicit about broader fixture limitations. |
+| Codex review | Codex | 0 | 89 | Good | Correct and actionable, but terse residual-risk language. |
+| Codex review | Codex | 1 | 93 | Excellent | Strong source-of-truth framing, validation limitation, and single `$run` handoff. |
+| Codex review | Codex | 2 | 94 | Excellent | Best Codex output: explicit source files, no-git constraint, validation caveat, and single `$run` route. |
 
-Median subjective score: 90.5
+Median subjective score: 94
 
-Score range: 84-95
+Score range: 89-95
 
 ## Common Strengths
 
-- Every retained artifact names the fixture task files or their facts.
-- Every artifact carries forward Step 1.1 completion and Step 1.2 as the next work.
-- Validation claims are appropriately constrained to task-recorded evidence.
-- No output invents a deploy, commit, git status, external service, or hidden test output.
-- Residual risks are meaningful rather than generic: missing test command/output details, no git inspection, and limited fixture context.
+- Every retained artifact names or uses `tasks/todo.md` and `tasks/history.md`.
+- Every artifact carries forward Step 1.1 completion and Step 1.2 as next work.
+- Validation claims are constrained to the fixture evidence instead of inventing fresh test output.
+- No artifact invents deploys, commits, service state, GitHub Actions, or hidden repository activity.
+- Every final handoff contains exactly one active-runner next command.
 
 ## Common Weaknesses
 
-- Codex runs list both `Claude: /run` and `Codex: $run` in the final Next Command section. A session handoff should preserve only the active runner route so a next operator can act without interpreting mode choices.
-- One Codex run mentions that no project validation configuration files were present in the fixture scan. That is not harmful, but it is unnecessary because the fixture did not ask the output to inventory config files.
+- Codex run 000 is concise enough that a next operator gets less context about what validation evidence is missing than in the other five artifacts.
+
+This is not material enough to require remediation because the output remains correct, scoped, and actionable.
 
 ## Remediation
 
 | Finding | Classification | Owner Target | Proposed Change | Validation Check | Route |
 | --- | --- | --- | --- | --- | --- |
-| Codex retained outputs emit a dual Claude/Codex route list instead of one final active-runner command. | Benchmark setup/rubric gap | `tests/layer4/setups/tier1-workflows.setup.ts`; `tests/layer1/bench-setups.test.ts` | Tighten the `ship-end` prompt to say the final Next Command section must contain exactly one command for the active runner and must not list alternate runner routes. Add a quality criterion or hard assertion that rejects outputs containing both `/run` and `$run` in the final handoff. | Add focused layer1 coverage where a Codex artifact with both route spellings fails and a Codex artifact with only `$run` passes; run `pnpm --dir tests exec vitest run --project layer1 bench-setups --testNamePattern ship-end`, then rerun `$benchmark-test-skill ship-end`. | `$targeted-skill-builder ship-end benchmark single active-runner final handoff` |
+| No material weakness remains after the single active-runner rerun. | none | none | No repository change recommended. | Existing focused layer1 coverage and fresh benchmark artifacts already prove the prior dual-route issue is fixed. | none |
 
 ## Deterministic Rubric Notes
 
-The deterministic benchmark correctly verifies fixture grounding and runner-compatible routes, but it does not currently distinguish a single active-runner final route from a dual-route handoff. The subjective review found that gap in all three Codex outputs, so the next remediation should tighten the fixture/rubric rather than change the `ship-end` skill contract.
+No rubric tightening is needed from this review. The deterministic setup now surfaces the previously missed active-runner route issue, and the retained outputs match the intended behavior.
 
 ## Recommendation
 
-**Next work:** require `ship-end` benchmark artifacts to emit one active-runner final handoff
+**Next work:** none
 
-**Recommended next command:** `$targeted-skill-builder ship-end benchmark single active-runner final handoff`
+**Recommended next command:** `$ship`
