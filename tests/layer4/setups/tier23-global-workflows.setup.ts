@@ -254,6 +254,14 @@ const UPDATE_PACKAGES_ARTIFACT_REFERENCE_PATTERN =
   /(^|\n)#{1,6}\s*(?:package-update-plan\.md|Package Update Plan)\b|package-update-plan\.md/i;
 const UPDATE_PACKAGES_ACTIONABILITY_PATTERN =
   /(?:^|\n)#{1,6}\s*Verification(?:\s+Commands)?\b|Verification commands:|Focused smoke checks?:|Stop condition:|Major-upgrade risk handling:/i;
+const UPDATE_PACKAGES_BATCH_ACTIONABILITY_PATTERN = new RegExp([
+  "(?=[\\s\\S]*Batch\\s*0)",
+  "(?=[\\s\\S]*Batch\\s*1)",
+  "(?=[\\s\\S]*Batch\\s*2)",
+  "(?=[\\s\\S]*(?:mutation command|implementation command|exact command|pnpm\\s+(?:install|add|up)|packageManager|\\.npmrc))",
+  "(?=[\\s\\S]*(?:verification command|expected proof|expected artifact|lockfile|pnpm-lock\\.yaml|smoke[-\\s]test|pnpm\\s+(?:test|run\\s+test|build|run\\s+build)))",
+  "(?=[\\s\\S]*(?:do not proceed|do not continue|on red|stop condition|route[\\s\\S]{0,80}migrate))",
+].join(""), "i");
 function lineOnlyWarnsAgainstPnpmLatest(line: string): boolean {
   const normalized = line.replace(/[`*_]/g, " ").replace(/\s+/g, " ").trim();
   return /(?:do\s+not\s+use|don't(?:\s+use)?|not\s+(?:use\s+)?(?:unqualified\s+)?|no\s+unqualified|avoid|reject|never(?:\s+default\s+to)?|rather than|instead of|violates|would float|break reproducibility)/i.test(normalized);
@@ -722,7 +730,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     ],
     expectedPattern: /(19\.2\.0|3\.25\.76|3\.2\.4).*(min-release-age=8|minimum-release-age=11520|minimumReleaseAge|11520)|(\.npmrc|min-release-age=8|minimum-release-age=11520).*(19\.2\.0|3\.25\.76|3\.2\.4)/is,
     artifactReferencePattern: UPDATE_PACKAGES_ARTIFACT_REFERENCE_PATTERN,
-    actionabilityPatterns: [UPDATE_PACKAGES_ACTIONABILITY_PATTERN],
+    actionabilityPatterns: [UPDATE_PACKAGES_ACTIONABILITY_PATTERN, UPDATE_PACKAGES_BATCH_ACTIONABILITY_PATTERN],
     recommendedRoutes: {
       claude: "/run",
       codex: "$run",
