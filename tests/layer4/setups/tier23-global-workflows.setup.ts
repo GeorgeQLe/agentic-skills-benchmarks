@@ -28,7 +28,7 @@ interface GlobalWorkflowDefinition {
   prompt: string;
   fixtureFiles: Record<string, string | Buffer>;
   expectedIncludes: string[];
-  expectedEvidence?: Array<{ description: string; pattern: RegExp }>;
+  expectedEvidence?: ExpectedEvidence[];
   expectedPattern?: RegExp;
   recommendedRoute?: string;
   recommendedRoutes?: Partial<Record<BenchAgent, string>>;
@@ -38,6 +38,13 @@ interface GlobalWorkflowDefinition {
   allowedFixtureTerms?: string[];
   perRunBudgetUsd?: number;
 }
+
+type ExpectedEvidence = {
+  description: string;
+} & (
+  | { pattern: RegExp; predicate?: never }
+  | { predicate: (content: string) => boolean; pattern?: never }
+);
 
 const ICON_SOURCE_SVG = [
   '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">',
@@ -95,7 +102,11 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
       }
 
       for (const expected of definition.expectedEvidence ?? []) {
-        assertions.push(assertContentMatches(content, expected.pattern, expected.description));
+        assertions.push(
+          "pattern" in expected
+            ? assertContentMatches(content, expected.pattern, expected.description)
+            : { description: expected.description, pass: expected.predicate(content) },
+        );
       }
 
       if (definition.expectedPattern) {
@@ -139,13 +150,25 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
         facts: definition.expectedIncludes,
       }),
       ...((definition.expectedEvidence ?? []).map((expected): QualityCriterion => (
-        requiredPatternCriterion({
-          id: `workflow-${slugifyCriterionId(expected.description)}`,
-          description: expected.description,
-          weight: 2,
-          critical: true,
-          patterns: [expected.pattern],
-        })
+        "pattern" in expected
+          ? requiredPatternCriterion({
+            id: `workflow-${slugifyCriterionId(expected.description)}`,
+            description: expected.description,
+            weight: 2,
+            critical: true,
+            patterns: [expected.pattern],
+          })
+          : {
+            id: `workflow-${slugifyCriterionId(expected.description)}`,
+            description: expected.description,
+            weight: 2,
+            critical: true,
+            evaluate(output: string) {
+              return expected.predicate(output)
+                ? { score: 1 }
+                : { score: 0, notes: [`missing required evidence: ${expected.description}`] };
+            },
+          }
       ))),
       concreteFileReferenceCriterion({
         id: "workflow-artifact-reference",
@@ -223,6 +246,22 @@ const UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_PATTERN = new RegExp([
   "|(?:published|publish[-\\s]time evidence|Retained publish[-\\s]time evidence|published at)[\\s\\S]{0,180}202\\d-\\d\\d-\\d\\d[\\s\\S]{0,260}pnpm@\\d[\\d.]*))",
   "(?=[\\s\\S]*(?:older than 8 days|8-day|age[-\\s]eligible|16 days old|eligible because it is older))",
 ].join(""), "i");
+const UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_DESCRIPTION = "Output proves selected pnpm toolchain age eligibility";
+function provesSelectedPnpmToolchainAgeEligibility(content: string): boolean {
+  if (UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_PATTERN.test(content)) return true;
+  if (!/(?:older than 8 days|8-day|age[-\s]eligible|16 days old|eligible because it is older)/i.test(content)) return false;
+
+  const selectedVersions = [
+    ...content.matchAll(/packageManager[\s\S]{0,280}pnpm@(\d[\d.]*)/gi),
+    ...content.matchAll(/Recommended\s+`?packageManager`?[\s\S]{0,120}pnpm@(\d[\d.]*)/gi),
+  ].map((match) => match[1]);
+  if (selectedVersions.length === 0 || !/npm-view-times\.json/i.test(content)) return false;
+
+  return selectedVersions.some((version) => {
+    const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`[\"\`]${escapedVersion}[\"\`]\\s*:\\s*[\"\`]202\\d-\\d\\d-\\d\\d`, "i").test(content);
+  });
+}
 const UPDATE_PACKAGES_AGE_GATE_SEMANTICS_PATTERN =
   /^(?![\s\S]*(?:\bnpm(?:'s)?\b\s+(?:reads|uses|owns|coverage)[^\n.;]{0,160}(?:minimum-release-age=11520|minimumReleaseAge:?\s*11520)|\bpnpm(?:'s)?\b\s+(?:reads|uses|owns|coverage)[^\n.;]{0,160}min-release-age=8))(?=[\s\S]*\bnpm(?:'s)?\b)(?=[\s\S]*\bpnpm(?:'s)?\b)(?=[\s\S]*min-release-age=8)(?=[\s\S]*(?:minimum-release-age=11520|minimumReleaseAge:?\s*11520))[\s\S]*$/i;
 
@@ -644,8 +683,8 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
         pattern: UPDATE_PACKAGES_NO_UNQUALIFIED_PNPM_LATEST_PATTERN,
       },
       {
-        description: "Output proves selected pnpm toolchain age eligibility",
-        pattern: UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_PATTERN,
+        description: UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_DESCRIPTION,
+        predicate: provesSelectedPnpmToolchainAgeEligibility,
       },
       {
         description: "Output preserves age-gate key semantics",
