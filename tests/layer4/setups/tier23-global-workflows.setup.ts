@@ -268,11 +268,12 @@ const UPDATE_PACKAGES_ARTIFACT_REFERENCE_PATTERN =
 const UPDATE_PACKAGES_ACTIONABILITY_PATTERN =
   /(?:^|\n)#{1,6}\s*Verification(?:\s+Commands)?\b|Verification commands:|Focused smoke checks?:|Stop condition:|Major-upgrade risk handling:/i;
 const UPDATE_PACKAGES_BATCH_ACTIONABILITY_PATTERN = new RegExp([
-  "(?=[\\s\\S]*Batch\\s*0)",
-  "(?=[\\s\\S]*Batch\\s*1)",
-  "(?=[\\s\\S]*Batch\\s*2)",
-  "(?=[\\s\\S]*(?:mutation command|implementation command|exact command|pnpm\\s+(?:install|add|up)|packageManager|\\.npmrc))",
-  "(?=[\\s\\S]*(?:verification command|expected proof|expected artifact|lockfile|pnpm-lock\\.yaml|smoke[-\\s]test|pnpm\\s+(?:test|run\\s+test|build|run\\s+build)))",
+  "(?=[\\s\\S]*Batch\\s*(?:0|A)\\b)",
+  "(?=[\\s\\S]*Batch\\s*(?:1|B)\\b)",
+  "(?=[\\s\\S]*Batch\\s*(?:2|C)\\b)",
+  "(?=[\\s\\S]*(?:mutation command|implementation command|exact command|pnpm\\s+(?:install|add|up)|\\.npmrc))",
+  "(?=[\\s\\S]*(?:verification command|smoke[-\\s]test|pnpm\\s+(?:test|run\\s+test|build|run\\s+build)))",
+  "(?=[\\s\\S]*(?:expected proof|expected artifact|pnpm-lock\\.yaml))",
   "(?=[\\s\\S]*(?:do not proceed|do not continue|on red|stop condition|route[\\s\\S]{0,80}migrate))",
 ].join(""), "i");
 const UPDATE_PACKAGES_TARGETED_MIGRATION_ROUTE_PATTERN =
