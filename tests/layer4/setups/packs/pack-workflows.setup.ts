@@ -332,12 +332,12 @@ function benchmarkAgentReviewOwnerTargetCriterion(options: {
     /tests\/layer1\/bench-setups\.test\.ts/i,
   ];
   const scopedOwnerPattern =
-    /(owner target|owner file|owner surface|owner)\s*:\s*[^\n]*(benchmark-agent-review|pack-workflows\.setup\.ts|bench-setups\.test\.ts)[^\n]*(lookup|confirm|exact file|owner surface)/i;
+    /(owner\s+(?:target|files?|surface)|exact\s+owner\s+files?|owner)(?:\s*\/\s*(?:target|files?|surface|owner))*\s*(?::|\.|\|)[^\n]*(benchmark-agent-review|pack-workflows\.setup\.ts|bench-setups\.test\.ts)[^\n]*(lookup|confirm|exact file|owner surface)/i;
 
   return {
     ...options,
     evaluate(output: string) {
-      const hasOwnerLabel = /(owner target|owner file|owner surface|owner)\s*:/i.test(output) || /\|\s*Owner target\s*\|/i.test(output);
+      const hasOwnerLabel = hasBenchmarkAgentReviewOwnerLabel(output);
       const hasConcreteOwner = concreteOwnerPatterns.some((pattern) => pattern.test(output));
       const hasScopedOwnerWithLookup = scopedOwnerPattern.test(output);
       return {
@@ -359,15 +359,13 @@ function benchmarkAgentReviewValidationSpecificityCriterion(options: {
 }): QualityCriterion {
   const validationPattern =
     /(validation check|validation command|layer1|contract-lint|assertion|fixture|\$benchmark-test-skill benchmark-agent-review|\/benchmark-test-skill benchmark-agent-review)/i;
-  const ownerPattern = /(owner target|owner file|owner surface|owner)\s*:/i;
-  const ownerTablePattern = /\|\s*Owner target\s*\|/i;
   const broadOnlyPattern = /\b(update the skill|rerun the fixture|tighten the rubric|make it better)\b/i;
 
   return {
     ...options,
     evaluate(output: string) {
       const hasValidation = validationPattern.test(output);
-      const hasOwner = ownerPattern.test(output) || ownerTablePattern.test(output);
+      const hasOwner = hasBenchmarkAgentReviewOwnerLabel(output);
       const hasBroadPhrase = broadOnlyPattern.test(output);
       const passes = hasValidation && hasOwner;
       return {
@@ -380,6 +378,15 @@ function benchmarkAgentReviewValidationSpecificityCriterion(options: {
       };
     },
   };
+}
+
+function hasBenchmarkAgentReviewOwnerLabel(output: string): boolean {
+  return [
+    /\|\s*(?:exact\s+)?owner\s+(?:target|files?|surface)\s*\|/i,
+    /\b(?:exact\s+)?owner\s+(?:target|files?|surface)(?:\s*\/\s*(?:target|files?|surface|owner))*\s*:/i,
+    /\bexact\s+owner\s+files?\s*\./i,
+    /\bowner\s*:/i,
+  ].some((pattern) => pattern.test(output));
 }
 
   return [
