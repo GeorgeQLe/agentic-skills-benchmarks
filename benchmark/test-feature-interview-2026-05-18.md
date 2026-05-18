@@ -13,7 +13,7 @@
 
 | Layer | Status | Wall time | Notes |
 | --- | --- | ---: | --- |
-| layer1 | PASS | 3.5s | 1,212 tests passed across 15 files |
+| layer1 | PASS | 3.6s | 1,214 tests passed across 15 files |
 | layer2 | SKIP | -- | No target-specific layer2 tests matched `feature-interview` |
 
 Verify command:
@@ -32,57 +32,52 @@ pnpm bench --skill feature-interview --agent both --runs 3 --chunk-size 3 --paus
 
 | Agent | Session | Evaluated pass rate | Wilson 95% CI | Blocked runs | p50 latency | p95 latency | p99 latency | Mean similarity | Outliers | Total cost | Cost/run |
 | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Claude | `feature-interview-claude-e499a20d` | 1/1 evaluated, 100.0% | [20.7%, 100.0%] | 2 | 41.8s | 41.8s | 41.8s | 1.000 | 0 | $0.75 | $0.25 |
-| Codex | `feature-interview-codex-e6208aac` | 3/3 evaluated, 100.0% | [43.8%, 100.0%] | 0 | 85.2s | 90.0s | 90.5s | 0.893 | 0 | $0.75 | $0.25 |
+| Claude | `feature-interview-claude-3efd3354` | 0/1 evaluated, 0.0% | [0.0%, 79.3%] | 2 | 48.6s | 48.6s | 48.6s | 1.000 | 0 | $0.75 | $0.25 |
+| Codex | `feature-interview-codex-bcc5f678` | 3/3 evaluated, 100.0% | [43.8%, 100.0%] | 0 | 80.2s | 84.5s | 84.9s | 0.880 | 0 | $0.75 | $0.25 |
 
 ## Hard Assertions
 
-Claude passed all hard assertions in the one evaluated run. Two Claude runs were infrastructure-blocked by `agent runner budget exceeded`.
+| Agent | Failed assertions |
+| --- | --- |
+| Claude | Run #0 failed: `Output recommends /roadmap` |
+| Codex | none |
+
+Claude completed one evaluated run and had two infrastructure-blocked runs from `agent runner budget exceeded`.
 
 Codex passed all hard assertions in all three evaluated runs.
-
-No failed hard assertions were reported for either evaluated agent lane.
 
 ## Output Quality
 
 | Agent | Evaluated runs | Average quality | Threshold failures | Critical failures | Lowest-scoring criteria |
 | --- | ---: | ---: | ---: | ---: | --- |
-| Claude | 1 | 77.8% | 1 | 1 | `prototype-first-product-gate` 0.0%; `evidence-linked` 100.0%; `file-reference` 100.0%; `scope-control` 100.0%; `interview-decision-quality` 100.0% |
-| Codex | 3 | 100.0% | 0 | 0 | `evidence-linked` 100.0%; `file-reference` 100.0%; `scope-control` 100.0%; `interview-decision-quality` 100.0%; `validation-specificity` 100.0% |
+| Claude | 1 | 72.2% | 1 | 1 | `actionable-next-route` 0.0%; `prototype-first-product-gate` 0.0%; `evidence-linked` 100.0%; `file-reference` 100.0%; `scope-control` 100.0% |
+| Codex | 3 | 77.8% | 3 | 3 | `prototype-first-product-gate` 0.0%; `evidence-linked` 100.0%; `file-reference` 100.0%; `scope-control` 100.0%; `interview-decision-quality` 100.0% |
 
-Claude quality details:
-
-- The single evaluated Claude run passed hard assertions but failed the configured output-quality rubric.
-- The failing critical criterion was `prototype-first-product-gate`.
-
-Codex quality details:
-
-- All three evaluated Codex runs passed the output-quality rubric with 100.0% average quality.
-- No threshold or critical failures were reported.
+Quality score is an additional configured rubric score, not a replacement for hard assertion pass rate or a statistically definitive measure.
 
 ## Infrastructure Blocks
 
 | Agent | Run | Reason |
 | --- | ---: | --- |
-| Claude | 0 | agent runner budget exceeded |
 | Claude | 1 | agent runner budget exceeded |
+| Claude | 2 | agent runner budget exceeded |
 
 Codex had no infrastructure-blocked runs.
 
 ## Raw Session Paths
 
-- Claude report: `tests/benchmarks/runs/feature-interview-claude-e499a20d/report.json`
-- Claude markdown: `tests/benchmarks/runs/feature-interview-claude-e499a20d/report.md`
-- Codex report: `tests/benchmarks/runs/feature-interview-codex-e6208aac/report.json`
-- Codex markdown: `tests/benchmarks/runs/feature-interview-codex-e6208aac/report.md`
-- Claude retained run: `tests/benchmarks/runs/feature-interview-claude-e499a20d/run-002.json`
+- Claude report: `tests/benchmarks/runs/feature-interview-claude-3efd3354/report.json`
+- Claude markdown: `tests/benchmarks/runs/feature-interview-claude-3efd3354/report.md`
+- Claude retained run: `tests/benchmarks/runs/feature-interview-claude-3efd3354/run-000.json`
+- Codex report: `tests/benchmarks/runs/feature-interview-codex-bcc5f678/report.json`
+- Codex markdown: `tests/benchmarks/runs/feature-interview-codex-bcc5f678/report.md`
 - Codex retained runs:
-  - `tests/benchmarks/runs/feature-interview-codex-e6208aac/run-000.json`
-  - `tests/benchmarks/runs/feature-interview-codex-e6208aac/run-001.json`
-  - `tests/benchmarks/runs/feature-interview-codex-e6208aac/run-002.json`
+  - `tests/benchmarks/runs/feature-interview-codex-bcc5f678/run-000.json`
+  - `tests/benchmarks/runs/feature-interview-codex-bcc5f678/run-001.json`
+  - `tests/benchmarks/runs/feature-interview-codex-bcc5f678/run-002.json`
 
 ## Verdict
 
-The evaluated hard assertions passed for both agents, and Codex passed the configured output-quality rubric cleanly. The overall benchmark is still not clean because Claude had two infrastructure-blocked runs and its single evaluated run had one critical output-quality failure on `prototype-first-product-gate`.
+The fresh benchmark is not clean. Claude failed the evaluated hard assertion by recommending `/roadmap`, had two infrastructure-blocked runs, and failed critical output-quality criteria. Codex passed hard assertions in all evaluated runs, but all three Codex outputs failed the configured `prototype-first-product-gate` quality criterion.
 
 Recommended next skill: `$session-triage feature-interview benchmark failure`
