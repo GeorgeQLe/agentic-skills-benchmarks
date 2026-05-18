@@ -212,7 +212,7 @@ const UPDATE_PACKAGES_VERIFICATION_EVIDENCE_PATTERN =
 const UPDATE_PACKAGES_MAJOR_UPGRADE_RISK_PATTERN =
   /(major|framework|build-tool|peer-sensitive|React 18.*19|Vitest 1.*3|compatibility)[\s\S]*(batch|peer|config|smoke|stop|migrate)/i;
 const UPDATE_PACKAGES_NO_UNQUALIFIED_PNPM_LATEST_PATTERN =
-  /^(?![\s\S]*(?:^|\n)(?!(?:[^\n]*(?:do not|don't|not use|avoid|never|rather than|instead of|violates|would float|break reproducibility)[^\n]*pnpm@latest|[^\n]*pnpm@latest[^\n]*(?:do not|don't|not|avoid|never|violates|would float|break reproducibility)))[^\n]*pnpm@latest[^\n]*)[\s\S]*$/i;
+  /^(?![\s\S]*(?:^|\n)(?!(?:[^\n]*(?:do\s*(?:\*\*)?not(?:\*\*)?\s+use|don't|not\s+(?:use\s+)?|avoid|never|rather than|instead of|violates|would float|break reproducibility)[^\n]*pnpm@latest|[^\n]*pnpm@latest[^\n]*(?:do\s*(?:\*\*)?not(?:\*\*)?\s+use|don't|not|avoid|never|violates|would float|break reproducibility)))[^\n]*pnpm@latest[^\n]*)[\s\S]*$/i;
 
 const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
