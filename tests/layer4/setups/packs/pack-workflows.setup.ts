@@ -383,6 +383,7 @@ function benchmarkAgentReviewValidationSpecificityCriterion(options: {
 function hasBenchmarkAgentReviewOwnerLabel(output: string): boolean {
   return [
     /\|\s*(?:exact\s+)?owner\s+(?:target|files?|surface)\s*\|/i,
+    /\|\s*(?:exact\s+)?owner\s+(?:(?:target|files?|surface)\s*\/\s*)+(?:target|files?|surface|owner)\s*\|/i,
     /\b(?:exact\s+)?owner\s+(?:target|files?|surface)(?:\s*\/\s*(?:target|files?|surface|owner))*\s*:/i,
     /\bexact\s+owner\s+files?\s*\./i,
     /\bowner\s*:/i,
