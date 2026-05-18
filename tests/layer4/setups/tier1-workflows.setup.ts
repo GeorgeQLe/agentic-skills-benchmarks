@@ -175,6 +175,37 @@ const sessionTriageNoOverRemediationCriterion: QualityCriterion = {
   },
 };
 
+const investigateCleanShippedNoShipEndCriterion: QualityCriterion = {
+  id: "clean-shipped-no-ship-end",
+  description: "Does not route a clean already-pushed investigation to ship-end",
+  weight: 5,
+  critical: true,
+  evaluate(output: string) {
+    const recommendsShipEnd = /Recommended next (?:command|skill):\s*[`'"]?\$ship-end\b/im.test(output)
+      || /\bnext (?:command|skill|step)\b[^.\n]{0,80}\$ship-end\b/i.test(output);
+    const saysCleanShipped = /\b(?:committed|commit)\b[\s\S]{0,300}\b(?:pushed|push)\b/i.test(output)
+      && /\b(?:clean tree|tree is clean|working tree clean|working-tree state:\s*clean|no unpushed commits)\b/i.test(output);
+    const noneRoute = /\*\*Next work:\*\*\s*none\b/i.test(output)
+      && /\*\*Recommended next command:\*\*\s*none\b/i.test(output);
+
+    if (saysCleanShipped && recommendsShipEnd) {
+      return {
+        score: 0,
+        notes: ["output recommends $ship-end even though it says the investigation was committed, pushed, and clean"],
+      };
+    }
+
+    if (saysCleanShipped && !noneRoute) {
+      return {
+        score: 0,
+        notes: ["clean already-pushed investigation must end with Next work none and Recommended next command none"],
+      };
+    }
+
+    return { score: 1 };
+  },
+};
+
 const shipGoalSpecificityCriterion: QualityCriterion = {
   id: "ship-goal-specificity",
   description: "Frames the User goal as the completed validated fixture step, not merely writing a manifest",
@@ -218,9 +249,9 @@ const prototypeFirstProductGateCriterion: QualityCriterion = {
   weight: 4,
   critical: true,
   evaluate(output: string) {
-    const hasPrototype = /clickable prototype|prototype phase 0|prototype experiments?|local\/static prototype|static prototype/i.test(output);
-    const hasSeparatePhase = /phase\s*0|prototype\/experiment phase|prototype experiments? phase|separate (?:prototype|experiment)/i.test(output);
-    const hasExperimentRoutes = /\/experiments?\/[a-z0-9-]+|experiment routes?|route-based experiments?|separate routes/i.test(output);
+    const hasPrototype = /clickable prototype|prototype(?:-first)? phase|prototype experiments?|local\/static prototype|static prototype/i.test(output);
+    const hasSeparatePhase = /phase\s*0|prototype(?:-first)?(?: [a-z0-9-]+){0,4} phase|prototype\/experiment phase|prototype experiments? phase|separate (?:prototype|experiment)/i.test(output);
+    const hasExperimentRoutes = /\/experiments?(?:\/[a-z0-9-]+)+|experiment routes?|route-based experiments?|separate routes/i.test(output);
     const hasFixtureData = /fake data|fixture data|fixture-backed|in-memory|static data/i.test(output);
     const defersInfrastructure = /defer(?:red|s)?[^.\n]{0,180}(database|storage|auth|payments?|analytics|deployment|admin|multi-tenan|observability)/i.test(output)
       || /(database|storage|auth|payments?|analytics|deployment|admin|multi-tenan|observability)[^.\n]{0,180}defer(?:red|s)?/i.test(output);
@@ -545,7 +576,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "investigate",
     outputPath: "investigation-report.md",
-    prompt: "You have the investigate skill installed. Investigate the failing log in logs/failure.txt and write investigation-report.md with Strategy Used, Root Cause, Fix Applied, Prevention, and Next command. Do not edit source.",
+    prompt: "You have the investigate skill installed. Investigate the failing log in logs/failure.txt and write investigation-report.md with Strategy Used, Root Cause, Fix Applied, Prevention, and Next command. Do not edit source. Treat the investigation as already fixed, validated, committed, and pushed: commit 50e118c is on origin/master, `git status --short --branch` is clean, and there are no unpushed commits. Because there is nothing left to ship or document, the final handoff must not recommend ship-end.",
     fixtureFiles: {
       "logs/failure.txt": "ERROR: Custom benchmark coverage row for run points to missing setup_path.\n",
       "tests/harness/bench-coverage.ts": "coverage_status: \"custom\", setup_path: \"tests/layer4/setups/run.setup.ts\"",
@@ -560,6 +591,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       coreTraits: ["Strategy Used", "Root Cause", "Fix Applied", "Prevention"],
       validationPatterns: [/missing setup_path|run\.setup\.ts/i],
       concreteFiles: ["tests/harness/bench-coverage.ts"],
+      extraCriteria: [investigateCleanShippedNoShipEndCriterion],
     }),
   },
   {
