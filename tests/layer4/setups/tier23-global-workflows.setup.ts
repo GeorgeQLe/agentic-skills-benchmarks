@@ -36,6 +36,8 @@ interface GlobalWorkflowDefinition {
   requireExactFinalRecommendedRoute?: boolean;
   remediationReadyPatterns?: RegExp[];
   allowedFixtureTerms?: string[];
+  artifactReferencePattern?: RegExp;
+  actionabilityPatterns?: RegExp[];
   perRunBudgetUsd?: number;
 }
 
@@ -170,12 +172,19 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
             },
           }
       ))),
-      concreteFileReferenceCriterion({
-        id: "workflow-artifact-reference",
-        description: "Output names the generated workflow artifact.",
-        weight: 1,
-        files: [definition.outputPath],
-      }),
+      definition.artifactReferencePattern
+        ? requiredPatternCriterion({
+          id: "workflow-artifact-reference",
+          description: "Output names the generated workflow artifact.",
+          weight: 1,
+          patterns: [definition.artifactReferencePattern],
+        })
+        : concreteFileReferenceCriterion({
+          id: "workflow-artifact-reference",
+          description: "Output names the generated workflow artifact.",
+          weight: 1,
+          files: [definition.outputPath],
+        }),
       (definition.requireExactFinalRecommendedRoute
         ? exactFinalNextRouteCriterion
         : definition.requireFinalRecommendedRoute
@@ -209,12 +218,19 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
           }),
         ]
         : []),
-      referenceTraitCriterion({
-        id: "workflow-actionability",
-        description: "Output has practical workflow evidence, validation, risk, or action language.",
-        weight: 1,
-        traits: ["validation", "risk", "evidence", "Next command"],
-      }),
+      definition.actionabilityPatterns
+        ? requiredPatternCriterion({
+          id: "workflow-actionability",
+          description: "Output has practical workflow evidence, validation, risk, or action language.",
+          weight: 1,
+          patterns: definition.actionabilityPatterns,
+        })
+        : referenceTraitCriterion({
+          id: "workflow-actionability",
+          description: "Output has practical workflow evidence, validation, risk, or action language.",
+          weight: 1,
+          traits: ["validation", "risk", "evidence", "Next command"],
+        }),
       forbiddenFabricationCriterion({
         id: "no-generic-or-external-overreach",
         description: "Output avoids generic filler and external actions not present in fixtures.",
@@ -234,6 +250,10 @@ const UPDATE_PACKAGES_VERIFICATION_EVIDENCE_PATTERN =
   /verification commands|(?:^|\n)#{1,6}\s*Verification\b[\s\S]*(pnpm install --frozen-lockfile|pnpm run build|pnpm run test|pnpm test|pnpm outdated)/i;
 const UPDATE_PACKAGES_MAJOR_UPGRADE_RISK_PATTERN =
   /(major|framework|build-tool|peer-sensitive|React 18.*19|Vitest 1.*3|compatibility)[\s\S]*(batch|peer|config|smoke|stop|migrate)/i;
+const UPDATE_PACKAGES_ARTIFACT_REFERENCE_PATTERN =
+  /(^|\n)#{1,6}\s*(?:package-update-plan\.md|Package Update Plan)\b|package-update-plan\.md/i;
+const UPDATE_PACKAGES_ACTIONABILITY_PATTERN =
+  /(?:^|\n)#{1,6}\s*Verification(?:\s+Commands)?\b|Verification commands:|Focused smoke checks?:|Stop condition:|Major-upgrade risk handling:/i;
 function lineOnlyWarnsAgainstPnpmLatest(line: string): boolean {
   const normalized = line.replace(/[`*_]/g, " ").replace(/\s+/g, " ").trim();
   return /(?:do\s+not\s+use|don't(?:\s+use)?|not\s+(?:use\s+)?(?:unqualified\s+)?|no\s+unqualified|avoid|never(?:\s+default\s+to)?|rather than|instead of|violates|would float|break reproducibility)/i.test(normalized);
@@ -701,6 +721,8 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
       },
     ],
     expectedPattern: /(19\.2\.0|3\.25\.76|3\.2\.4).*(min-release-age=8|minimum-release-age=11520|minimumReleaseAge|11520)|(\.npmrc|min-release-age=8|minimum-release-age=11520).*(19\.2\.0|3\.25\.76|3\.2\.4)/is,
+    artifactReferencePattern: UPDATE_PACKAGES_ARTIFACT_REFERENCE_PATTERN,
+    actionabilityPatterns: [UPDATE_PACKAGES_ACTIONABILITY_PATTERN],
     recommendedRoutes: {
       claude: "/run",
       codex: "$run",

@@ -214,11 +214,13 @@ const shipGoalSpecificityCriterion: QualityCriterion = {
 
 const prototypeFirstProductGateCriterion: QualityCriterion = {
   id: "prototype-first-product-gate",
-  description: "Defaults new product work to a clickable prototype and defers SaaS infrastructure until evidence justifies it",
+  description: "Defaults new product and feature work to a separate clickable prototype/experiment phase with route-based alternatives, and defers SaaS infrastructure until evidence justifies it",
   weight: 4,
   critical: true,
   evaluate(output: string) {
-    const hasPrototype = /clickable prototype|prototype phase 0|local\/static prototype|static prototype/i.test(output);
+    const hasPrototype = /clickable prototype|prototype phase 0|prototype experiments?|local\/static prototype|static prototype/i.test(output);
+    const hasSeparatePhase = /phase\s*0|prototype\/experiment phase|prototype experiments? phase|separate (?:prototype|experiment)/i.test(output);
+    const hasExperimentRoutes = /\/experiments?\/[a-z0-9-]+|experiment routes?|route-based experiments?|separate routes/i.test(output);
     const hasFixtureData = /fake data|fixture data|fixture-backed|in-memory|static data/i.test(output);
     const defersInfrastructure = /defer(?:red|s)?[^.\n]{0,180}(database|storage|auth|payments?|analytics|deployment|admin|multi-tenan|observability)/i.test(output)
       || /(database|storage|auth|payments?|analytics|deployment|admin|multi-tenan|observability)[^.\n]{0,180}defer(?:red|s)?/i.test(output);
@@ -227,12 +229,14 @@ const prototypeFirstProductGateCriterion: QualityCriterion = {
     const prematureInfraImplementation = /(implement|build|wire|add|migrate|deploy|provision)[^.\n]{0,80}(Stripe|PostHog|Neon|database migration|production deploy|multi-tenant|auth)/i.test(output)
       && !/defer|mock|fixture|fake|later|non-goal/i.test(output);
 
-    if (hasPrototype && hasFixtureData && defersInfrastructure && hasPromotionEvidence && !prematureInfraImplementation) {
+    if (hasPrototype && hasSeparatePhase && hasExperimentRoutes && hasFixtureData && defersInfrastructure && hasPromotionEvidence && !prematureInfraImplementation) {
       return { score: 1 };
     }
 
     const missing = [
       !hasPrototype ? "clickable prototype default" : undefined,
+      !hasSeparatePhase ? "separate prototype/experiment phase" : undefined,
+      !hasExperimentRoutes ? "route-based experiments" : undefined,
       !hasFixtureData ? "fake/fixture/in-memory data boundary" : undefined,
       !defersInfrastructure ? "explicit deferred infrastructure list" : undefined,
       !hasPromotionEvidence ? "evidence or calibration needed before promotion" : undefined,
@@ -442,14 +446,14 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "roadmap",
     outputPath: "tasks/roadmap.md",
-    prompt: "You have the roadmap skill installed. Convert specs/feature.md into tasks/roadmap.md with phases, acceptance criteria, verification, and an exact `## Next Command` section containing `$plan-phase 1`. Keep it concise.",
+    prompt: "You have the roadmap skill installed. Convert specs/feature.md into tasks/roadmap.md with phases, acceptance criteria, verification, a separate prototype/experiment phase with route-based experiments, and an exact `## Next Command` section containing `$plan-phase 1`. Keep it concise.",
     fixtureFiles: {
-      "specs/feature.md": "# Feature\n\nBuild benchmark coverage reporting with CLI status output and validation.\n",
+      "specs/feature.md": "# Feature\n\nBuild a SaaS-style benchmark coverage reporting dashboard with CLI status output and validation. First create a separate prototype experiment phase using fake rows across table-first, board-first, and command-first routes. Do not implement database, auth, analytics, or deployment until one route is accepted.\n",
     },
-    expectedIncludes: ["Phase", "Acceptance Criteria", "verification"],
+    expectedIncludes: ["Phase", "Acceptance Criteria", "verification", "prototype"],
     expectedPattern: /benchmark coverage|CLI status/i,
     qualityEvaluator: workflowQualityEvaluator({
-      evidenceFacts: ["benchmark coverage", "CLI status output"],
+      evidenceFacts: ["benchmark coverage", "CLI status output", "fake rows"],
       evidenceCriterion: requiredPatternCriterion({
         id: "evidence-linked",
         description: "Names concrete fixture facts used as evidence",
@@ -464,16 +468,17 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       nextRoute: "$plan-phase 1",
       coreTraitId: "roadmap-phase-structure",
       coreTraitDescription: "Turns the fixture idea into phased, verifiable project work",
-      coreTraits: ["Phase", "Acceptance Criteria", "verification", "Next Command"],
+      coreTraits: ["Phase", "Acceptance Criteria", "verification", "Next Command", "prototype"],
       validationPatterns: [/verification|test|validate/i],
       concreteFiles: ["specs/feature.md"],
+      extraCriteria: [prototypeFirstProductGateCriterion],
     }),
     recommendedRoute: "$plan-phase 1",
   },
   {
     skill: "plan-phase",
     outputPath: "tasks/todo.md",
-    prompt: "You have the plan-phase skill installed. Read tasks/roadmap.md and write tasks/todo.md for the next phase with Tests First, Implementation, file-level details, validation, prototype-first product gate, and Next command.",
+    prompt: "You have the plan-phase skill installed. Read tasks/roadmap.md and write tasks/todo.md for the next phase with Tests First, Implementation, file-level details, validation, a separate prototype/experiment phase, route-based experiments, and Next command.",
     fixtureFiles: {
       "tasks/roadmap.md": "# Roadmap\n\n## Phase 2: SaaS Coverage Dashboard Prototype\n\nAcceptance Criteria:\n- Users can click through a dashboard showing custom/generic/blocked coverage.\n- Prototype uses fake benchmark rows.\n- Production database, auth, analytics, and deployment are not approved for this phase.\n",
     },
@@ -494,9 +499,9 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "feature-interview",
     outputPath: "specs/benchmark-reporting-feature-interview.md",
-    prompt: "You have the feature-interview skill installed. Interview the supplied SaaS dashboard idea without asking follow-up questions by writing specs/benchmark-reporting-feature-interview.md with an explicit Artifact path line, assumptions, evidence, decision, risks, prototype-first gate, and Next command. Treat the planning destination as confirmed for roadmap sequencing; do not route directly to spec-interview.",
+    prompt: "You have the feature-interview skill installed. Interview the supplied SaaS dashboard idea without asking follow-up questions by writing specs/benchmark-reporting-feature-interview.md with an explicit Artifact path line, assumptions, evidence, decision, risks, prototype-first gate, route-based experiments, and Next command. Treat the planning destination as confirmed for roadmap sequencing; do not route directly to spec-interview.",
     fixtureFiles: {
-      "feature-idea.md": "# Idea\n\nBuild a SaaS dashboard where maintainers compare whether a skill has custom, generic, or blocked coverage. Use fake rows first; do not build auth, Stripe, analytics, or a database until the dashboard flow feels right.\n",
+      "feature-idea.md": "# Idea\n\nBuild a SaaS dashboard where maintainers compare whether a skill has custom, generic, or blocked coverage. Use fake rows first; prototype multiple routes such as table-first, board-first, and command-first experiments; do not build auth, Stripe, analytics, or a database until the dashboard flow feels right.\n",
     },
     expectedIncludes: ["Assumptions", "evidence", "decision", "risks", "prototype"],
     expectedPattern: /custom|generic|blocked/i,
@@ -520,9 +525,9 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "spec-interview",
     outputPath: "specs/benchmark-reporting.md",
-    prompt: "You have the spec-interview skill installed. Turn specs/draft.md into specs/benchmark-reporting.md with Overview, Goals, Non-Goals, Detailed Design, Edge Cases, Test Plan, Acceptance Criteria, Open Questions, Assumptions & Risks, a Prototype Phase 0, and Next command.",
+    prompt: "You have the spec-interview skill installed. Turn specs/draft.md into specs/benchmark-reporting.md with Overview, Goals, Non-Goals, Detailed Design, Edge Cases, Test Plan, Acceptance Criteria, Open Questions, Assumptions & Risks, a separate Prototype Phase 0 with route-based experiments, and Next command.",
     fixtureFiles: {
-      "specs/draft.md": "# Draft\n\nCreate a SaaS-style benchmark coverage dashboard. Phase 0 should be a clickable prototype with fake rows. Defer database, auth, Stripe payments, analytics, admin tooling, and deployment until the prototype flow is accepted.\n",
+      "specs/draft.md": "# Draft\n\nCreate a SaaS-style benchmark coverage dashboard. Phase 0 should be clickable prototype experiments with fake rows across `/experiments/table-first`, `/experiments/board-first`, and `/experiments/command-first`. Defer database, auth, Stripe payments, analytics, admin tooling, and deployment until the prototype flow is accepted.\n",
     },
     expectedIncludes: ["Overview", "Detailed Design", "Test Plan", "Acceptance Criteria", "Assumptions & Risks", "Prototype"],
     qualityEvaluator: workflowQualityEvaluator({
