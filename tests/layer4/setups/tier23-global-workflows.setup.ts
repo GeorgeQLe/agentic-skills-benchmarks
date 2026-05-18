@@ -213,10 +213,18 @@ const UPDATE_PACKAGES_MAJOR_UPGRADE_RISK_PATTERN =
   /(major|framework|build-tool|peer-sensitive|React 18.*19|Vitest 1.*3|compatibility)[\s\S]*(batch|peer|config|smoke|stop|migrate)/i;
 const UPDATE_PACKAGES_NO_UNQUALIFIED_PNPM_LATEST_PATTERN =
   /^(?![\s\S]*(?:^|\n)(?!(?:[^\n]*(?:do\s*(?:\*\*)?not(?:\*\*)?\s+use|don't|not\s+(?:use\s+)?|avoid|never|rather than|instead of|violates|would float|break reproducibility)[^\n]*pnpm@latest|[^\n]*pnpm@latest[^\n]*(?:do\s*(?:\*\*)?not(?:\*\*)?\s+use|don't|not|avoid|never|violates|would float|break reproducibility)))[^\n]*pnpm@latest[^\n]*)[\s\S]*$/i;
-const UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_PATTERN =
-  /(?:existing\s+(?:repo|project)[-\s]pinned[\s\S]{0,240}pnpm@\d[\d.]*|packageManager[\s\S]{0,240}pnpm@\d[\d.]*[\s\S]{0,900}(?:(?:npm view pnpm@\d[\d.]* time\.version[\s\S]{0,160}(?:returned|=>|published|202\d-\d\d-\d\d))|publish(?:ed)?(?:\s+timestamp|\s+time|\s+date)?[\s\S]{0,120}(?:older than 8 days|8-day|age[-\s]eligible|before|on or before)|age[-\s]eligible[\s\S]{0,120}(?:publish(?:ed)?|registry publish)))/i;
+const UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_PATTERN = new RegExp([
+  "(?=[\\s\\S]*(?:packageManager[\\s\\S]{0,280}pnpm@\\d[\\d.]*",
+  "|pnpm@\\d[\\d.]*[\\s\\S]{0,280}packageManager",
+  "|Recommended\\s+`?packageManager`?[\\s\\S]{0,120}pnpm@\\d[\\d.]*",
+  "|Chosen pnpm version[\\s\\S]{0,120}\\d[\\d.]*))",
+  "(?=[\\s\\S]*(?:npm view pnpm@\\d[\\d.]* time\\.version[\\s\\S]{0,180}(?:returned|=>|published|202\\d-\\d\\d-\\d\\d)",
+  "|pnpm@\\d[\\d.]*[\\s\\S]{0,260}(?:published|publish[-\\s]time evidence|Retained publish[-\\s]time evidence|published at)[\\s\\S]{0,180}202\\d-\\d\\d-\\d\\d",
+  "|(?:published|publish[-\\s]time evidence|Retained publish[-\\s]time evidence|published at)[\\s\\S]{0,180}202\\d-\\d\\d-\\d\\d[\\s\\S]{0,260}pnpm@\\d[\\d.]*))",
+  "(?=[\\s\\S]*(?:older than 8 days|8-day|age[-\\s]eligible|16 days old|eligible because it is older))",
+].join(""), "i");
 const UPDATE_PACKAGES_AGE_GATE_SEMANTICS_PATTERN =
-  /(?=.*(?:npm(?:'s)?[^.\n;]{0,180}(?<!imum-)min-release-age=8|(?<!imum-)min-release-age=8[^.\n;]{0,180}npm(?:'s)?))(?=.*(?:pnpm(?:'s)?[^.\n;]{0,240}(?:minimum-release-age=11520|minimumReleaseAge:?\s*11520)|(?:minimum-release-age=11520|minimumReleaseAge:?\s*11520)[^.\n;]{0,240}pnpm(?:'s)?))/i;
+  /^(?![\s\S]*(?:\bnpm(?:'s)?\b\s+(?:reads|uses|owns|coverage)[^\n.;]{0,160}(?:minimum-release-age=11520|minimumReleaseAge:?\s*11520)|\bpnpm(?:'s)?\b\s+(?:reads|uses|owns|coverage)[^\n.;]{0,160}min-release-age=8))(?=[\s\S]*\bnpm(?:'s)?\b)(?=[\s\S]*\bpnpm(?:'s)?\b)(?=[\s\S]*min-release-age=8)(?=[\s\S]*(?:minimum-release-age=11520|minimumReleaseAge:?\s*11520))[\s\S]*$/i;
 
 const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
