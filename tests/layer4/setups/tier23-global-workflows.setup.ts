@@ -268,9 +268,7 @@ const UPDATE_PACKAGES_ARTIFACT_REFERENCE_PATTERN =
 const UPDATE_PACKAGES_ACTIONABILITY_PATTERN =
   /(?:^|\n)#{1,6}\s*Verification(?:\s+Commands)?\b|Verification commands:|Focused smoke checks?:|Stop condition:|Major-upgrade risk handling:/i;
 const UPDATE_PACKAGES_BATCH_ACTIONABILITY_PATTERN = new RegExp([
-  "(?=[\\s\\S]*Batch\\s*(?:0|A)\\b)",
-  "(?=[\\s\\S]*Batch\\s*(?:1|B)\\b)",
-  "(?=[\\s\\S]*Batch\\s*(?:2|C)\\b)",
+  "(?=[\\s\\S]*(?:Batch\\s*0\\b[\\s\\S]*Batch\\s*1\\b[\\s\\S]*Batch\\s*2\\b|Batch\\s*1\\b[\\s\\S]*Batch\\s*2\\b[\\s\\S]*Batch\\s*3\\b|Batch\\s*A\\b[\\s\\S]*Batch\\s*B\\b[\\s\\S]*Batch\\s*C\\b))",
   "(?=[\\s\\S]*(?:mutation command|implementation command|exact command|pnpm\\s+(?:install|add|up)|\\.npmrc))",
   "(?=[\\s\\S]*(?:verification command|smoke[-\\s]test|pnpm\\s+(?:test|run\\s+test|build|run\\s+build)))",
   "(?=[\\s\\S]*(?:expected proof|expected artifact|pnpm-lock\\.yaml))",
