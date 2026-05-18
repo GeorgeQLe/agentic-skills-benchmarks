@@ -456,7 +456,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "ship-end",
     outputPath: "session-handoff.md",
-    prompt: "You have the ship-end skill installed. Write session-handoff.md summarizing completed work, validation evidence, remaining risks, next work, and Next command. Do not run git.",
+    prompt: "You have the ship-end skill installed. Write session-handoff.md summarizing completed work, validation evidence, remaining risks, next work, and Next command. Use the fixture task files as the source of truth, not the benchmark session's lack of git activity, and name both `tasks/todo.md` and `tasks/history.md` in the handoff. The final Next command must be `/run` when running as Claude and `$run` when running as Codex. Do not run git.",
     fixtureFiles: {
       "tasks/todo.md": "# Active Phase\n\n- [x] Step 1.1 complete\n- [ ] Step 1.2 next\n",
       "tasks/history.md": "# History\n\n- Completed Step 1.1 with tests.\n",
@@ -465,14 +465,17 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["Step 1.1", "Step 1.2", "Completed Step 1.1 with tests"],
       specificMarkers: ["completed work", "remaining risks", "Step 1.2"],
-      nextRoute: "$run",
+      nextRoutes: ["/run", "$run"],
       coreTraitId: "handoff-continuity",
       coreTraitDescription: "Connects completed work to the next project task",
       coreTraits: ["completed work", "validation", "remaining risks", "next work"],
       validationPatterns: [/validation|tests/i],
       concreteFiles: ["tasks/todo.md", "tasks/history.md"],
     }),
-    recommendedRoute: "$run",
+    recommendedRoutes: {
+      claude: "/run",
+      codex: "$run",
+    },
   },
   {
     skill: "roadmap",
