@@ -234,8 +234,17 @@ const UPDATE_PACKAGES_VERIFICATION_EVIDENCE_PATTERN =
   /verification commands|(?:^|\n)#{1,6}\s*Verification\b[\s\S]*(pnpm install --frozen-lockfile|pnpm run build|pnpm run test|pnpm test|pnpm outdated)/i;
 const UPDATE_PACKAGES_MAJOR_UPGRADE_RISK_PATTERN =
   /(major|framework|build-tool|peer-sensitive|React 18.*19|Vitest 1.*3|compatibility)[\s\S]*(batch|peer|config|smoke|stop|migrate)/i;
-const UPDATE_PACKAGES_NO_UNQUALIFIED_PNPM_LATEST_PATTERN =
-  /^(?![\s\S]*(?:^|\n)(?!(?:[^\n]*(?:do\s*(?:\*\*)?not(?:\*\*)?\s+use|don't|not\s+(?:use\s+)?|avoid|never|rather than|instead of|violates|would float|break reproducibility)[^\n]*pnpm@latest|[^\n]*pnpm@latest[^\n]*(?:do\s*(?:\*\*)?not(?:\*\*)?\s+use|don't|not|avoid|never|violates|would float|break reproducibility)))[^\n]*pnpm@latest[^\n]*)[\s\S]*$/i;
+function lineOnlyWarnsAgainstPnpmLatest(line: string): boolean {
+  const normalized = line.replace(/[`*_]/g, " ").replace(/\s+/g, " ").trim();
+  return /(?:do\s+not\s+use|don't(?:\s+use)?|not\s+(?:use\s+)?(?:unqualified\s+)?|no\s+unqualified|avoid|never(?:\s+default\s+to)?|rather than|instead of|violates|would float|break reproducibility)/i.test(normalized);
+}
+
+function avoidsUnqualifiedPnpmLatest(content: string): boolean {
+  return content
+    .split(/\r?\n/)
+    .filter((line) => /pnpm@latest/i.test(line))
+    .every(lineOnlyWarnsAgainstPnpmLatest);
+}
 const UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_PATTERN = new RegExp([
   "(?=[\\s\\S]*(?:packageManager[\\s\\S]{0,280}pnpm@\\d[\\d.]*",
   "|pnpm@\\d[\\d.]*[\\s\\S]{0,280}packageManager",
@@ -680,7 +689,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
       },
       {
         description: "Output avoids unqualified pnpm@latest",
-        pattern: UPDATE_PACKAGES_NO_UNQUALIFIED_PNPM_LATEST_PATTERN,
+        predicate: avoidsUnqualifiedPnpmLatest,
       },
       {
         description: UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_DESCRIPTION,
