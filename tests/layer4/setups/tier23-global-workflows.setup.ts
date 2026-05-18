@@ -213,6 +213,10 @@ const UPDATE_PACKAGES_MAJOR_UPGRADE_RISK_PATTERN =
   /(major|framework|build-tool|peer-sensitive|React 18.*19|Vitest 1.*3|compatibility)[\s\S]*(batch|peer|config|smoke|stop|migrate)/i;
 const UPDATE_PACKAGES_NO_UNQUALIFIED_PNPM_LATEST_PATTERN =
   /^(?![\s\S]*(?:^|\n)(?!(?:[^\n]*(?:do\s*(?:\*\*)?not(?:\*\*)?\s+use|don't|not\s+(?:use\s+)?|avoid|never|rather than|instead of|violates|would float|break reproducibility)[^\n]*pnpm@latest|[^\n]*pnpm@latest[^\n]*(?:do\s*(?:\*\*)?not(?:\*\*)?\s+use|don't|not|avoid|never|violates|would float|break reproducibility)))[^\n]*pnpm@latest[^\n]*)[\s\S]*$/i;
+const UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_PATTERN =
+  /(?:existing\s+(?:repo|project)[-\s]pinned[\s\S]{0,240}pnpm@\d[\d.]*|packageManager[\s\S]{0,240}pnpm@\d[\d.]*[\s\S]{0,900}(?:(?:npm view pnpm@\d[\d.]* time\.version[\s\S]{0,160}(?:returned|=>|published|202\d-\d\d-\d\d))|publish(?:ed)?(?:\s+timestamp|\s+time|\s+date)?[\s\S]{0,120}(?:older than 8 days|8-day|age[-\s]eligible|before|on or before)|age[-\s]eligible[\s\S]{0,120}(?:publish(?:ed)?|registry publish)))/i;
+const UPDATE_PACKAGES_AGE_GATE_SEMANTICS_PATTERN =
+  /(?=.*(?:npm(?:'s)?[^.\n;]{0,180}(?<!imum-)min-release-age=8|(?<!imum-)min-release-age=8[^.\n;]{0,180}npm(?:'s)?))(?=.*(?:pnpm(?:'s)?[^.\n;]{0,240}(?:minimum-release-age=11520|minimumReleaseAge:?\s*11520)|(?:minimum-release-age=11520|minimumReleaseAge:?\s*11520)[^.\n;]{0,240}pnpm(?:'s)?))/i;
 
 const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
@@ -580,7 +584,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "update-packages",
     outputPath: "package-update-plan.md",
-    prompt: "You have the update-packages skill installed. Read package.json, npm-view-times.json, and package-lock-note.md, then write package-update-plan.md with package-manager migration strategy, .npmrc/package-manager age-gate config, eligible versions older than 8 days, skipped packages, major-upgrade risk handling, verification commands, and Next command. Prefer pnpm over npm when safe. The package-update-plan.md artifact must name `package-update-plan.md` and include these exact literal strings: `older than 8 days`, `min-release-age=8`, `minimum-release-age=11520`, and a runner-native recommended next-command line. Because this fixture upgrades React 18 to 19 and Vitest 1 to 3, include batch order, peer/config compatibility checks, focused smoke checks, and a stop condition that routes broad compatibility work to migrate. Do not use unqualified `pnpm@latest`; choose an existing/toolchain or age-eligible pnpm version and document the choice. Use exactly `Recommended next command: /run` when running as Claude and exactly `Recommended next command: $run` when running as Codex. Put package-manager shell commands in a verification or implementation section, not as the final Next command.",
+    prompt: "You have the update-packages skill installed. Read package.json, npm-view-times.json, and package-lock-note.md, then write package-update-plan.md with package-manager migration strategy, .npmrc/package-manager age-gate config, eligible versions older than 8 days, skipped packages, major-upgrade risk handling, verification commands, and Next command. Prefer pnpm over npm when safe. The package-update-plan.md artifact must name `package-update-plan.md` and include these exact literal strings: `older than 8 days`, `min-release-age=8`, `minimum-release-age=11520`, and a runner-native recommended next-command line. Because this fixture upgrades React 18 to 19 and Vitest 1 to 3, include batch order, peer/config compatibility checks, focused smoke checks, and a stop condition that routes broad compatibility work to migrate. Do not use unqualified `pnpm@latest`; choose an existing project-pinned pnpm version or prove the chosen pnpm version is age-eligible with retained publish-time evidence such as `npm view pnpm@<version> time.version` before recommending it as `packageManager`. Keep age-gate ownership clear: `min-release-age=8` is npm's relative age gate; `minimum-release-age=11520` and `minimumReleaseAge: 11520` are pnpm coverage where supported. Use exactly `Recommended next command: /run` when running as Claude and exactly `Recommended next command: $run` when running as Codex. Put package-manager shell commands in a verification or implementation section, not as the final Next command.",
     fixtureFiles: {
       "package.json": JSON.stringify({
         scripts: {
@@ -609,6 +613,11 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
           "3.2.4": "2026-05-02T09:00:00.000Z",
           "4.0.0": "2026-05-16T09:00:00.000Z",
         },
+        pnpm: {
+          "9.15.0": "2024-12-06T12:00:00.000Z",
+          "10.11.0": "2026-05-01T12:00:00.000Z",
+          "10.22.0": "2026-05-16T12:00:00.000Z",
+        },
       }, null, 2),
       "package-lock-note.md": "This fixture has package-lock.json in the source project and no pnpm-lock.yaml. There are no deployment notes requiring npm.",
     },
@@ -625,6 +634,14 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
       {
         description: "Output avoids unqualified pnpm@latest",
         pattern: UPDATE_PACKAGES_NO_UNQUALIFIED_PNPM_LATEST_PATTERN,
+      },
+      {
+        description: "Output proves selected pnpm toolchain age eligibility",
+        pattern: UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_PATTERN,
+      },
+      {
+        description: "Output preserves age-gate key semantics",
+        pattern: UPDATE_PACKAGES_AGE_GATE_SEMANTICS_PATTERN,
       },
     ],
     expectedPattern: /(19\.2\.0|3\.25\.76|3\.2\.4).*(min-release-age=8|minimum-release-age=11520|minimumReleaseAge|11520)|(\.npmrc|min-release-age=8|minimum-release-age=11520).*(19\.2\.0|3\.25\.76|3\.2\.4)/is,
