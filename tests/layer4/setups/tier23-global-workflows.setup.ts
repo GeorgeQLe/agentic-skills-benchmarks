@@ -38,6 +38,8 @@ interface GlobalWorkflowDefinition {
   allowedFixtureTerms?: string[];
   artifactReferencePattern?: RegExp;
   actionabilityPatterns?: RegExp[];
+  actionabilityCritical?: boolean;
+  targetedMigrationRoutePattern?: RegExp;
   perRunBudgetUsd?: number;
 }
 
@@ -223,6 +225,7 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
           id: "workflow-actionability",
           description: "Output has practical workflow evidence, validation, risk, or action language.",
           weight: 1,
+          critical: definition.actionabilityCritical,
           patterns: definition.actionabilityPatterns,
         })
         : referenceTraitCriterion({
@@ -231,6 +234,16 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
           weight: 1,
           traits: ["validation", "risk", "evidence", "Next command"],
         }),
+      ...(definition.targetedMigrationRoutePattern
+        ? [
+          requiredPatternCriterion({
+            id: "workflow-targeted-migration-routes",
+            description: "Output routes broad compatibility work to target-specific migrate commands.",
+            weight: 1,
+            patterns: [definition.targetedMigrationRoutePattern],
+          }),
+        ]
+        : []),
       forbiddenFabricationCriterion({
         id: "no-generic-or-external-overreach",
         description: "Output avoids generic filler and external actions not present in fixtures.",
@@ -262,6 +275,8 @@ const UPDATE_PACKAGES_BATCH_ACTIONABILITY_PATTERN = new RegExp([
   "(?=[\\s\\S]*(?:verification command|expected proof|expected artifact|lockfile|pnpm-lock\\.yaml|smoke[-\\s]test|pnpm\\s+(?:test|run\\s+test|build|run\\s+build)))",
   "(?=[\\s\\S]*(?:do not proceed|do not continue|on red|stop condition|route[\\s\\S]{0,80}migrate))",
 ].join(""), "i");
+const UPDATE_PACKAGES_TARGETED_MIGRATION_ROUTE_PATTERN =
+  /(?:\/migrate|\$migrate)\s+(?:react|react-19|vitest|vitest-3|pnpm|npm-to-pnpm|zod)\b/i;
 function lineOnlyWarnsAgainstPnpmLatest(line: string): boolean {
   const normalized = line.replace(/[`*_]/g, " ").replace(/\s+/g, " ").trim();
   return /(?:do\s+not\s+use|don't(?:\s+use)?|not\s+(?:use\s+)?(?:unqualified\s+)?|no\s+unqualified|avoid|reject|never(?:\s+default\s+to)?|rather than|instead of|violates|would float|break reproducibility)/i.test(normalized);
@@ -731,6 +746,8 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     expectedPattern: /(19\.2\.0|3\.25\.76|3\.2\.4).*(min-release-age=8|minimum-release-age=11520|minimumReleaseAge|11520)|(\.npmrc|min-release-age=8|minimum-release-age=11520).*(19\.2\.0|3\.25\.76|3\.2\.4)/is,
     artifactReferencePattern: UPDATE_PACKAGES_ARTIFACT_REFERENCE_PATTERN,
     actionabilityPatterns: [UPDATE_PACKAGES_ACTIONABILITY_PATTERN, UPDATE_PACKAGES_BATCH_ACTIONABILITY_PATTERN],
+    actionabilityCritical: true,
+    targetedMigrationRoutePattern: UPDATE_PACKAGES_TARGETED_MIGRATION_ROUTE_PATTERN,
     recommendedRoutes: {
       claude: "/run",
       codex: "$run",
