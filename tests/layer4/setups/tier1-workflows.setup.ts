@@ -222,7 +222,8 @@ const prototypeFirstProductGateCriterion: QualityCriterion = {
     const hasFixtureData = /fake data|fixture data|fixture-backed|in-memory|static data/i.test(output);
     const defersInfrastructure = /defer(?:red|s)?[^.\n]{0,180}(database|storage|auth|payments?|analytics|deployment|admin|multi-tenan|observability)/i.test(output)
       || /(database|storage|auth|payments?|analytics|deployment|admin|multi-tenan|observability)[^.\n]{0,180}defer(?:red|s)?/i.test(output);
-    const hasPromotionEvidence = /promotion criteria|promote[^.\n]{0,120}infrastructure|evidence[^.\n]{0,120}infrastructure|calibration[^.\n]{0,120}infrastructure/i.test(output);
+    const hasPromotionEvidence = /promotion criteria|promot(?:e|ing|ion)[^.\n]{0,160}(infrastructure|deferred item|deferred infrastructure)|evidence[^.\n]{0,160}(infrastructure|deferred item|promot(?:e|ing|ion))|calibration[^.\n]{0,160}(infrastructure|deferred item|promot(?:e|ing|ion))/i.test(output)
+      || /(auth|database|storage|analytics|deployment|admin|multi-tenan|billing|observability)[^.\n]{0,80}(validated|accepted|necessary|needed|justif(?:y|ies|ied)|prototype acceptance|workflow is accepted)/i.test(output);
     const prematureInfraImplementation = /(implement|build|wire|add|migrate|deploy|provision)[^.\n]{0,80}(Stripe|PostHog|Neon|database migration|production deploy|multi-tenant|auth)/i.test(output)
       && !/defer|mock|fixture|fake|later|non-goal/i.test(output);
 
@@ -239,6 +240,31 @@ const prototypeFirstProductGateCriterion: QualityCriterion = {
     ].filter(Boolean);
 
     return { score: 0, notes: [`missing prototype-first gate: ${missing.join(", ")}`] };
+  },
+};
+
+const featureInterviewEvidenceCriterion: QualityCriterion = {
+  id: "evidence-linked",
+  description: "Names concrete fixture facts used as evidence",
+  weight: 3,
+  critical: true,
+  evaluate(output: string) {
+    const missing = [
+      !/custom/i.test(output) ? "custom" : undefined,
+      !/generic/i.test(output) ? "generic" : undefined,
+      !/blocked/i.test(output) ? "blocked" : undefined,
+      !/(benchmark reporting|benchmark coverage|skill coverage|coverage dashboard|coverage quality)/i.test(output) ? "benchmark/coverage dashboard concept" : undefined,
+      !/(fake rows|fake data|fixture|fixture-backed|in-memory|static data)/i.test(output) ? "fake or fixture rows" : undefined,
+    ].filter(Boolean);
+
+    if (missing.length === 0) {
+      return { score: 1 };
+    }
+
+    return {
+      score: 0,
+      notes: [`missing required fact: ${missing.join(", ")}`],
+    };
   },
 };
 
@@ -475,7 +501,8 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     expectedIncludes: ["Assumptions", "evidence", "decision", "risks", "prototype"],
     expectedPattern: /custom|generic|blocked/i,
     qualityEvaluator: workflowQualityEvaluator({
-      evidenceFacts: ["custom", "generic", "blocked", "Benchmark reports"],
+      evidenceFacts: ["custom", "generic", "blocked"],
+      evidenceCriterion: featureInterviewEvidenceCriterion,
       specificMarkers: ["Assumptions", "evidence", "decision", "risks"],
       nextRoutes: ["/roadmap", "$roadmap"],
       coreTraitId: "interview-decision-quality",
