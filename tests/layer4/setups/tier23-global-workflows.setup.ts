@@ -256,7 +256,7 @@ const UPDATE_PACKAGES_ACTIONABILITY_PATTERN =
   /(?:^|\n)#{1,6}\s*Verification(?:\s+Commands)?\b|Verification commands:|Focused smoke checks?:|Stop condition:|Major-upgrade risk handling:/i;
 function lineOnlyWarnsAgainstPnpmLatest(line: string): boolean {
   const normalized = line.replace(/[`*_]/g, " ").replace(/\s+/g, " ").trim();
-  return /(?:do\s+not\s+use|don't(?:\s+use)?|not\s+(?:use\s+)?(?:unqualified\s+)?|no\s+unqualified|avoid|never(?:\s+default\s+to)?|rather than|instead of|violates|would float|break reproducibility)/i.test(normalized);
+  return /(?:do\s+not\s+use|don't(?:\s+use)?|not\s+(?:use\s+)?(?:unqualified\s+)?|no\s+unqualified|avoid|reject|never(?:\s+default\s+to)?|rather than|instead of|violates|would float|break reproducibility)/i.test(normalized);
 }
 
 function avoidsUnqualifiedPnpmLatest(content: string): boolean {
