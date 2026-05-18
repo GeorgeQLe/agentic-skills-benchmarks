@@ -3,7 +3,7 @@
 **Workflow:** `$benchmark-test-skill update-packages`
 **Target skill:** `update-packages`
 **Coverage status:** custom (`tests/layer4/setups/tier23-global-workflows.setup.ts`)
-**Result:** deterministic both-agent failure with partial Claude infrastructure blocks
+**Result:** deterministic Codex failure with Claude infrastructure-blocked
 
 ## Verify
 
@@ -22,8 +22,8 @@ pnpm bench --skill update-packages --agent both --runs 3 --chunk-size 3 --pause 
 
 | Agent | Session | Evaluated pass rate | Blocked runs | Wilson 95% CI | Output-quality score | Threshold failures | Critical failures | p50 latency | p95 latency | p99 latency | Cost/run | Total cost | Similarity | Outliers | Raw session path |
 |---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| Claude | `225f6efc` | 0.0% (0/1) | 2 | [0.0%, 79.3%] | 75.0% | 1 | 2 | 57.1s | 57.1s | 57.1s | $0.25 | $0.75 | 1.000 | 0 | `tests/benchmarks/runs/update-packages-claude-225f6efc/` |
-| Codex | `fd2c4602` | 0.0% (0/3) | 0 | [0.0%, 56.2%] | 89.7% | 0 | 3 | 68.0s | 78.5s | 79.4s | $0.25 | $0.75 | 1.000 | 0 | `tests/benchmarks/runs/update-packages-codex-fd2c4602/` |
+| Claude | `29df606d` | 0.0% (0/0) | 3 | [0.0%, 0.0%] | n/a | n/a | n/a | 0.0s | 0.0s | 0.0s | $0.25 | $0.75 | 1.000 | 0 | `tests/benchmarks/runs/update-packages-claude-29df606d/` |
+| Codex | `870b131b` | 66.7% (2/3) | 0 | [20.8%, 93.9%] | 96.8% | 0 | 1 | 69.5s | 73.8s | 74.2s | $0.25 | $0.75 | 0.920 | 0 | `tests/benchmarks/runs/update-packages-codex-870b131b/` |
 
 Total estimated cost: **$1.50**.
 
@@ -31,10 +31,7 @@ Total estimated cost: **$1.50**.
 
 | Agent | Run | Exit code | Failed assertions |
 |---|---:|---:|---|
-| Claude | #1 | 0 | `Output proves selected pnpm toolchain age eligibility`; `Output preserves age-gate key semantics` |
-| Codex | #0 | 0 | `Output preserves age-gate key semantics` |
-| Codex | #1 | 0 | `Output preserves age-gate key semantics` |
-| Codex | #2 | 0 | `Output preserves age-gate key semantics` |
+| Codex | #2 | 0 | `Output proves selected pnpm toolchain age eligibility` |
 
 ## Output Quality
 
@@ -42,27 +39,28 @@ The output-quality score is an additional rubric score, not a statistical confid
 
 | Agent | Average score | Threshold failures | Critical failures | Lowest-scoring criteria |
 |---|---:|---:|---:|---|
-| Claude | 75.0% | 1 | 2 | `workflow-output-proves-selected-pnpm-toolchain-age-eligibility` 0.0%; `workflow-output-preserves-age-gate-key-semantics` 0.0%; `workflow-artifact-reference` 0.0%; `workflow-actionability` 75.0%; `workflow-fixture-facts` 100.0% |
-| Codex | 89.7% | 0 | 3 | `workflow-output-preserves-age-gate-key-semantics` 0.0%; `workflow-actionability` 83.3%; `workflow-fixture-facts` 100.0%; `workflow-output-includes-verification-command-evidence` 100.0%; `workflow-output-includes-major-upgrade-compatibility-risk-handling` 100.0% |
+| Claude | n/a | n/a | n/a | No evaluated runs; all runs were infrastructure-blocked. |
+| Codex | 96.8% | 0 | 1 | `workflow-output-proves-selected-pnpm-toolchain-age-eligibility` 66.7%; `workflow-fixture-facts` 100.0%; `workflow-output-includes-verification-command-evidence` 100.0%; `workflow-output-includes-major-upgrade-compatibility-risk-handling` 100.0%; `workflow-output-avoids-unqualified-pnpm-latest` 100.0% |
 
 ## Infrastructure Blocks
 
 | Agent | Run | Reason |
 |---|---:|---|
 | Claude | #0 | agent runner budget exceeded |
+| Claude | #1 | agent runner budget exceeded |
 | Claude | #2 | agent runner budget exceeded |
 
 Codex had no infrastructure-blocked runs.
 
 ## Raw Reports
 
-- `tests/benchmarks/runs/update-packages-claude-225f6efc/report.json`
-- `tests/benchmarks/runs/update-packages-claude-225f6efc/report.md`
-- `tests/benchmarks/runs/update-packages-codex-fd2c4602/report.json`
-- `tests/benchmarks/runs/update-packages-codex-fd2c4602/report.md`
+- `tests/benchmarks/runs/update-packages-claude-29df606d/report.json`
+- `tests/benchmarks/runs/update-packages-claude-29df606d/report.md`
+- `tests/benchmarks/runs/update-packages-codex-870b131b/report.json`
+- `tests/benchmarks/runs/update-packages-codex-870b131b/report.md`
 
 ## Notes
 
-The deterministic result is a failed benchmark. Claude had two infrastructure-blocked runs from agent-runner budget exhaustion, but it also had one evaluated run that failed both pnpm toolchain-proof and age-gate semantics assertions. Codex completed all three evaluated runs and failed the age-gate semantics assertion in every run, with three critical output-quality failures. This should be triaged before another full rerun.
+This run is not infrastructure-only blocked because Codex produced three evaluated runs and one failed a hard assertion. Claude's lane was fully blocked by agent-runner budget exhaustion and should be reported separately from the evaluated Codex failure. The failed Codex run selected `pnpm@10.11.0` using fixture publish-time evidence but missed the currently accepted pnpm proof assertion shape, so this should be triaged before another full rerun.
 
 Recommended next skill: `$session-triage update-packages benchmark failure`
