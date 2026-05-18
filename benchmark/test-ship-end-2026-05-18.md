@@ -19,8 +19,8 @@ Coverage: custom, `tests/layer4/setups/tier1-workflows.setup.ts`
 
 | Agent | Evaluated Pass Rate | Blocked Runs | Wilson 95% CI | Output Quality | Critical Failures | Latency p50 | Latency p95 | Latency p99 | Cost / Run | Total Cost | Similarity | Outliers |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| claude | 100.0% (3/3) | 0 | 43.8%-100.0% | 100.0% | 0 | 23.6s | 26.7s | 26.9s | $0.25 | $0.75 | 0.966 | 0 |
-| codex | 100.0% (3/3) | 0 | 43.8%-100.0% | 100.0% | 0 | 33.8s | 34.9s | 35.0s | $0.25 | $0.75 | 0.845 | 0 |
+| claude | 100.0% (3/3) | 0 | 43.8%-100.0% | 100.0% | 0 | 23.1s | 23.9s | 24.0s | $0.25 | $0.75 | 0.939 | 0 |
+| codex | 100.0% (3/3) | 0 | 43.8%-100.0% | 100.0% | 0 | 36.3s | 38.3s | 38.5s | $0.25 | $0.75 | 0.878 | 0 |
 
 ## Failed Assertions
 
@@ -41,11 +41,11 @@ The output-quality score is an additional deterministic rubric score, not a stat
 
 ## Raw Sessions
 
-- Claude: `tests/benchmarks/runs/ship-end-claude-0190fdda/`
-- Codex: `tests/benchmarks/runs/ship-end-codex-4fbde9d6/`
+- Claude: `tests/benchmarks/runs/ship-end-claude-9bf5f843/`
+- Codex: `tests/benchmarks/runs/ship-end-codex-d7d92d34/`
 
 ## Recommendation
 
-The rerun after runner-specific route and fixture source-of-truth tightening produced three evaluated, non-blocked runs for both agents. Hard assertions passed and output-quality scoring was clean for both Claude and Codex.
+The rerun after single active-runner handoff tightening produced three evaluated, non-blocked runs for both agents. Hard assertions passed and output-quality scoring was clean for both Claude and Codex. The raw artifacts include the new `Output uses single active-runner final route` assertion, and the Codex retained handoffs now end with only `$run`.
 
 Recommended next skill: `$benchmark-agent-review ship-end`

@@ -206,6 +206,29 @@ const investigateCleanShippedNoShipEndCriterion: QualityCriterion = {
   },
 };
 
+const singleActiveRunnerFinalRouteCriterion: QualityCriterion = {
+  id: "single-active-runner-final-route",
+  description: "Final handoff contains one active-runner next command, not both Claude and Codex route spellings",
+  weight: 4,
+  critical: true,
+  evaluate(output: string) {
+    const finalHandoff = output.match(
+      /(?:^|\n)(?:#{1,6}\s*)?(?:Recommended next command|Next command|Next Command)\s*:?\s*([\s\S]*?)$/i,
+    )?.[1] ?? output;
+    const hasSlashRun = /(?:^|[\s`'"(:-])\/run(?:[\s`'".,)]|$)/i.test(finalHandoff);
+    const hasDollarRun = /(?:^|[\s`'"(:-])\$run(?:[\s`'".,)]|$)/i.test(finalHandoff);
+
+    if (hasSlashRun && hasDollarRun) {
+      return {
+        score: 0,
+        notes: ["final handoff lists both /run and $run instead of one active-runner command"],
+      };
+    }
+
+    return { score: 1 };
+  },
+};
+
 const shipGoalSpecificityCriterion: QualityCriterion = {
   id: "ship-goal-specificity",
   description: "Frames the User goal as the completed validated fixture step, not merely writing a manifest",
@@ -343,6 +366,14 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
       const route = expectedRoute(definition, context?.agent);
       if (route) {
         assertions.push(assertRecommendedRoute(content, route));
+        if (definition.skill === "ship-end") {
+          const alternateRoute = route === "/run" ? "$run" : "/run";
+          assertions.push({
+            description: "Output uses single active-runner final route",
+            pass: !new RegExp(`(?:^|[\\s\`'"(:-])${alternateRoute.replace("$", "\\$")}(?:[\\s\`'".,)]|$)`, "im").test(content),
+            message: `Expected final handoff to avoid alternate runner route ${alternateRoute}`,
+          });
+        }
       }
 
       return assertions;
@@ -456,7 +487,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "ship-end",
     outputPath: "session-handoff.md",
-    prompt: "You have the ship-end skill installed. Write session-handoff.md summarizing completed work, validation evidence, remaining risks, next work, and Next command. Use the fixture task files as the source of truth, not the benchmark session's lack of git activity, and name both `tasks/todo.md` and `tasks/history.md` in the handoff. The final Next command must be `/run` when running as Claude and `$run` when running as Codex. Do not run git.",
+    prompt: "You have the ship-end skill installed. Write session-handoff.md summarizing completed work, validation evidence, remaining risks, next work, and Next command. Use the fixture task files as the source of truth, not the benchmark session's lack of git activity, and name both `tasks/todo.md` and `tasks/history.md` in the handoff. The final Next command must contain exactly one command for the active runner: `/run` when running as Claude, or `$run` when running as Codex. Do not list alternate runner routes in the final handoff. Do not run git.",
     fixtureFiles: {
       "tasks/todo.md": "# Active Phase\n\n- [x] Step 1.1 complete\n- [ ] Step 1.2 next\n",
       "tasks/history.md": "# History\n\n- Completed Step 1.1 with tests.\n",
@@ -471,6 +502,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       coreTraits: ["completed work", "validation", "remaining risks", "next work"],
       validationPatterns: [/validation|tests/i],
       concreteFiles: ["tasks/todo.md", "tasks/history.md"],
+      extraCriteria: [singleActiveRunnerFinalRouteCriterion],
     }),
     recommendedRoutes: {
       claude: "/run",
