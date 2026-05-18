@@ -260,7 +260,7 @@ function slugifyCriterionId(value: string): string {
 }
 
 const UPDATE_PACKAGES_VERIFICATION_EVIDENCE_PATTERN =
-  /verification commands|(?:^|\n)#{1,6}\s*Verification\b[\s\S]*(pnpm install --frozen-lockfile|pnpm run build|pnpm run test|pnpm test|pnpm outdated)/i;
+  /verification commands|(?:^|\n)#{1,6}\s*(?:Full\s+)?Verification(?:\s+Checklist)?\b[\s\S]*(pnpm install --frozen-lockfile|pnpm run build|pnpm run test|pnpm test|pnpm outdated)/i;
 const UPDATE_PACKAGES_MAJOR_UPGRADE_RISK_PATTERN =
   /(major|framework|build-tool|peer-sensitive|React 18.*19|Vitest 1.*3|compatibility)[\s\S]*(batch|peer|config|smoke|stop|migrate)/i;
 const UPDATE_PACKAGES_ARTIFACT_REFERENCE_PATTERN =
@@ -294,6 +294,7 @@ const UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_PATTERN = new RegExp([
   "|Recommended\\s+`?packageManager`?[\\s\\S]{0,120}pnpm@\\d[\\d.]*",
   "|Chosen pnpm version[\\s\\S]{0,120}\\d[\\d.]*))",
   "(?=[\\s\\S]*(?:npm view pnpm@\\d[\\d.]* time\\.version[\\s\\S]{0,180}(?:returned|=>|published|202\\d-\\d\\d-\\d\\d)",
+  "|publish[-\\s]time proof retained[\\s\\S]{0,320}pnpm@\\d[\\d.]*[\\s\\S]{0,180}202\\d-\\d\\d-\\d\\d",
   "|pnpm@\\d[\\d.]*[\\s\\S]{0,260}(?:published|publish[-\\s]time evidence|Retained publish[-\\s]time evidence|published at)[\\s\\S]{0,180}202\\d-\\d\\d-\\d\\d",
   "|(?:published|publish[-\\s]time evidence|Retained publish[-\\s]time evidence|published at)[\\s\\S]{0,180}202\\d-\\d\\d-\\d\\d[\\s\\S]{0,260}pnpm@\\d[\\d.]*))",
   "(?=[\\s\\S]*(?:older than 8 days|8-day|age[-\\s]eligible|16 days old|eligible because it is older))",
