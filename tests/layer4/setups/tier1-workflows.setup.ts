@@ -212,6 +212,36 @@ const shipGoalSpecificityCriterion: QualityCriterion = {
   },
 };
 
+const prototypeFirstProductGateCriterion: QualityCriterion = {
+  id: "prototype-first-product-gate",
+  description: "Defaults new product work to a clickable prototype and defers SaaS infrastructure until evidence justifies it",
+  weight: 4,
+  critical: true,
+  evaluate(output: string) {
+    const hasPrototype = /clickable prototype|prototype phase 0|local\/static prototype|static prototype/i.test(output);
+    const hasFixtureData = /fake data|fixture data|fixture-backed|in-memory|static data/i.test(output);
+    const defersInfrastructure = /defer(?:red|s)?[^.\n]{0,180}(database|storage|auth|payments?|analytics|deployment|admin|multi-tenan|observability)/i.test(output)
+      || /(database|storage|auth|payments?|analytics|deployment|admin|multi-tenan|observability)[^.\n]{0,180}defer(?:red|s)?/i.test(output);
+    const hasPromotionEvidence = /promotion criteria|promote[^.\n]{0,120}infrastructure|evidence[^.\n]{0,120}infrastructure|calibration[^.\n]{0,120}infrastructure/i.test(output);
+    const prematureInfraImplementation = /(implement|build|wire|add|migrate|deploy|provision)[^.\n]{0,80}(Stripe|PostHog|Neon|database migration|production deploy|multi-tenant|auth)/i.test(output)
+      && !/defer|mock|fixture|fake|later|non-goal/i.test(output);
+
+    if (hasPrototype && hasFixtureData && defersInfrastructure && hasPromotionEvidence && !prematureInfraImplementation) {
+      return { score: 1 };
+    }
+
+    const missing = [
+      !hasPrototype ? "clickable prototype default" : undefined,
+      !hasFixtureData ? "fake/fixture/in-memory data boundary" : undefined,
+      !defersInfrastructure ? "explicit deferred infrastructure list" : undefined,
+      !hasPromotionEvidence ? "evidence or calibration needed before promotion" : undefined,
+      prematureInfraImplementation ? "avoids premature infrastructure implementation" : undefined,
+    ].filter(Boolean);
+
+    return { score: 0, notes: [`missing prototype-first gate: ${missing.join(", ")}`] };
+  },
+};
+
 function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBenchSetup {
   return {
     skill: definition.skill,
@@ -263,13 +293,13 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "run",
     outputPath: "run-plan.md",
-    prompt: "You have the run skill installed. Using the local task files, write run-plan.md with the selected next step, files you would inspect or modify, validation commands, shipping note, and Next command. Do not modify task docs or run git.",
+    prompt: "You have the run skill installed. Using the local task files, write run-plan.md with the selected next step, files you would inspect or modify, validation commands, shipping note, and Next command. This is a new SaaS dashboard prototype; do not modify task docs or run git.",
     fixtureFiles: {
       "CLAUDE.md": "# Project Rules\n\nShip verified changes on master.\n",
       "tasks/todo.md": "# Active Phase\n\n### Execution Profile\n**Parallel mode:** serial\n\n## Implementation\n\n- [ ] Step 1.1: Add a deterministic benchmark fixture.\n  - Files: modify `tests/example.test.ts`\n",
       "tasks/roadmap.md": "# Roadmap\n\n## Phase 1\n\n- [ ] Add benchmark fixture\n",
     },
-    expectedIncludes: ["Step 1.1", "validation", "Shipping"],
+    expectedIncludes: ["Step 1.1", "validation", "Shipping", "prototype"],
     expectedPattern: /tests\/example\.test\.ts|benchmark fixture/i,
     perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
     qualityEvaluator: createSetupQualityEvaluator({
@@ -296,6 +326,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
           requiredAny: ["Step 1.1", "benchmark fixture", "tests/example.test.ts"],
           forbiddenPhrases: ["full phase", "all remaining steps", "production"],
         }),
+        prototypeFirstProductGateCriterion,
         requiredPatternCriterion({
           id: "validation-specificity",
           description: "Names concrete validation rather than generic checking",
@@ -416,31 +447,32 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "plan-phase",
     outputPath: "tasks/todo.md",
-    prompt: "You have the plan-phase skill installed. Read tasks/roadmap.md and write tasks/todo.md for the next phase with Tests First, Implementation, file-level details, validation, and Next command.",
+    prompt: "You have the plan-phase skill installed. Read tasks/roadmap.md and write tasks/todo.md for the next phase with Tests First, Implementation, file-level details, validation, prototype-first product gate, and Next command.",
     fixtureFiles: {
-      "tasks/roadmap.md": "# Roadmap\n\n## Phase 2: Coverage Reporting\n\nAcceptance Criteria:\n- CLI lists custom/generic/blocked coverage.\n- Tests cover blocked rows.\n",
+      "tasks/roadmap.md": "# Roadmap\n\n## Phase 2: SaaS Coverage Dashboard Prototype\n\nAcceptance Criteria:\n- Users can click through a dashboard showing custom/generic/blocked coverage.\n- Prototype uses fake benchmark rows.\n- Production database, auth, analytics, and deployment are not approved for this phase.\n",
     },
-    expectedIncludes: ["Tests First", "Implementation", "CLI lists custom/generic/blocked"],
+    expectedIncludes: ["Tests First", "Implementation", "click", "prototype"],
     qualityEvaluator: workflowQualityEvaluator({
-      evidenceFacts: ["Phase 2: Coverage Reporting", "CLI lists custom/generic/blocked", "Tests cover blocked rows"],
-      specificMarkers: ["Tests First", "Implementation", "file-level", "CLI lists custom/generic/blocked"],
+      evidenceFacts: ["Phase 2: SaaS Coverage Dashboard Prototype", "fake benchmark rows", "Production database, auth, analytics, and deployment are not approved"],
+      specificMarkers: ["Tests First", "Implementation", "file-level", "prototype"],
       nextRoute: "$run",
       coreTraitId: "phase-plan-specificity",
       coreTraitDescription: "Creates a tests-first phase plan with implementation detail",
-      coreTraits: ["Tests First", "Implementation", "file-level", "validation"],
-      validationPatterns: [/test|validation|blocked rows/i],
+      coreTraits: ["Tests First", "Implementation", "file-level", "validation", "prototype"],
+      validationPatterns: [/test|validation|click|prototype/i],
       concreteFiles: ["tasks/roadmap.md", "tasks/todo.md"],
+      extraCriteria: [prototypeFirstProductGateCriterion],
     }),
     recommendedRoute: "$run",
   },
   {
     skill: "feature-interview",
     outputPath: "specs/benchmark-reporting-feature-interview.md",
-    prompt: "You have the feature-interview skill installed. Interview the supplied idea without asking follow-up questions by writing specs/benchmark-reporting-feature-interview.md with an explicit Artifact path line, assumptions, evidence, decision, risks, and Next command. Treat the planning destination as confirmed for roadmap sequencing; do not route directly to spec-interview.",
+    prompt: "You have the feature-interview skill installed. Interview the supplied SaaS dashboard idea without asking follow-up questions by writing specs/benchmark-reporting-feature-interview.md with an explicit Artifact path line, assumptions, evidence, decision, risks, prototype-first gate, and Next command. Treat the planning destination as confirmed for roadmap sequencing; do not route directly to spec-interview.",
     fixtureFiles: {
-      "feature-idea.md": "# Idea\n\nBenchmark reports should show whether a skill has custom, generic, or blocked coverage.\n",
+      "feature-idea.md": "# Idea\n\nBuild a SaaS dashboard where maintainers compare whether a skill has custom, generic, or blocked coverage. Use fake rows first; do not build auth, Stripe, analytics, or a database until the dashboard flow feels right.\n",
     },
-    expectedIncludes: ["Assumptions", "evidence", "decision", "risks"],
+    expectedIncludes: ["Assumptions", "evidence", "decision", "risks", "prototype"],
     expectedPattern: /custom|generic|blocked/i,
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["custom", "generic", "blocked", "Benchmark reports"],
@@ -451,6 +483,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       coreTraits: ["Assumptions", "evidence", "decision", "risks"],
       validationPatterns: [/custom|generic|blocked/i],
       concreteFiles: ["feature-idea.md", "specs/benchmark-reporting-feature-interview.md"],
+      extraCriteria: [prototypeFirstProductGateCriterion],
     }),
     recommendedRoutes: {
       claude: "/roadmap",
@@ -460,11 +493,11 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "spec-interview",
     outputPath: "specs/benchmark-reporting.md",
-    prompt: "You have the spec-interview skill installed. Turn specs/draft.md into specs/benchmark-reporting.md with Overview, Goals, Non-Goals, Detailed Design, Edge Cases, Test Plan, Acceptance Criteria, Open Questions, Assumptions & Risks, and Next command.",
+    prompt: "You have the spec-interview skill installed. Turn specs/draft.md into specs/benchmark-reporting.md with Overview, Goals, Non-Goals, Detailed Design, Edge Cases, Test Plan, Acceptance Criteria, Open Questions, Assumptions & Risks, a Prototype Phase 0, and Next command.",
     fixtureFiles: {
-      "specs/draft.md": "# Draft\n\nAdd benchmark coverage status to reports and list output.\n",
+      "specs/draft.md": "# Draft\n\nCreate a SaaS-style benchmark coverage dashboard. Phase 0 should be a clickable prototype with fake rows. Defer database, auth, Stripe payments, analytics, admin tooling, and deployment until the prototype flow is accepted.\n",
     },
-    expectedIncludes: ["Overview", "Detailed Design", "Test Plan", "Acceptance Criteria", "Assumptions & Risks"],
+    expectedIncludes: ["Overview", "Detailed Design", "Test Plan", "Acceptance Criteria", "Assumptions & Risks", "Prototype"],
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["benchmark coverage status", "reports", "list output"],
       specificMarkers: ["Overview", "Detailed Design", "Test Plan", "Acceptance Criteria"],
@@ -473,6 +506,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       coreTraitDescription: "Produces a complete implementation-ready spec from the draft",
       coreTraits: ["Overview", "Goals", "Non-Goals", "Detailed Design", "Edge Cases", "Test Plan", "Acceptance Criteria", "Assumptions & Risks"],
       validationPatterns: [/Test Plan|Acceptance Criteria/i],
+      extraCriteria: [prototypeFirstProductGateCriterion],
     }),
     recommendedRoute: "$roadmap",
   },

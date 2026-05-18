@@ -726,12 +726,26 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "ui-interview",
     outputPath: "specs/ui-spec.md",
-    prompt: "You have the ui-interview skill installed. Convert product-need.md into specs/ui-spec.md with layout, hierarchy, controls, states, responsive behavior, and Next command.",
+    prompt: "You have the ui-interview skill installed. Convert product-need.md into specs/ui-spec.md with layout, hierarchy, controls, states, responsive behavior, prototype-first boundary, and Next command.",
     fixtureFiles: {
-      "product-need.md": "A dashboard table for benchmark coverage status and blocked reasons.",
+      "product-need.md": "A SaaS dashboard table for benchmark coverage status and blocked reasons. The first prototype should use fake rows and visually mock auth, analytics, and saved database states rather than implementing them.",
     },
-    expectedIncludes: ["layout", "hierarchy", "controls", "states", "responsive behavior"],
-    expectedPattern: /dashboard table|blocked reasons/i,
+    expectedIncludes: ["layout", "hierarchy", "controls", "states", "responsive behavior", "prototype"],
+    expectedEvidence: [
+      {
+        description: "Output defines fake or fixture data for the prototype",
+        pattern: /fake (rows|data)|fixture|in-memory|static data/i,
+      },
+      {
+        description: "Output defers production infrastructure behind prototype calibration",
+        pattern: /defer(?:red|s)?[\s\S]{0,220}(auth|analytics|database|storage)|(?:auth|analytics|database|storage)[\s\S]{0,220}defer(?:red|s)?/i,
+      },
+      {
+        description: "Output names calibration or promotion evidence before infrastructure",
+        pattern: /calibration|taste|feel|accepted journey|promot(?:e|ion)[\s\S]{0,120}infrastructure|evidence[\s\S]{0,120}infrastructure/i,
+      },
+    ],
+    expectedPattern: /dashboard table|blocked reasons|prototype/i,
     recommendedRoute: "$run",
   },
   {
