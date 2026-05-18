@@ -1,6 +1,5 @@
 # Benchmark Agent Review: update-packages - 2026-05-18
 
-**Workflow:** `$benchmark-agent-review update-packages`
 **Source benchmark report:** `benchmark/test-update-packages-2026-05-18.md`
 **Reviewed run directories:**
 
@@ -9,7 +8,7 @@
 
 ## Benchmark Context
 
-The current benchmark report points to Claude session `a767ae3e` and Codex session `337a5d5e`. Claude completed two evaluated runs and had one infrastructure block from `agent runner budget exceeded`; the blocked run is excluded from subjective scoring. Codex completed three evaluated runs.
+The current deterministic benchmark passed all evaluated hard assertions. Claude completed two evaluated runs and had one infrastructure block from `agent runner budget exceeded`; the blocked run is excluded from subjective scoring. Codex completed three evaluated runs.
 
 | Agent | Hard assertion pass rate | Deterministic output-quality score | Infrastructure-blocked runs |
 |---|---:|---:|---:|
@@ -20,51 +19,52 @@ The benchmark prompt asked each runner to create `package-update-plan.md` from `
 
 ## Agent-Review Verdict
 
-The evaluated outputs range from usable to excellent. All five evaluated artifacts preserve the core fixture facts, avoid unqualified `pnpm@latest`, select age-eligible package versions, explain npm-to-pnpm migration, and route with the correct runner-native next command.
+The evaluated outputs are useful, but not uniformly excellent. The Codex artifacts are good to excellent and usually give the next operator concrete mutation commands, verification commands, stop gates, and enough expected proof to proceed batch by batch. The Claude artifacts preserve the important facts and route correctly, but they are materially less ergonomic: both use lettered batch labels instead of the explicit Batch 0/1/2 checklist shape, and neither consistently attaches expected proof or artifacts to each batch.
 
-The Codex outputs are consistently good to excellent, with runs 0 and 1 giving the strongest per-batch operator checklist. The Claude outputs are usable but materially less ergonomic: they pass hard assertions, but the batch structure is lettered rather than explicit `Batch 0` / `Batch 1` / `Batch 2`, and they do not attach expected proof/artifact to each batch. The deterministic rubric partially surfaced this through `workflow-actionability` scoring 0.0% for Claude, but the aggregate Claude quality score still read as 95.2%, which is too generous for an output with missing actionability structure.
+This is not a skill-contract failure: both mirrored `update-packages` contracts already require a batch execution checklist with mutation command/edit, verification command, expected proof/artifact, and stop gate. The remaining gap is mostly benchmark-rubric calibration. The deterministic report correctly records `workflow-actionability` at 0.0% for Claude, but the aggregate Claude quality score still appears as 95.2%, which overstates operator readiness.
 
 ## Score Table
 
 | Reviewer | Runner | Run index | Score | Grade band | Notes |
 |---|---|---:|---:|---|---|
-| Codex agent-review | Claude | 0 | 78 | usable | Correct facts and safe major-upgrade thinking, but weak execution ergonomics: lettered batches, no explicit per-batch expected proof, and broad `/migrate` stop route instead of target-specific migration routes. |
-| Codex agent-review | Claude | 1 | 76 | usable | Good package and age-gate evidence, but actionability is uneven: Vitest is placed before React without enough rationale, expected proof is absent, and several compatibility claims are broader than the fixture proves. |
-| Codex agent-review | Codex | 0 | 95 | excellent | Strong plan with explicit `Batch 0` through `Batch 3`, mutation commands, verification commands, expected proof, focused smoke checks, and target-specific `$migrate` stop routes. |
-| Codex agent-review | Codex | 1 | 96 | excellent | Best overall artifact: clear retained evidence, explicit expected proof for package-manager migration, package-specific smoke checks, and precise stop gates. |
-| Codex agent-review | Codex | 2 | 90 | excellent | Strong and safe plan; slightly weaker because Batch 0 proof is expressed as expected edits and verification rather than an explicit expected-proof checklist. |
+| Codex agent-review | Claude | 0 | 78 | usable | Good fixture facts, age-gate evidence, pnpm selection, and broad risk handling. Weaker because batches are A/B/C rather than Batch 0/1/2, expected proof is mostly separated into generic verification, and broad compatibility routes to bare `/migrate` instead of target-specific migrate commands. |
+| Codex agent-review | Claude | 1 | 76 | usable | Preserves age-gate and skipped-version facts, but the execution sequence is less clean: pnpm migration proof is not attached per batch, React and Vitest checks include broad claims beyond the fixture, and stop routes are generic. |
+| Codex agent-review | Codex | 0 | 95 | excellent | Strong plan with explicit Batch 0 through Batch 3, mutation commands, verification commands, expected proof, focused smoke checks, and target-specific `$migrate` routes. |
+| Codex agent-review | Codex | 1 | 94 | excellent | Clear retained evidence and safe batch flow. Slightly weaker than run 0 because some expected proof is implied through verification text rather than consistently first-class per batch. |
+| Codex agent-review | Codex | 2 | 88 | good | Safe and complete enough, with correct version evidence and routes. Less ergonomic because Batch 0 lacks an explicit expected-proof line, and the Vitest `--passWithNoTests` note adds a version-support caveat a next operator must verify. |
 
-**Median subjective score:** 90
-**Score range:** 76-96
+**Median subjective score:** 88
+**Score range:** 76-95
 
 ## Common Strengths
 
 - Correctly selected age-eligible versions: `pnpm@10.11.0`, `react@19.2.0`, `zod@3.25.76`, and `vitest@3.2.4`.
 - Correctly skipped fresh versions inside the 8-day safety window, including `pnpm@10.22.0`, `react@19.3.0`, `zod@4.1.12`, and `vitest@4.0.0`.
-- Kept age-gate ownership clear for `min-release-age=8`, `minimum-release-age=11520`, and `minimumReleaseAge: 11520`.
-- Included React and Vitest major-upgrade compatibility checks and smoke checks.
-- Used runner-native next commands: `/run` for Claude and `$run` for Codex.
+- Avoided unqualified `pnpm@latest` and retained publish-time proof for the selected package-manager pin.
+- Kept npm and pnpm age-gate ownership clear with `min-release-age=8`, `minimum-release-age=11520`, and `minimumReleaseAge: 11520`.
+- Preserved runner-native next routing: `/run` for Claude and `$run` for Codex.
 
 ## Common Weaknesses
 
-- Claude evaluated outputs lack explicit per-batch expected proof/artifact, despite the current mirrored skill contracts requiring it.
-- The benchmark quality summary is misleadingly high for Claude: `workflow-actionability` scored 0.0%, but the aggregate score still showed 95.2%.
-- Some stop routes are too broad. Claude run 0 says route to `/migrate` without the target package or framework, which is less ergonomic than `/migrate react`, `/migrate vitest`, or `/migrate pnpm`.
-- One Claude output makes broader compatibility claims about Vitest 2/3 behavior and React 19 typing than the retained fixture proves. The claims are plausible, but the artifact does not distinguish fixture evidence from general migration knowledge.
+- Claude evaluated outputs do not satisfy the current best ergonomic shape for this skill: explicit Batch 0/1/2 checklist sections with mutation, verification, expected proof/artifact, and stop gate attached to each batch.
+- Generic migrate routes reduce handoff quality. The best outputs route to `$migrate react`, `$migrate vitest`, `$migrate pnpm`, or equivalent target-specific routes.
+- The deterministic aggregate quality score is misleading for Claude. `workflow-actionability` failed at 0.0%, but aggregate quality still reported 95.2%, hiding a meaningful operator-readiness issue.
+- Some output text makes plausible but unsupported compatibility claims beyond fixture evidence, especially around Vitest/React details. These do not break the artifact, but they should be framed as checks to perform rather than facts already known from the fixture.
 
 ## Remediation
 
 | Finding | Classification | Owner target | Proposed change | Validation check | Route |
 |---|---|---|---|---|---|
-| `workflow-actionability` can score 0.0% while the aggregate output-quality score remains above 95%, masking a material operator-quality issue. | benchmark rubric | `tests/layer4/setups/tier23-global-workflows.setup.ts` `update-packages` quality evaluator | Make actionability a critical or threshold criterion for `update-packages`, or lower the run-level quality score enough that missing per-batch expected proof cannot report as excellent. Require explicit `Batch 0` / `Batch 1` / major-batch checklist structure with mutation command/edit, verification command, expected proof/artifact, and stop gate. | Add focused layer1 coverage that uses the retained Claude run-000/run-001 shapes as negatives for excellent quality and the retained Codex run-000/run-001 shapes as positives; run `pnpm --dir tests exec vitest run --project layer1 bench-setups` and `pnpm --dir tests verify --skill update-packages`. | `$targeted-skill-builder update-packages benchmark actionability threshold` |
-| Some valid outputs route broad compatibility breakage to bare `/migrate` rather than a target-specific migration command. | benchmark rubric | `tests/layer4/setups/tier23-global-workflows.setup.ts` runner-specific next-route and major-upgrade risk criteria | Tighten the `update-packages` quality rubric so major-upgrade stop routes name the target, such as `/migrate react`, `/migrate vitest`, `$migrate react`, or `$migrate vitest`, instead of accepting only generic migrate language for high-quality output. | Add focused layer1 assertions that generic `/migrate` alone receives reduced quality while target-specific routes pass for both Claude and Codex spellings. | `$targeted-skill-builder update-packages benchmark actionability threshold` |
+| Missing per-batch expected-proof structure can still appear near-perfect in aggregate quality. | benchmark rubric | `tests/layer4/setups/tier23-global-workflows.setup.ts` quality evaluator for `update-packages` | Make `workflow-actionability` a threshold or critical quality criterion for `update-packages`, or otherwise cap run-level quality when it fails. Keep the expected pattern focused on explicit Batch 0/1/2-style sections with mutation command/edit, verification command, expected proof/artifact, and a stop gate. | Add focused layer1 coverage using the retained Claude run-000/run-001 shapes as negative quality examples and retained Codex run-000/run-001 shapes as positive examples; run `pnpm --dir tests exec vitest run --project layer1 bench-setups` and `pnpm --dir tests verify --skill update-packages`. | `$targeted-skill-builder update-packages benchmark actionability threshold` |
+| Generic migrate routing weakens next-route ergonomics for major-upgrade failures. | benchmark rubric | `tests/layer4/setups/tier23-global-workflows.setup.ts` major-upgrade risk and next-route quality criteria for `update-packages` | Give full quality credit only when broad compatibility stop routes name the target package or tool, such as `/migrate react`, `/migrate vitest`, `$migrate react`, `$migrate vitest`, or `$migrate pnpm`; reduce quality for bare `/migrate` or `$migrate` when a target is known. | Add runner-specific layer1 examples that accept target-specific migrate routes and lower quality for bare migrate routes in `update-packages` artifacts; run `pnpm --dir tests exec vitest run --project layer1 bench-setups`. | `$targeted-skill-builder update-packages benchmark actionability threshold` |
+| Plausible compatibility details can read as facts even when the fixture only supports them as checks to perform. | benchmark rubric | `tests/layer4/setups/tier23-global-workflows.setup.ts` no-overreach or domain-specificity quality criteria for `update-packages` | Require generated plans to distinguish retained fixture facts from compatibility checks. For example, React renderer presence and Vitest config/API changes should be phrased as "inspect/check if present" unless the fixture contains those files. | Add focused layer1 retained-artifact cases that reduce quality when outputs assert unobserved framework/config facts as known; run `pnpm --dir tests exec vitest run --project layer1 bench-setups`. | `$targeted-skill-builder update-packages benchmark actionability threshold` |
 
 ## Deterministic-Rubric Notes
 
-The deterministic hard assertions were useful and all evaluated outputs were compliant enough to pass. The quality rubric needs calibration, not a hard benchmark failure: a run with 0.0% actionability should not be summarized as near-perfect output quality when the task is specifically to hand the next operator a dependency-update plan.
+The hard assertions are doing their job: all evaluated outputs are compliant enough to pass. The quality rubric also detects the primary Claude weakness through `workflow-actionability`, but the weighting makes the aggregate score too optimistic. Because the issue is visible in a quality criterion but muted in the headline score, the right follow-up is rubric calibration rather than target-skill contract rewriting.
 
 ## Next
 
-**Next work:** tighten the `update-packages` benchmark quality rubric so missing actionability structure and generic migration routes materially lower quality.
+**Next work:** tighten the `update-packages` benchmark quality rubric so missing batch actionability and generic migrate routes materially lower output-quality results.
 
 **Recommended next command:** `$targeted-skill-builder update-packages benchmark actionability threshold`
