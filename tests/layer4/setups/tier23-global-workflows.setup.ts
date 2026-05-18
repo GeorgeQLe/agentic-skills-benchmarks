@@ -754,6 +754,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     },
     requireFinalRecommendedRoute: true,
     allowedFixtureTerms: ["package-lock.json"],
+    perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
   },
   {
     skill: "uat",
