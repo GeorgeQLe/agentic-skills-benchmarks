@@ -2,64 +2,67 @@
 
 **Workflow:** `$benchmark-agent-review update-packages`
 **Source benchmark report:** `benchmark/test-update-packages-2026-05-18.md`
-**Reviewed skill:** `update-packages`
-**Review object:** retained generated `package-update-plan.md` artifacts, not benchmark strictness
+**Reviewed run directories:**
 
-## Source Evidence
+- `tests/benchmarks/runs/update-packages-claude-25145968/`
+- `tests/benchmarks/runs/update-packages-codex-fdde75ea/`
 
-| Runner | Run directory | Run indexes | Hard assertion pass rate | Deterministic quality | Infrastructure blocked |
-|---|---|---:|---:|---:|---:|
-| Claude | `tests/benchmarks/runs/update-packages-claude-bdc852e4/` | 0, 2 | 100.0% (2/2 evaluated) | 94.0% | 1 |
-| Codex | `tests/benchmarks/runs/update-packages-codex-443aab01/` | 0, 1, 2 | 100.0% (3/3 evaluated) | 99.6% | 0 |
+## Benchmark Context
 
-Retained artifact content was available in each evaluated `run-*.json` under `artifacts["package-update-plan.md"]`. Claude run #1 was excluded from subjective scoring because it was infrastructure-blocked by agent runner budget exhaustion.
+The deterministic benchmark passed all evaluated hard assertions. Claude evaluated 2/3 runs because run #2 was infrastructure-blocked by `agent runner budget exceeded`; that blocked run is excluded from subjective scoring. Codex evaluated 3/3 runs.
 
-## Verdict
+| Agent | Hard assertion pass rate | Deterministic output-quality score | Infrastructure-blocked runs |
+|---|---:|---:|---:|
+| Claude | 100.0% (2/2) | 97.6% | 1 |
+| Codex | 100.0% (3/3) | 100.0% | 0 |
 
-Subjective verdict: **excellent overall**. The five evaluated plans are operator-ready: they preserve fixture evidence, choose age-eligible package and pnpm versions, skip too-new versions, explain npm and pnpm age-gate ownership, isolate React and Vitest major upgrades, name peer/config checks, include focused smoke checks, and end with runner-native next routes.
+The benchmark prompt asked each runner to create `package-update-plan.md` from `package.json`, `npm-view-times.json`, and `package-lock-note.md`, including pnpm migration, age-gate config, eligible and skipped versions, React 18 to 19 and Vitest 1 to 3 risk handling, verification commands, and the runner-native next command.
 
-The only material follow-up is benchmark-rubric alignment. Claude artifacts include `package-update-plan.md` and verification sections, but the deterministic quality rubric under-credited artifact-reference and actionability. That does not make the generated plans weak; it means future deterministic quality summaries may slightly mislead triage unless the rubric recognizes these valid retained shapes.
+## Agent-Review Verdict
+
+All evaluated outputs are at least good enough for a next operator to act on. The strongest outputs combine age-gate proof, clear npm-to-pnpm migration sequencing, eligible/skipped version tables, and major-upgrade stop routes. The main weakness is actionability variance: some plans say "run tests/build" or "apply batches" without a crisp first mutation step and exact per-batch validation gate, so the next operator would still need to refine the execution sequence before changing a real lockfile.
 
 ## Score Table
 
-| Reviewer | Runner | Run | Score | Grade | Notes |
+| Reviewer | Runner | Run index | Score | Grade band | Notes |
 |---|---|---:|---:|---|---|
-| Codex review | Claude | 0 | 92 | excellent | Strong plan with package-manager migration, retained pnpm timestamp proof, clear age-gate ownership, skipped versions, React/Vitest risk checks, and `/migrate` stop conditions. Minor issue: final verification commands include `corepack prepare` in the same block as project checks, which is acceptable but less clean than separating toolchain setup from validation. |
-| Codex review | Claude | 2 | 94 | excellent | Very actionable artifact: explicit npm-to-pnpm migration, exact pnpm publish-time proof, `.npmrc` plus pnpm project config semantics, eligible/skipped tables, staged majors, focused smokes, and `/run` route. |
-| Codex review | Codex | 0 | 88 | good | Complete and safe, with artifact naming and retained evidence. The batch order puts React before Zod, which is workable but slightly less ergonomic than landing the low-risk Zod update before framework/runtime work. |
-| Codex review | Codex | 1 | 92 | excellent | Strong operator handoff with direct config checks, package-manager lockfile proof, React/Vitest/Zod smoke checks, and a correct `$run` route. |
-| Codex review | Codex | 2 | 93 | excellent | Best structured stop-condition section and crisp retained evidence. Good separation of migration, Zod, React, and Vitest batches with targeted migrate routes. |
+| Codex agent-review | Claude | 0 | 88 | good | Strong evidence and coverage; batch order places Vitest before React in one section, but the execution handoff is still actionable. |
+| Codex agent-review | Claude | 1 | 84 | good | Useful and complete, but less ergonomic: "manager migration -> zod -> vitest -> react" and duplicate numbering make the next execution order less crisp. |
+| Codex agent-review | Codex | 0 | 93 | excellent | Clear artifact with strong retained evidence and constraints; best balance of specificity and scope control. |
+| Codex agent-review | Codex | 1 | 91 | excellent | Clear and concise; good first-batch handoff and focused checks. |
+| Codex agent-review | Codex | 2 | 88 | good | Comprehensive, but includes `vitest run --runInBand` with a fallback note; that command may be stale for Vitest 3 and weakens validation ergonomics. |
 
-Median subjective score: **92/100**.
-Score range: **88-94**.
+**Median subjective score:** 88  
+**Score range:** 84-93
 
 ## Common Strengths
 
-- All evaluated artifacts chose age-eligible targets: React `19.2.0`, Zod `3.25.76`, Vitest `3.2.4`, and pnpm `10.11.0`.
-- All evaluated artifacts skipped too-new versions, including React `19.3.0`, Zod `4.1.12`, Vitest `4.0.0`, and pnpm `10.22.0`.
-- All evaluated artifacts avoided recommending unqualified `pnpm@latest`; any mention was negated or explanatory.
-- Age-gate ownership is clear: npm `min-release-age=8`, pnpm `.npmrc` `minimum-release-age=11520`, and pnpm project config `minimumReleaseAge: 11520` where supported.
-- Major-upgrade handling is implementation-ready: React 18 to 19 and Vitest 1 to 3 have batch boundaries, peer/config checks, focused smoke checks, and `$migrate`/`/migrate` stop routes.
-- Runner-native next routes are correct: Claude artifacts use `/run`, Codex artifacts use `$run`.
+- Correctly selected age-eligible versions: `pnpm@10.11.0`, `react@19.2.0`, `zod@3.25.76`, and `vitest@3.2.4`.
+- Correctly rejected fresh versions inside the 8-day window, including unqualified `pnpm@latest`.
+- Kept ownership clear for `min-release-age=8`, `minimum-release-age=11520`, and `minimumReleaseAge: 11520`.
+- Named React and Vitest major-upgrade risks with stop routes to `migrate`.
+- Used runner-native next commands: `/run` for Claude and `$run` for Codex.
 
 ## Common Weaknesses
 
-- One Codex run orders React before the lower-risk Zod update. It remains usable, but a next operator would usually prefer package-manager migration, low-risk Zod, then React/Vitest majors.
-- Some plans could better separate setup commands from verification commands. They still include the required checks, but cleaner grouping would reduce operator confusion during execution.
-- The deterministic quality rubric under-credits valid Claude retained evidence: it reports missing `package-update-plan.md` and missing `validation` even though the artifact and/or stdout contain the plan name and verification commands.
+- Actionability is uneven. Some outputs provide the required sections but do not reduce the first executable batch to a precise, low-risk operator checklist.
+- Per-batch validation is sometimes generic. A next operator should see exact proof per batch, such as package-manager pin verification, `.npmrc` checks, lockfile generation, and package-specific smoke checks before the next version bump.
+- One Codex output includes `pnpm exec vitest run --runInBand` with a caveat. The caveat prevents a hard failure, but it still hands the next operator a possibly unsupported Vitest 3 flag instead of a safer fixture-native smoke command.
 
 ## Remediation
 
 | Finding | Classification | Owner target | Proposed change | Validation check | Route |
 |---|---|---|---|---|---|
-| Deterministic quality under-credits valid retained artifacts for artifact-reference and actionability. | Benchmark rubric | `tests/layer4/setups/tier23-global-workflows.setup.ts` and focused layer1 setup/quality coverage in `tests/layer1/bench-setups.test.ts` | Update the `workflow-artifact-reference` and `workflow-actionability` checks so retained artifact text with a `# package-update-plan.md` heading, stdout naming `package-update-plan.md`, or a `## Verification Commands` section receives credit. Keep negative coverage for outputs that do not name the artifact and do not provide verification/action language. | Add layer1 examples using the Claude `bdc852e4` retained shapes, then run `pnpm --dir tests exec vitest run --project layer1 bench-setups bench-quality` and `pnpm --dir tests verify --skill update-packages`. | `$targeted-skill-builder update-packages benchmark artifact-reference actionability tolerance` |
+| The skill permits good but broad plans that do not always expose a concrete first mutation step and per-batch stop gate. | target-skill contract | `global/codex/update-packages/SKILL.md` section `Apply updates in safe batches` and `Output` | Require dependency-update plans to include a "Batch 0 / Batch 1 / Batch 2" execution checklist where each batch has exact mutation command, exact verification command, expected artifact or version proof, and stop condition before proceeding. | `pnpm verify --skill update-packages` plus a focused benchmark rerun should show the artifact includes per-batch commands and expected proof for package manager migration, Zod, React, and Vitest. | `$targeted-skill-builder update-packages per-batch actionability` |
+| The deterministic rubric surfaced Claude actionability at 50% but still allowed broad handoffs to look nearly perfect overall. | benchmark rubric | `tests/layer4/setups/tier23-global-workflows.setup.ts` quality evaluator for `update-packages` | Tighten `workflow-actionability` so it checks for exact per-batch mutation command, verification command, expected proof, and "do not proceed on red" gate. Keep this as quality scoring unless the project wants it promoted to a hard assertion. | `pnpm verify --skill update-packages` should pass static setup checks; `$benchmark-test-skill update-packages` should lower quality scores for outputs that only list generic `pnpm test` / `pnpm build` without per-batch proof. | `$targeted-skill-builder update-packages benchmark actionability rubric` |
+| A reviewed output suggested `vitest run --runInBand`, which may not be a stable Vitest 3 smoke command. | target-skill contract | `global/codex/update-packages/SKILL.md` Vitest/build-tool compatibility guidance | Add guidance to avoid Jest-only or version-uncertain flags in migration plans unless verified against the selected version; prefer project script first (`pnpm test`) plus an explicitly discovered test-file command. | `pnpm verify --skill update-packages` should include a contract/rubric fact rejecting unverified runner flags when the fixture asks for Vitest 1 to 3 planning. | `$targeted-skill-builder update-packages vitest smoke command specificity` |
 
-## Deterministic Rubric Notes
+## Deterministic-Rubric Notes
 
-The hard assertions and deterministic quality scores correctly show that the latest evaluated run passed. The residual mismatch is narrow: Claude's generated plans are strong, but two quality criteria read as under-scored in the report. Fixing that would make future triage less likely to chase a false weakness after otherwise excellent generated artifacts.
+The deterministic rubric was directionally useful: it caught the Claude actionability weakness while still passing compliant artifacts. It did not surface the Vitest `--runInBand` ergonomics issue as a distinct signal. That issue is not severe enough to treat the benchmark as failed, but it is worth tightening because unsupported runner flags create avoidable operator friction.
 
-## Next Work
+## Next
 
-Tighten the `update-packages` benchmark rubric so valid artifact-reference and verification/actionability evidence is credited consistently.
+**Next work:** tighten `update-packages` output contract so every dependency-update plan includes exact per-batch mutation commands, verification commands, expected proof, and stop gates.
 
-**Recommended next command:** `$targeted-skill-builder update-packages benchmark artifact-reference actionability tolerance`
+**Recommended next command:** `$targeted-skill-builder update-packages per-batch actionability`
