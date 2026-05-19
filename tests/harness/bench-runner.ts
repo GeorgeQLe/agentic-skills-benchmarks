@@ -228,6 +228,7 @@ export function classifyInfrastructureBlock(result: RunResult): string | undefin
     output.includes("unable to connect to api") ||
     output.includes("failed to connect to websocket") ||
     output.includes("failed to lookup address information") ||
+    output.includes("socket connection was closed unexpectedly") ||
     output.includes("stream disconnected before completion") ||
     output.includes("http/request failed") ||
     output.includes("transport channel closed")
