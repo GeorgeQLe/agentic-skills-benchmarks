@@ -317,6 +317,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "ship-end",
   "ship-end-kanban",
   "ship-kanban",
+  "skill-interview",
   "skills",
   "slim-audit",
   "spec-drift",
@@ -447,6 +448,12 @@ const COVERAGE_OVERRIDES: Record<string, Partial<BenchCoverageRow>> = {
     setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
     priority_tier: 1,
     fixture_type: "handoff-fixture",
+  },
+  "skill-interview": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
+    priority_tier: 1,
+    fixture_type: "skill-brief-fixture",
   },
   "spec-interview": {
     coverage_status: "custom",

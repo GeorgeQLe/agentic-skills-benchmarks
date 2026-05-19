@@ -589,6 +589,32 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
   },
   {
+    skill: "skill-interview",
+    outputPath: "specs/benchmark-audit-skill-brief.md",
+    prompt: "You have the skill-interview skill installed. Interview the supplied skill idea without asking follow-up questions by writing specs/benchmark-audit-skill-brief.md with Overview, Goals, Non-Goals, Skill Contract, Workflow, Inputs and Outputs, Safety and Side Effects, Verification and Benchmark Coverage, Related Skills, Assumptions & Risks, Recommended Creation Route, and Next command. Treat the user's confirmation as already provided for this benchmark fixture.",
+    fixtureFiles: {
+      "skill-idea.md": "# Skill idea\n\nCreate a repo-managed mirrored skill named benchmark-audit that interviews maintainers before adding benchmark coverage. It should inspect tests/harness/bench-coverage.ts, tests/harness/bench-setups.ts, and tests/layer4/setups before asking questions; avoid GitHub Actions; require a benchmark coverage plan; and route to create-agentic-skill when the brief is complete.\n",
+      "tests/harness/bench-coverage.ts": "coverage_status: \"custom\", setup_path: \"tests/layer4/setups/tier1-workflows.setup.ts\"",
+    },
+    expectedIncludes: ["Skill Contract", "Workflow", "Verification and Benchmark Coverage", "Recommended Creation Route"],
+    expectedPattern: /benchmark-audit|bench-coverage|create-agentic-skill/i,
+    qualityEvaluator: workflowQualityEvaluator({
+      evidenceFacts: ["benchmark-audit", "bench-coverage.ts", "create-agentic-skill"],
+      specificMarkers: ["Skill Contract", "Workflow", "Verification and Benchmark Coverage", "Recommended Creation Route"],
+      nextRoutes: ["/create-agentic-skill", "$create-agentic-skill"],
+      coreTraitId: "skill-brief-completeness",
+      coreTraitDescription: "Produces an implementation-ready skill brief from the user's skill idea",
+      coreTraits: ["Overview", "Goals", "Non-Goals", "Skill Contract", "Workflow", "Verification and Benchmark Coverage"],
+      validationPatterns: [/benchmark coverage|bench-coverage\.ts|verify|validation/i],
+      concreteFiles: ["skill-idea.md", "tests/harness/bench-coverage.ts", "specs/benchmark-audit-skill-brief.md"],
+      forbidden: ["GitHub Actions"],
+    }),
+    recommendedRoutes: {
+      claude: "/create-agentic-skill",
+      codex: "$create-agentic-skill",
+    },
+  },
+  {
     skill: "spec-interview",
     outputPath: "specs/benchmark-reporting.md",
     prompt: "You have the spec-interview skill installed. Turn specs/draft.md into specs/benchmark-reporting.md with Overview, Goals, Non-Goals, Detailed Design, Edge Cases, Test Plan, Acceptance Criteria, Open Questions, Assumptions & Risks, a separate Prototype Phase 0 with route-based experiments, and Next command.",
@@ -778,6 +804,7 @@ export const shipEndSetup = tier1Setups["ship-end"];
 export const roadmapSetup = tier1Setups.roadmap;
 export const planPhaseSetup = tier1Setups["plan-phase"];
 export const featureInterviewSetup = tier1Setups["feature-interview"];
+export const skillInterviewSetup = tier1Setups["skill-interview"];
 export const specInterviewSetup = tier1Setups["spec-interview"];
 export const investigateSetup = tier1Setups.investigate;
 export const sessionTriageSetup = tier1Setups["session-triage"];

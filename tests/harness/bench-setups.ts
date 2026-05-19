@@ -13,6 +13,7 @@ import {
   sessionTriageSetup,
   shipEndSetup,
   shipSetup,
+  skillInterviewSetup,
   specInterviewSetup,
   targetedSkillBuilderSetup,
 } from "../layer4/setups/tier1-workflows.setup.js";
@@ -38,6 +39,7 @@ export const CUSTOM_BENCH_SETUPS: Record<string, SkillBenchSetup> = {
   "session-triage": sessionTriageSetup,
   "ship": shipSetup,
   "ship-end": shipEndSetup,
+  "skill-interview": skillInterviewSetup,
   "spec-interview": specInterviewSetup,
   "targeted-skill-builder": targetedSkillBuilderSetup,
 };
