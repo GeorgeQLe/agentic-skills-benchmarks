@@ -633,6 +633,19 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     recommendedRoute: "$run",
   },
   {
+    skill: "prototype",
+    outputPath: "prototypes/dashboard/index.html",
+    prompt: "You have the prototype skill installed. Read specs/ux-variations-dashboard.md, specs/ui-dashboard.md, and .agents/project.json, then build prototypes/dashboard/index.html as a clickable hub page linking each variation with fake data and Next command.",
+    fixtureFiles: {
+      "specs/ux-variations-dashboard.md": "Variation A: dense table for scanning blocked reasons. Variation B: card grid for browsing coverage status.",
+      "specs/ui-dashboard.md": "Layout: sidebar navigation, main content area with coverage table. Controls: filter by status, sort by skill name.",
+      ".agents/project.json": "{\"name\": \"benchmark-dashboard\", \"type\": \"saas\"}",
+    },
+    expectedIncludes: ["variation", "hub page", "clickable", "fake data"],
+    expectedPattern: /dense table|card grid|coverage/i,
+    recommendedRoute: "$uat --variant-evaluation",
+  },
+  {
     skill: "reconcile-dev-docs",
     outputPath: "tasks/reconciliation-report.md",
     prompt: "You have the reconcile-dev-docs skill installed. Compare docs-state.md with code-state.md and write tasks/reconciliation-report.md with stale docs, missing tasks, fixes, validation, and Next command.",
@@ -809,20 +822,22 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     },
     expectedIncludes: ["variant evaluation", "acceptance criteria", "evidence capture"],
     expectedPattern: /dense table|card grid|benchmark coverage/i,
-    recommendedRoute: "$ui-consolidate",
+    recommendedRoute: "$consolidate-variations",
   },
   {
-    skill: "ui-consolidate",
-    outputPath: "specs/ui-final-dashboard.md",
-    prompt: "You have the ui-consolidate skill installed. Read specs/ui-layout-variations-dashboard.md and research/uat-variant-evaluation-dashboard.md, then write specs/ui-final-dashboard.md with UAT evidence summary, consolidation matrix, conflict resolutions, implementation plan, and Next command.",
+    skill: "consolidate-variations",
+    outputPath: "prototypes/dashboard/consolidated/index.html",
+    prompt: "You have the consolidate-variations skill installed. Read specs/ui-layout-variations-dashboard.md, research/uat-variant-evaluation-dashboard.md, and the prototype variation directories, then write prototypes/dashboard/consolidated/index.html with UAT evidence summary, consolidation matrix, conflict resolutions, consolidated prototype, and Next command.",
     fixtureFiles: {
       "specs/ui-requirements-dashboard.md": "The dashboard must show custom, generic, and blocked benchmark coverage rows with blocked reasons.",
       "specs/ui-layout-variations-dashboard.md": "Variation A uses a dense table. Variation B uses a card grid. Variation C uses list plus detail.",
       "research/uat-variant-evaluation-dashboard.md": "Dense table worked for scanning blocked reasons. Card grid felt easier to browse but slower for comparing custom and generic status.",
+      "prototypes/dashboard/variation-a/index.html": "<html><body><h1>Variation A: Dense Table</h1><table><tr><th>Skill</th><th>Status</th></tr></table></body></html>",
+      "prototypes/dashboard/variation-b/index.html": "<html><body><h1>Variation B: Card Grid</h1><div class='grid'></div></body></html>",
     },
-    expectedIncludes: ["UAT evidence summary", "consolidation matrix", "conflict resolutions", "implementation plan"],
+    expectedIncludes: ["UAT evidence summary", "consolidation matrix", "conflict resolutions", "consolidated prototype"],
     expectedPattern: /dense table|card grid|blocked reasons/i,
-    recommendedRoute: "$design-system",
+    recommendedRoute: "$research-roadmap --post-prototype",
   },
   {
     skill: "ui-interview",
@@ -850,15 +865,15 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     recommendedRoute: "$run",
   },
   {
-    skill: "ux-variation",
-    outputPath: "ux-variations.md",
-    prompt: "You have the ux-variation skill installed. Read specs/ui-requirements-dashboard.md and write ux-variations.md with layout variations, alternatives, variant evaluation handoff, and Next command.",
+    skill: "ux-variations",
+    outputPath: "specs/ux-variations-dashboard.md",
+    prompt: "You have the ux-variations skill installed. Read specs/ui-requirements-dashboard.md and write specs/ux-variations-dashboard.md with layout variations, alternatives, variant evaluation handoff, and Next command. Each variation should route to /ui-interview then /prototype.",
     fixtureFiles: {
       "specs/ui-requirements-dashboard.md": "Maintainers compare custom, generic, and blocked benchmark coverage before prioritizing setup work.",
     },
     expectedIncludes: ["layout variations", "alternatives", "variant evaluation"],
     expectedPattern: /custom|generic|blocked/i,
-    recommendedRoute: "$run",
+    recommendedRoute: "$ui-interview",
   },
 ];
 
