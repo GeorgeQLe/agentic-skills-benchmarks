@@ -240,10 +240,12 @@ function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefiniti
             id: "workflow-targeted-migration-routes",
             description: "Output routes broad compatibility work to target-specific migrate commands.",
             weight: 1,
+            critical: true,
             patterns: [definition.targetedMigrationRoutePattern],
           }),
         ]
         : []),
+      ...(definition.skill === "update-packages" ? [updatePackagesLockfileMigrationOrderingCriterion()] : []),
       forbiddenFabricationCriterion({
         id: "no-generic-or-external-overreach",
         description: "Output avoids generic filler and external actions not present in fixtures.",
@@ -276,6 +278,48 @@ const UPDATE_PACKAGES_BATCH_ACTIONABILITY_PATTERN = new RegExp([
 ].join(""), "i");
 const UPDATE_PACKAGES_TARGETED_MIGRATION_ROUTE_PATTERN =
   /(?:\/migrate|\$migrate)\s+(?:react|react-19|vitest|vitest-3|pnpm|npm-to-pnpm|zod)\b/i;
+
+function updatePackagesLockfileMigrationOrderingCriterion(): QualityCriterion {
+  return {
+    id: "workflow-lockfile-migration-ordering",
+    description: "Output preserves safe npm-to-pnpm lockfile migration ordering.",
+    weight: 2,
+    critical: true,
+    evaluate(output: string) {
+      const lines = output.split(/\r?\n/);
+      const importLine = firstLineIndex(lines, /\bpnpm\s+import\b/i);
+      const installLine = firstLineIndex(lines, /\bpnpm\s+install\b/i);
+      const unsafeRemoval = lines.findIndex((line) => {
+        if (!/\bpackage-lock\.json\b/i.test(line)) return false;
+        if (!/\b(?:rm|remove|delete|deleting|deleted)\b/i.test(line)) return false;
+        if (/\b(?:after|only after|once|when)\b[\s\S]{0,120}\b(?:pnpm\s+install|install succeeds|clean install|success|succeeds)\b/i.test(line)) {
+          return false;
+        }
+        return true;
+      });
+
+      if (unsafeRemoval === -1) return { score: 1 };
+
+      const hasSafePrecedingStep =
+        (importLine !== -1 && importLine < unsafeRemoval) ||
+        (installLine !== -1 && installLine < unsafeRemoval);
+
+      if (hasSafePrecedingStep) return { score: 1 };
+
+      return {
+        score: 0,
+        notes: [
+          "package-lock.json removal appears before pnpm import/install proof; seed/import and install with pnpm before deleting the npm lockfile",
+        ],
+      };
+    },
+  };
+}
+
+function firstLineIndex(lines: string[], pattern: RegExp): number {
+  return lines.findIndex((line) => pattern.test(line));
+}
+
 function lineOnlyWarnsAgainstPnpmLatest(line: string): boolean {
   const normalized = line.replace(/[`*_]/g, " ").replace(/\s+/g, " ").trim();
   return /(?:do\s+not\s+use|don't(?:\s+use)?|not\s+(?:use\s+)?(?:unqualified\s+)?|no\s+unqualified|avoid|reject|never(?:\s+default\s+to)?|rather than|instead of|violates|would float|break reproducibility)/i.test(normalized);
