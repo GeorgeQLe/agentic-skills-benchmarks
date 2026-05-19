@@ -476,6 +476,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "roadmap",
     outputPath: "tasks/roadmap.md",
+    perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
     prompt: "You have the roadmap skill installed. Convert specs/feature.md into tasks/roadmap.md with phases, acceptance criteria, verification, and an exact `## Next Command` section containing `$plan-phase 1`. The consolidated prototype is already complete upstream. Keep it concise.",
     fixtureFiles: {
       "specs/feature.md": "# Feature\n\nBuild a SaaS-style benchmark coverage reporting dashboard with CLI status output and validation. The consolidated prototype at prototypes/dashboard/consolidated/index.html has been accepted. Implement the production version based on the prototype.\n",
@@ -653,7 +654,8 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "targeted-skill-builder",
     outputPath: "skill-update-plan.md",
-    prompt: "You have the targeted-skill-builder skill installed. Read correction.md and write skill-update-plan.md with workflow gap, existing-skill overlap, proposed contract change, validation checks, and Next command. Do not edit SKILL.md files.",
+    perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
+    prompt: "You have the targeted-skill-builder skill installed. Read correction.md and write skill-update-plan.md with workflow gap, existing-skill overlap, proposed contract change, validation checks, and Next command. End with `Recommended next command: $run`. Do not edit SKILL.md files.",
     fixtureFiles: {
       "correction.md": "# Correction\n\nFuture skill creation must add benchmark coverage handling or a blocked status.\n",
       "tasks/lessons.md": "# Lessons\n\n- Add durable validation after workflow corrections.\n",

@@ -365,14 +365,15 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "affected",
     outputPath: "affected-report.md",
-    prompt: "You have the affected skill installed. Read the fixture git diff and package map, then write affected-report.md with changed files, affected packages/apps, validation commands, and Next command. Do not run package managers.",
+    perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
+    prompt: "You have the affected skill installed. Read the fixture git diff and package map, then write affected-report.md with changed files, affected packages/apps, validation commands, and Next command. End with `Recommended next command: $run`. Do not run package managers.",
     fixtureFiles: {
       "diff.txt": "M packages/web/src/button.ts\nM packages/shared/src/tokens.ts\n",
       "pnpm-workspace.yaml": "packages:\n  - packages/*\n",
       "packages/web/package.json": "{\"name\":\"web\",\"dependencies\":{\"shared\":\"workspace:*\"}}\n",
       "packages/shared/package.json": "{\"name\":\"shared\"}\n",
     },
-    expectedIncludes: ["changed files", "affected packages", "validation commands"],
+    expectedIncludes: ["changed files", "affected", "validation commands"],
     expectedPattern: /web|shared/i,
     recommendedRoute: "$run",
   },

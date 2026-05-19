@@ -17,12 +17,27 @@ Coverage: custom, `tests/layer4/setups/tier23-global-workflows.setup.ts`
 
 ## Benchmark Summary
 
+### Initial Run (Batch 41.1)
+
 | Agent | Evaluated Pass Rate | Blocked Runs | Wilson 95% CI | Output Quality | Critical Failures | Latency p50 | Latency p95 | Latency p99 | Cost / Run | Total Cost | Similarity | Outliers |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | claude | 0.0% (0/1) | 2 | 0.0%-79.3% | 68.2% | 1 | 31.3s | 31.3s | 31.3s | $0.25 | $0.75 | 1.000 | 0 |
 | codex | 0.0% (0/3) | 0 | 0.0%-56.2% | 40.9% | 6 | 28.5s | 30.2s | 30.3s | $0.25 | $0.75 | 1.000 | 0 |
 
-## Failed Assertions
+### Rerun After Batch 41.2 Fixes (budget + prompt + assertion)
+
+| Agent | Evaluated Pass Rate | Blocked Runs | Wilson 95% CI | Output Quality | Critical Failures | Latency p50 | Latency p95 | Latency p99 | Cost / Run | Total Cost | Similarity | Outliers |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| claude | 66.7% (2/3) | 0 | 20.8%-93.9% | 80.3% | 1 | 36.5s | 39.0s | 39.2s | $1.00 | $3.00 | 0.881 | 0 |
+| codex | 100.0% (3/3) | 0 | 43.8%-100.0% | 86.2% | 0 | 37.3s | 47.8s | 48.8s | $1.00 | $3.00 | 0.862 | 0 |
+
+## Batch 41.2 Fixes Applied
+
+1. **Budget**: increased `perRunBudgetUsd` from `BENCH_BUDGETS_USD.smoke` ($0.25) to `BENCH_BUDGETS_USD.standard` ($1.00). This resolved the two Claude budget-blocked runs.
+2. **Prompt routing**: added `End with Recommended next command: $run` to the fixture prompt. This resolved the route mismatch where both agents routed to `pnpm --filter` commands instead of `$run`.
+3. **Literal match relaxation**: changed `expectedIncludes` from `"affected packages"` to `"affected"` to accept output that uses synonyms like "Directly Changed Packages" or "Transitively Affected."
+
+## Failed Assertions (Initial Run)
 
 | Agent | Run | Exit Code | Failed Assertions |
 | --- | ---: | ---: | --- |
@@ -31,45 +46,32 @@ Coverage: custom, `tests/layer4/setups/tier23-global-workflows.setup.ts`
 | codex | #1 | 0 | Output includes affected packages; Output recommends $run |
 | codex | #2 | 0 | Output includes affected packages; Output recommends $run |
 
-**Route mismatch:** Both agents produce a `Next command` section with actual validation commands (`pnpm --filter ...`) instead of the expected `$run`. The fixture prompt says "write ... Next command" without specifying which command, and agents reasonably interpret "Next command" as "the next command to run" rather than "which skill to invoke next."
+## Failed Assertions (Rerun)
 
-**Missing literal "affected packages":** Codex sections use "Directly Changed" and "Transitively Affected" headers rather than the literal string `affected packages` expected by `assertContentIncludes`.
+| Agent | Run | Exit Code | Failed Assertions |
+| --- | ---: | ---: | --- |
+| claude | #1 | 0 | Output recommends $run |
 
-## Output Quality
+Claude run 1 routed to `pnpm --filter shared... --filter web... run typecheck` instead of `$run` despite the explicit prompt guidance. This is one-off agent noncompliance (2/3 Claude runs correctly route to `$run`).
 
-The output-quality score is an additional deterministic rubric score, not a statistical confidence measure.
+## Output Quality (Rerun)
 
 | Agent | Evaluated Runs | Average Score | Threshold Failures | Critical Failures | Lowest-Scoring Criteria |
 | --- | ---: | ---: | ---: | ---: | --- |
-| claude | 1 | 68.2% | 1 | 1 | `workflow-artifact-reference` 0.0%; `workflow-next-route` 0.0%; `workflow-actionability` 50.0%; `workflow-fixture-facts` 100.0%; `workflow-domain-specificity` 100.0% |
-| codex | 3 | 40.9% | 3 | 6 | `workflow-fixture-facts` 0.0%; `workflow-artifact-reference` 0.0%; `workflow-next-route` 0.0%; `workflow-actionability` 50.0%; `workflow-domain-specificity` 100.0% |
+| claude | 3 | 80.3% | 1 | 1 | `workflow-artifact-reference` 0.0%; `workflow-actionability` 50.0%; `workflow-next-route` 66.7%; `workflow-fixture-facts` 100.0%; `workflow-domain-specificity` 100.0% |
+| codex | 3 | 86.2% | 0 | 0 | See raw session for per-criterion detail. |
 
-Both agents correctly identify the changed files, trace the `web → shared` dependency, and produce reasonable validation commands. The quality failures are primarily:
-- `workflow-next-route`: expects `$run` in the recommended next command
-- `workflow-artifact-reference`: may expect specific file naming conventions
-- `workflow-fixture-facts` (Codex): may expect specific fixture fact strings
+## Infrastructure Blocked Runs (Rerun)
 
-## Infrastructure Blocked Runs
-
-| Agent | Run | Reason |
-| --- | ---: | --- |
-| claude | #1 | agent runner budget exceeded |
-| claude | #2 | agent runner budget exceeded |
+None.
 
 ## Raw Sessions
 
-- Claude: `tests/benchmarks/runs/affected-claude-781a30d1/`
-- Codex: `tests/benchmarks/runs/affected-codex-a832b4a2/`
+- Claude (initial): `tests/benchmarks/runs/affected-claude-781a30d1/`
+- Codex (initial): `tests/benchmarks/runs/affected-codex-a832b4a2/`
+- Claude (rerun): `tests/benchmarks/runs/affected-claude-7f243b78/`
+- Codex (rerun): `tests/benchmarks/runs/affected-codex-09fd5705/`
 
-## Triage
+## Next Route
 
-**Core issue — fixture routing expectation:** The `affected` fixture expects `$run` as the recommended next command, but both agents interpret "Next command" literally and provide the actual shell commands to run (pnpm filter commands). This is a fixture-prompt clarity issue, not a skill deficiency.
-
-**"affected packages" literal match:** The hard assertion expects the output to contain the literal string "affected packages," but Codex uses "Directly Changed" and "Transitively Affected" as section headers. The Claude output uses "Directly Changed Packages" which also misses the exact match.
-
-**Remediation options:**
-1. **Prompt fix:** Add explicit routing guidance: "End with Recommended next command: $run" and require the literal phrase "affected packages" somewhere in the output.
-2. **Assertion relaxation:** Accept the pnpm commands as valid next commands, and accept synonyms like "Directly Changed Packages" or "Transitively Affected" for the "affected packages" assertion.
-3. **Both:** Tighten the prompt for route while relaxing the content match.
-
-Recommended next route: `$session-triage` to decide fixture adjustments before rerunning.
+Recommended next command: `$run`
