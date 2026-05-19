@@ -145,6 +145,7 @@ async function runSpawnedCommand(
 
     const timeout = setTimeout(() => {
       if (settled) return;
+      stderr += `\nAgent runner timed out after ${opts.timeoutMs}ms.\n`;
       child.kill("SIGTERM");
     }, opts.timeoutMs);
 

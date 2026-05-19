@@ -198,24 +198,41 @@ function runBenchAgent(agent: BenchAgent, opts: RunOptions): Promise<RunResult> 
   return agent === "claude" ? runClaude(opts) : runCodex(opts);
 }
 
-function classifyInfrastructureBlock(result: RunResult): string | undefined {
-  if (result.exitCode === 0) return undefined;
-
+export function classifyInfrastructureBlock(result: RunResult): string | undefined {
   const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
-  if (
+  const failed = result.exitCode !== 0;
+
+  if (failed && (
     output.includes("hit your limit") ||
     output.includes("rate limit") ||
     output.includes("rate_limit") ||
     output.includes("quota exceeded") ||
     output.includes("too many requests")
-  ) {
+  )) {
     return "agent runner rate limit";
   }
-  if (output.includes("exceeded usd budget")) {
+  if (failed && output.includes("exceeded usd budget")) {
     return "agent runner budget exceeded";
   }
-  if (output.includes("could not process image")) {
+  if (failed && output.includes("could not process image")) {
     return "agent runner image processing error";
+  }
+  if (
+    output.includes("agent runner timed out") ||
+    (result.exitCode === 143 && !result.stdout.trim())
+  ) {
+    return "agent runner timeout";
+  }
+  if (
+    output.includes("connectionrefused") ||
+    output.includes("unable to connect to api") ||
+    output.includes("failed to connect to websocket") ||
+    output.includes("failed to lookup address information") ||
+    output.includes("stream disconnected before completion") ||
+    output.includes("http/request failed") ||
+    output.includes("transport channel closed")
+  ) {
+    return "agent runner connection failure";
   }
   return undefined;
 }
