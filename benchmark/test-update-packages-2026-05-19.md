@@ -32,51 +32,48 @@ pnpm bench --skill update-packages --agent both --runs 3 --chunk-size 3 --pause 
 
 | Agent | Session | Evaluated pass rate | Wilson 95% CI | Blocked runs | p50 latency | p95 latency | p99 latency | Mean similarity | Outliers | Total cost | Cost/run |
 | --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Claude | `update-packages-claude-dc9580ca` | 1/2 evaluated, 50.0% | [9.5%, 90.5%] | 1 | 552.7s | 1004.5s | 1044.6s | 1.000 | 0 | $3.00 | $1.00 |
-| Codex | `update-packages-codex-f04f15cc` | 2/2 evaluated, 100.0% | [34.2%, 100.0%] | 1 | 75.0s | 77.0s | 77.2s | 0.910 | 0 | $3.00 | $1.00 |
+| Claude | `update-packages-claude-f8355f37` | 3/3 evaluated, 100.0% | [43.8%, 100.0%] | 0 | 64.6s | 79.4s | 80.7s | 0.829 | 0 | $3.00 | $1.00 |
+| Codex | `update-packages-codex-1ed5350e` | 3/3 evaluated, 100.0% | [43.8%, 100.0%] | 0 | 66.7s | 78.7s | 79.8s | 0.883 | 0 | $3.00 | $1.00 |
 
 ## Hard Assertions
 
 | Agent | Failed assertions |
 | --- | --- |
-| Claude | Run 1: `Agent command exited successfully`; `package-update-plan.md created in project root` |
+| Claude | none |
 | Codex | none |
 
-Claude had one evaluated failing run and one infrastructure-blocked timeout. Codex passed all hard assertions in both evaluated runs and had one infrastructure-blocked timeout.
+Both agents passed all evaluated hard assertions. No infrastructure-blocked runs were reported.
 
 ## Output Quality
 
 | Agent | Evaluated runs | Average quality | Threshold failures | Critical failures | Lowest-scoring criteria |
 | --- | ---: | ---: | ---: | ---: | --- |
-| Claude | 2 | 56.8% | 1 | 8 | `workflow-targeted-migration-routes` 0.0%; `workflow-fixture-facts` 50.0%; `workflow-output-includes-verification-command-evidence` 50.0%; `workflow-output-includes-major-upgrade-compatibility-risk-handling` 50.0%; `workflow-output-proves-selected-pnpm-toolchain-age-eligibility` 50.0% |
-| Codex | 2 | 100.0% | 0 | 0 | `workflow-fixture-facts` 100.0%; `workflow-output-includes-verification-command-evidence` 100.0%; `workflow-output-includes-major-upgrade-compatibility-risk-handling` 100.0%; `workflow-output-avoids-unqualified-pnpm-latest` 100.0%; `workflow-output-proves-selected-pnpm-toolchain-age-eligibility` 100.0% |
+| Claude | 3 | 97.0% | 0 | 1 | `workflow-actionability` 66.7%; `workflow-targeted-migration-routes` 66.7%; `workflow-fixture-facts` 100.0%; `workflow-output-includes-verification-command-evidence` 100.0%; `workflow-output-includes-major-upgrade-compatibility-risk-handling` 100.0% |
+| Codex | 3 | 100.0% | 0 | 0 | `workflow-fixture-facts` 100.0%; `workflow-output-includes-verification-command-evidence` 100.0%; `workflow-output-includes-major-upgrade-compatibility-risk-handling` 100.0%; `workflow-output-avoids-unqualified-pnpm-latest` 100.0%; `workflow-output-proves-selected-pnpm-toolchain-age-eligibility` 100.0% |
 
 Quality score is an additional configured rubric score, not a replacement for hard assertion pass rate or a statistically definitive measure.
 
 ## Infrastructure Blocks
 
-| Agent | Run | Reason |
-| --- | ---: | --- |
-| Claude | 2 | agent runner timeout |
-| Codex | 2 | agent runner timeout |
+None.
 
 ## Raw Session Paths
 
-- Claude report: `tests/benchmarks/runs/update-packages-claude-dc9580ca/report.json`
-- Claude markdown: `tests/benchmarks/runs/update-packages-claude-dc9580ca/report.md`
+- Claude report: `tests/benchmarks/runs/update-packages-claude-f8355f37/report.json`
+- Claude markdown: `tests/benchmarks/runs/update-packages-claude-f8355f37/report.md`
 - Claude retained runs:
-  - `tests/benchmarks/runs/update-packages-claude-dc9580ca/run-000.json`
-  - `tests/benchmarks/runs/update-packages-claude-dc9580ca/run-001.json`
-  - `tests/benchmarks/runs/update-packages-claude-dc9580ca/run-002.json`
-- Codex report: `tests/benchmarks/runs/update-packages-codex-f04f15cc/report.json`
-- Codex markdown: `tests/benchmarks/runs/update-packages-codex-f04f15cc/report.md`
+  - `tests/benchmarks/runs/update-packages-claude-f8355f37/run-000.json`
+  - `tests/benchmarks/runs/update-packages-claude-f8355f37/run-001.json`
+  - `tests/benchmarks/runs/update-packages-claude-f8355f37/run-002.json`
+- Codex report: `tests/benchmarks/runs/update-packages-codex-1ed5350e/report.json`
+- Codex markdown: `tests/benchmarks/runs/update-packages-codex-1ed5350e/report.md`
 - Codex retained runs:
-  - `tests/benchmarks/runs/update-packages-codex-f04f15cc/run-000.json`
-  - `tests/benchmarks/runs/update-packages-codex-f04f15cc/run-001.json`
-  - `tests/benchmarks/runs/update-packages-codex-f04f15cc/run-002.json`
+  - `tests/benchmarks/runs/update-packages-codex-1ed5350e/run-000.json`
+  - `tests/benchmarks/runs/update-packages-codex-1ed5350e/run-001.json`
+  - `tests/benchmarks/runs/update-packages-codex-1ed5350e/run-002.json`
 
 ## Verdict
 
-The fresh benchmark has mixed evaluated evidence. Codex passed all evaluated hard assertions and scored 100.0% output quality, but Claude had one evaluated hard assertion failure, one quality threshold failure, and eight critical quality failures. Both runners also had one infrastructure-blocked timeout, reported separately from evaluated pass rates.
+The fresh benchmark passed all hard assertions for both evaluated agents. Claude still had one deterministic output-quality critical failure across three evaluated runs, with the lowest average scores on workflow actionability and targeted migration routing; Codex had no quality failures. Subjective output-quality review has not been performed for this fresh run.
 
-Recommended next skill: `$session-triage update-packages benchmark failure`
+Recommended next skill: `$benchmark-agent-review update-packages`
