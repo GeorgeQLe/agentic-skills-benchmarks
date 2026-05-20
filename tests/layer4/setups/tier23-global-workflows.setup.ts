@@ -267,6 +267,8 @@ const UPDATE_PACKAGES_MAJOR_UPGRADE_RISK_PATTERN =
   /(major|framework|build-tool|peer-sensitive|React 18.*19|Vitest 1.*3|compatibility)[\s\S]*(batch|peer|config|smoke|stop|migrate)/i;
 const UPDATE_PACKAGES_ARTIFACT_REFERENCE_PATTERN =
   /(^|\n)#{1,6}\s*(?:package-update-plan\.md|Package Update Plan)\b|package-update-plan\.md/i;
+const DESK_FLIP_ARTIFACT_REFERENCE_PATTERN =
+  /(^|\n)#{1,6}\s*(?:desk-flip-report\.md|Desk-Flip Report)\b|desk-flip-report\.md/i;
 const UPDATE_PACKAGES_ACTIONABILITY_PATTERN =
   /(?:^|\n)#{1,6}\s*Verification(?:\s+Commands)?\b|Verification commands:|Focused smoke checks?:|Stop condition:|Major-upgrade risk handling:/i;
 const UPDATE_PACKAGES_BATCH_ACTIONABILITY_PATTERN = new RegExp([
@@ -512,6 +514,20 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     expectedIncludes: ["owners", "removal order", "validation", "rollback"],
     expectedPattern: /legacy-benchmark-reporter|obsolete/i,
     recommendedRoute: "$run",
+  },
+  {
+    skill: "desk-flip",
+    outputPath: "desk-flip-report.md",
+    prompt: "You have the desk-flip skill installed. Autopsy the stuck project in the current directory. Read README.md and git-log.txt for context. Write desk-flip-report.md with Project Summary, What Went Wrong, Salvageable Specs & Designs, Salvageable Assets, Lessons for the Fresh Start, and Recommended Bootstrap Input. End with Next work and Recommended next command: /bootstrap-repo.",
+    fixtureFiles: {
+      "README.md": "# Stuck App\nA todo app that never shipped. Started 6 months ago.\n",
+      "git-log.txt": "feat: add auth before any UI\nfeat: add CI pipeline\nfix: CI flake\nchore: upgrade deps\nfix: CI flake again\nfeat: add database migrations\n",
+      "specs/mvp.md": "# MVP Spec\nBasic CRUD todos with user accounts.\n",
+    },
+    expectedIncludes: ["What Went Wrong", "Salvageable", "Lessons", "bootstrap-repo"],
+    expectedPattern: /infrastructure before|never shipped|stuck/i,
+    recommendedRoute: "/bootstrap-repo",
+    artifactReferencePattern: DESK_FLIP_ARTIFACT_REFERENCE_PATTERN,
   },
   {
     skill: "dogfood",
