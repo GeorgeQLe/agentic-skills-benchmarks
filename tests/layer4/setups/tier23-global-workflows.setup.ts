@@ -406,7 +406,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "bootstrap-repo",
     outputPath: "README.md",
-    prompt: "You have the bootstrap-repo skill installed. Convert brief.md into README.md and AGENTS.md with project purpose, workflows, verification, and Next command. Keep files concise.",
+    prompt: "You have the bootstrap-repo skill installed. Convert brief.md into README.md and AGENTS.md with project purpose, workflows, verification, and Next command. End with `Recommended next command: $run`. Keep files concise.",
     fixtureFiles: {
       "brief.md": "# Brief\n\nA local benchmark harness for agent skills with layer validation.\n",
     },
@@ -417,7 +417,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "brainstorm",
     outputPath: "tasks/ideas.md",
-    prompt: "You have the brainstorm skill installed. Read project-state.md and write tasks/ideas.md with evidence, three candidate next phases, tradeoffs, and Next command.",
+    prompt: "You have the brainstorm skill installed. Read project-state.md and write tasks/ideas.md with evidence, three candidate next phases, tradeoffs, and Next command. End with `Recommended next command: $feature-interview`.",
     fixtureFiles: {
       "project-state.md": "Benchmark coverage is working for Tier 1 but lacks pack coverage and future creation enforcement.",
     },
@@ -428,7 +428,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "branch-lifecycle",
     outputPath: "branch-lifecycle-report.md",
-    prompt: "You have the branch-lifecycle skill installed. Read branches.tsv and write branch-lifecycle-report.md with merge, salvage, keep, delete decisions and Next command.",
+    prompt: "You have the branch-lifecycle skill installed. Read branches.tsv and write branch-lifecycle-report.md with merge, salvage, keep, delete decisions and Next command. End with `Recommended next command: $ship`.",
     fixtureFiles: {
       "branches.tsv": "branch\tage_days\tpr\tstatus\nfeature/old\t45\tclosed\tstale\nfeature/coverage\t3\topen\tgreen\n",
     },
@@ -439,7 +439,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "codebase-status",
     outputPath: "codebase-status.md",
-    prompt: "You have the codebase-status skill installed. Read repo-summary.md and tasks/todo.md, then write codebase-status.md with what this repo is, current status, outstanding work, and Next command.",
+    prompt: "You have the codebase-status skill installed. Read repo-summary.md and tasks/todo.md, then write codebase-status.md with what this repo is, current status, outstanding work, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "repo-summary.md": "agentic-skills stores global and pack skills with validation tests.",
       "tasks/todo.md": "# Active Phase\n\n- [ ] Step 2: Add pack coverage.\n",
@@ -451,7 +451,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "concept-exploration",
     outputPath: "specs/concept-brief.md",
-    prompt: "You have the concept-exploration skill installed. Turn idea.md into specs/concept-brief.md with problem, audience, value, constraints, open questions, and Next command.",
+    prompt: "You have the concept-exploration skill installed. Turn idea.md into specs/concept-brief.md with problem, audience, value, constraints, open questions, and Next command. End with `Recommended next command: $spec-interview`.",
     fixtureFiles: {
       "idea.md": "A benchmark dashboard that shows custom, generic, and blocked skill coverage.",
     },
@@ -462,7 +462,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "create-agentic-skill",
     outputPath: "skills/coverage-auditor/SKILL.md",
-    prompt: "You have the create-agentic-skill skill installed. Create skills/coverage-auditor/SKILL.md from request.md with frontmatter, workflow, validation notes, benchmark coverage note, and Next command.",
+    prompt: "You have the create-agentic-skill skill installed. Create skills/coverage-auditor/SKILL.md from request.md with frontmatter, workflow, validation notes, benchmark coverage note, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "request.md": "Create a repo-managed skill that audits benchmark coverage rows.",
     },
@@ -473,7 +473,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "create-local-skill",
     outputPath: "local-skill-plan.md",
-    prompt: "You have the create-local-skill skill installed. Write local-skill-plan.md for request.md with local skill path, scaffold contents, validation, promotion option, and Next command. Do not write outside the project.",
+    prompt: "You have the create-local-skill skill installed. Write local-skill-plan.md for request.md with local skill path, scaffold contents, validation, promotion option, and Next command. End with `Recommended next command: $ship`. Do not write outside the project.",
     fixtureFiles: {
       "request.md": "Create a personal helper skill for reading benchmark reports.",
     },
@@ -484,7 +484,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "dead-code",
     outputPath: "dead-code-report.md",
-    prompt: "You have the dead-code skill installed. Analyze exports.txt and imports.txt, then write dead-code-report.md with unused exports, orphaned files, stale dependencies, validation, and Next command.",
+    prompt: "You have the dead-code skill installed. Analyze exports.txt and imports.txt, then write dead-code-report.md with unused exports, orphaned files, stale dependencies, validation, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "exports.txt": "src/unused.ts: unusedHelper\nsrc/live.ts: liveHelper\n",
       "imports.txt": "src/index.ts imports liveHelper\n",
@@ -496,7 +496,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "debug",
     outputPath: "debug-report.md",
-    prompt: "You have the debug skill installed. Read logs/error.txt and write debug-report.md with symptoms, root cause, fix, verification, and Next command.",
+    prompt: "You have the debug skill installed. Read logs/error.txt and write debug-report.md with symptoms, root cause, fix, verification, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "logs/error.txt": "TypeError: Cannot read properties of undefined (reading 'coverage_status') in bench-setups.ts",
     },
@@ -507,7 +507,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "decommission",
     outputPath: "decommission-plan.md",
-    prompt: "You have the decommission skill installed. Read service-inventory.md and write decommission-plan.md with owners, removal order, validation, rollback, and Next command.",
+    prompt: "You have the decommission skill installed. Read service-inventory.md and write decommission-plan.md with owners, removal order, validation, rollback, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "service-inventory.md": "legacy-benchmark-reporter writes obsolete JSON files consumed by no packages.",
     },
@@ -532,7 +532,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "dogfood",
     outputPath: "dogfood-scenarios.md",
-    prompt: "You have the dogfood skill installed. Write dogfood-scenarios.md from product-evidence.md with owner scenarios, cadence, adoption instructions, manual checks, and Next command.",
+    prompt: "You have the dogfood skill installed. Write dogfood-scenarios.md from product-evidence.md with owner scenarios, cadence, adoption instructions, manual checks, and Next command. End with `Recommended next command: $uat`.",
     fixtureFiles: {
       "product-evidence.md": "Maintainers run benchmark coverage before shipping new skills.",
     },
@@ -543,7 +543,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "expert-review",
     outputPath: "expert-review.md",
-    prompt: "You have the expert-review skill installed. Review change-summary.md and write expert-review.md with findings by severity, open questions, test gaps, and Next command.",
+    prompt: "You have the expert-review skill installed. Review change-summary.md and write expert-review.md with findings by severity, open questions, test gaps, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "change-summary.md": "Added coverage status CLI output but did not test blocked rows.",
     },
@@ -554,7 +554,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "guide",
     outputPath: "manual-guide.md",
-    prompt: "You have the guide skill installed. Turn blocker.md into manual-guide.md with click-by-click steps, prerequisites, verification evidence, and Next command.",
+    prompt: "You have the guide skill installed. Turn blocker.md into manual-guide.md with click-by-click steps, prerequisites, verification evidence, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "blocker.md": "Configure a provider endpoint for the static newsletter form.",
     },
@@ -565,7 +565,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "handoff",
     outputPath: "HANDOFF.md",
-    prompt: "You have the handoff skill installed. Read tasks/todo.md and tasks/history.md, then write HANDOFF.md with current goal, completed work, validation, risks, next work, and Next command.",
+    prompt: "You have the handoff skill installed. Read tasks/todo.md and tasks/history.md, then write HANDOFF.md with current goal, completed work, validation, risks, next work, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "tasks/todo.md": "# Active Phase\n\n- [x] Step 1\n- [ ] Step 2\n",
       "tasks/history.md": "# History\n\n- Step 1 completed with tests.\n",
@@ -577,7 +577,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "hygiene",
     outputPath: "hygiene-report.md",
-    prompt: "You have the hygiene skill installed. Inspect tree.txt and write hygiene-report.md with convention violations, missing files, template drift, fixes, and Next command.",
+    prompt: "You have the hygiene skill installed. Inspect tree.txt and write hygiene-report.md with convention violations, missing files, template drift, fixes, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "tree.txt": "global/codex/foo/SKILL.md\npacks/example/PACK.md\npacks/example/codex/bar/SKILL.md\n",
     },
@@ -608,7 +608,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "migrate",
     outputPath: "migration-plan.md",
-    prompt: "You have the migrate skill installed. Read migration-request.md and write migration-plan.md with phases, file changes, compatibility risks, validation, rollback, and Next command.",
+    prompt: "You have the migrate skill installed. Read migration-request.md and write migration-plan.md with phases, file changes, compatibility risks, validation, rollback, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "migration-request.md": "Move benchmark coverage helpers into grouped setup modules without changing CLI behavior.",
     },
@@ -619,7 +619,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "mono-plan",
     outputPath: "mono-plan.md",
-    prompt: "You have the mono-plan skill installed. Read workspace.txt and write mono-plan.md with package boundaries, shared chokepoints, safe lanes, verification, and Next command.",
+    prompt: "You have the mono-plan skill installed. Read workspace.txt and write mono-plan.md with package boundaries, shared chokepoints, safe lanes, verification, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "workspace.txt": "packages/web depends on packages/shared; packages/api also depends on packages/shared.",
     },
@@ -630,7 +630,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "pack",
     outputPath: "pack-plan.md",
-    prompt: "You have the pack skill installed. Read pack-request.md and write pack-plan.md with project designation, enabled packs, install checks, validation, and Next command.",
+    prompt: "You have the pack skill installed. Read pack-request.md and write pack-plan.md with project designation, enabled packs, install checks, validation, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "pack-request.md": "Enable the benchmark pack for this project without installing domain skills globally.",
     },
@@ -641,7 +641,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "provision-agentic-config",
     outputPath: "AGENTS.md",
-    prompt: "You have the provision-agentic-config skill installed. Read workflow.md and write AGENTS.md with orchestration rules, verification, shipping, monorepo safety, and Next command.",
+    prompt: "You have the provision-agentic-config skill installed. Read workflow.md and write AGENTS.md with orchestration rules, verification, shipping, monorepo safety, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "workflow.md": "Use plan-first execution, no GitHub Actions, and benchmark coverage validation before shipping.",
     },
@@ -652,7 +652,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "prototype",
     outputPath: "prototypes/dashboard/index.html",
-    prompt: "You have the prototype skill installed. Read specs/ux-variations-dashboard.md, specs/ui-dashboard.md, and .agents/project.json, then build prototypes/dashboard/index.html as a clickable hub page linking each variation with fake data and Next command.",
+    prompt: "You have the prototype skill installed. Read specs/ux-variations-dashboard.md, specs/ui-dashboard.md, and .agents/project.json, then build prototypes/dashboard/index.html as a clickable hub page linking each variation with fake data and Next command. End with `Recommended next command: $uat --variant-evaluation`.",
     fixtureFiles: {
       "specs/ux-variations-dashboard.md": "Variation A: dense table for scanning blocked reasons. Variation B: card grid for browsing coverage status.",
       "specs/ui-dashboard.md": "Layout: sidebar navigation, main content area with coverage table. Controls: filter by status, sort by skill name.",
@@ -665,7 +665,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "quiz-me",
     outputPath: "quiz-me-question-plan.md",
-    prompt: "You have the quiz-me skill installed. Read the alignment page at docs/workflow-refactor-proposal.html silently and generate quiz-me-question-plan.md containing: (1) a Document Analysis section listing all major sections found, key decisions, and cross-section relationships identified; (2) a Question Plan section with 8-12 numbered questions covering every major section, each labeled by type (Relationship, Implication, Detail trap, Intent, or Synthesis) with the target section(s) noted; (3) a Sample Verdict section showing a hypothetical pass/fail verdict with per-section comprehension summary. Do not ask follow-up questions. Do not use AskUserQuestion. End with Next command. Questions must target cross-section relationships, specific constraints (the 48-hour migration window, the three-phase rollback), and intent (why event-driven over polling). Do not generate surface-recall questions answerable from headings alone.",
+    prompt: "You have the quiz-me skill installed. Read the alignment page at docs/workflow-refactor-proposal.html silently and generate quiz-me-question-plan.md containing: (1) a Document Analysis section listing all major sections found, key decisions, and cross-section relationships identified; (2) a Question Plan section with 8-12 numbered questions covering every major section, each labeled by type (Relationship, Implication, Detail trap, Intent, or Synthesis) with the target section(s) noted; (3) a Sample Verdict section showing a hypothetical pass/fail verdict with per-section comprehension summary. Do not ask follow-up questions. Do not use AskUserQuestion. End with Next command. End with `Recommended next command: $quiz-me`. Questions must target cross-section relationships, specific constraints (the 48-hour migration window, the three-phase rollback), and intent (why event-driven over polling). Do not generate surface-recall questions answerable from headings alone.",
     fixtureFiles: {
       "docs/workflow-refactor-proposal.html": [
         "<html><body>",
@@ -710,7 +710,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "reconcile-dev-docs",
     outputPath: "tasks/reconciliation-report.md",
-    prompt: "You have the reconcile-dev-docs skill installed. Compare docs-state.md with code-state.md and write tasks/reconciliation-report.md with stale docs, missing tasks, fixes, validation, and Next command.",
+    prompt: "You have the reconcile-dev-docs skill installed. Compare docs-state.md with code-state.md and write tasks/reconciliation-report.md with stale docs, missing tasks, fixes, validation, and Next command. End with `Recommended next command: $ship`.",
     fixtureFiles: {
       "docs-state.md": "tasks/todo says Step 2 is pending.",
       "code-state.md": "Step 2 files and tests are already implemented.",
@@ -722,7 +722,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "regression-check",
     outputPath: "regression-check.md",
-    prompt: "You have the regression-check skill installed. Read validation-plan.md and write regression-check.md with health checks, command results, failures, accepted risks, and Next command.",
+    prompt: "You have the regression-check skill installed. Read validation-plan.md and write regression-check.md with health checks, command results, failures, accepted risks, and Next command. End with `Recommended next command: $ship`.",
     fixtureFiles: {
       "validation-plan.md": "Run layer1 tests, coverage validation, list-skills smoke, and git diff --check.",
     },
@@ -733,7 +733,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "research-roadmap",
     outputPath: "tasks/research-roadmap.md",
-    prompt: "You have the research-roadmap skill installed. Read research-index.md and write tasks/research-roadmap.md with documentation health, priority queue, stale areas, and Next command.",
+    prompt: "You have the research-roadmap skill installed. Read research-index.md and write tasks/research-roadmap.md with documentation health, priority queue, stale areas, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "research-index.md": "Specs exist for benchmark coverage, but pack coverage notes are missing.",
     },
@@ -744,7 +744,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "scaffold",
     outputPath: "scaffold-plan.md",
-    prompt: "You have the scaffold skill installed. Read scaffold-request.md and write scaffold-plan.md with package path, files, conventions, validation, and Next command. Do not install dependencies.",
+    prompt: "You have the scaffold skill installed. Read scaffold-request.md and write scaffold-plan.md with package path, files, conventions, validation, and Next command. End with `Recommended next command: $run`. Do not install dependencies.",
     fixtureFiles: {
       "scaffold-request.md": "Add a tests fixture package for benchmark report parsing.",
     },
@@ -755,7 +755,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "skills",
     outputPath: "skills-index.md",
-    prompt: "You have the skills skill installed. Read skill-list.txt and write skills-index.md grouping skills by workflow stage, activity type, and Next command.",
+    prompt: "You have the skills skill installed. Read skill-list.txt and write skills-index.md grouping skills by workflow stage, activity type, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "skill-list.txt": "run\nship\nplan-phase\nexpert-review\nbenchmark-test-skill\n",
     },
@@ -766,7 +766,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "slim-audit",
     outputPath: "slim-audit.md",
-    prompt: "You have the slim-audit skill installed. Read loc-report.txt and write slim-audit.md with simplification opportunities, risk, preserved behavior, validation, and Next command.",
+    prompt: "You have the slim-audit skill installed. Read loc-report.txt and write slim-audit.md with simplification opportunities, risk, preserved behavior, validation, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "loc-report.txt": "bench-setups.ts 220 LOC with repeated setup assertion code.",
     },
@@ -777,7 +777,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "spec-drift",
     outputPath: "spec-drift-report.md",
-    prompt: "You have the spec-drift skill installed. Compare spec.md and implementation.md, then write spec-drift-report.md with implemented, missing, undocumented, tests, and Next command.",
+    prompt: "You have the spec-drift skill installed. Compare spec.md and implementation.md, then write spec-drift-report.md with implemented, missing, undocumented, tests, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "spec.md": "CLI must show custom, generic, and blocked coverage.",
       "implementation.md": "CLI shows custom and generic coverage only.",
@@ -789,7 +789,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "trace",
     outputPath: "trace-report.md",
-    prompt: "You have the trace skill installed. Trace request.md through route.md and storage.md, then write trace-report.md with entrypoint, data flow, side effects, failure modes, and Next command.",
+    prompt: "You have the trace skill installed. Trace request.md through route.md and storage.md, then write trace-report.md with entrypoint, data flow, side effects, failure modes, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "request.md": "pnpm bench --skill run should print coverage status.",
       "route.md": "bench.ts parses --skill and calls resolveBenchTarget.",
@@ -878,7 +878,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "uat",
     outputPath: "uat-journeys.md",
-    prompt: "You have the uat skill installed. Read specs/ui-layout-variations-dashboard.md and write uat-journeys.md with variant evaluation, acceptance criteria, evidence capture, and Next command.",
+    prompt: "You have the uat skill installed. Read specs/ui-layout-variations-dashboard.md and write uat-journeys.md with variant evaluation, acceptance criteria, evidence capture, and Next command. End with `Recommended next command: $consolidate-variations`.",
     fixtureFiles: {
       "specs/ui-layout-variations-dashboard.md": "Variation A uses a dense table. Variation B uses a card grid. Both must help maintainers compare custom, generic, and blocked benchmark coverage.",
     },
@@ -889,7 +889,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "consolidate-variations",
     outputPath: "prototypes/dashboard/consolidated/index.html",
-    prompt: "You have the consolidate-variations skill installed. Read specs/ui-layout-variations-dashboard.md, research/uat-variant-evaluation-dashboard.md, and the prototype variation directories, then write prototypes/dashboard/consolidated/index.html with UAT evidence summary, consolidation matrix, conflict resolutions, consolidated prototype, and Next command.",
+    prompt: "You have the consolidate-variations skill installed. Read specs/ui-layout-variations-dashboard.md, research/uat-variant-evaluation-dashboard.md, and the prototype variation directories, then write prototypes/dashboard/consolidated/index.html with UAT evidence summary, consolidation matrix, conflict resolutions, consolidated prototype, and Next command. End with `Recommended next command: $research-roadmap --post-prototype`.",
     fixtureFiles: {
       "specs/ui-requirements-dashboard.md": "The dashboard must show custom, generic, and blocked benchmark coverage rows with blocked reasons.",
       "specs/ui-layout-variations-dashboard.md": "Variation A uses a dense table. Variation B uses a card grid. Variation C uses list plus detail.",
@@ -904,7 +904,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "ui-interview",
     outputPath: "specs/ui-spec.md",
-    prompt: "You have the ui-interview skill installed. Convert product-need.md into specs/ui-spec.md with layout, hierarchy, controls, states, responsive behavior, prototype-first boundary, and Next command.",
+    prompt: "You have the ui-interview skill installed. Convert product-need.md into specs/ui-spec.md with layout, hierarchy, controls, states, responsive behavior, prototype-first boundary, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
       "product-need.md": "A SaaS dashboard table for benchmark coverage status and blocked reasons. The first prototype should use fake rows and visually mock auth, analytics, and saved database states rather than implementing them.",
     },
@@ -929,7 +929,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "ux-variations",
     outputPath: "specs/ux-variations-dashboard.md",
-    prompt: "You have the ux-variations skill installed. Read specs/ui-requirements-dashboard.md and write specs/ux-variations-dashboard.md with layout variations, alternatives, variant evaluation handoff, and Next command. Each variation should route to /ui-interview then /prototype.",
+    prompt: "You have the ux-variations skill installed. Read specs/ui-requirements-dashboard.md and write specs/ux-variations-dashboard.md with layout variations, alternatives, variant evaluation handoff, and Next command. End with `Recommended next command: $ui-interview`. Each variation should route to /ui-interview then /prototype.",
     fixtureFiles: {
       "specs/ui-requirements-dashboard.md": "Maintainers compare custom, generic, and blocked benchmark coverage before prioritizing setup work.",
     },
