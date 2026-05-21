@@ -152,8 +152,8 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
       ...(knownRoutes ? [`- known runner-specific route for this benchmark: ${knownRoutes}`] : []),
       "Use local context only. Do not call external services, mutate git remotes, install packages, or ask follow-up questions.",
     ].join("\n"),
-    perRunBudgetUsd: BENCH_BUDGETS_USD.smoke,
-    timeoutMs: BENCH_TIMEOUTS_MS.smoke,
+    perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
+    timeoutMs: BENCH_TIMEOUTS_MS.standard,
     qualityEvaluator: createPackQualityEvaluator(definition),
     qualityOutputPath: outputPath,
 

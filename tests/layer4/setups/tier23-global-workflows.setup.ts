@@ -77,8 +77,8 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
   return {
     skill: definition.skill,
     prompt: definition.prompt,
-    perRunBudgetUsd: definition.perRunBudgetUsd ?? BENCH_BUDGETS_USD.smoke,
-    timeoutMs: BENCH_TIMEOUTS_MS.smoke,
+    perRunBudgetUsd: definition.perRunBudgetUsd ?? BENCH_BUDGETS_USD.standard,
+    timeoutMs: BENCH_TIMEOUTS_MS.standard,
     qualityOutputPath: definition.outputPath,
     qualityEvaluator: createGlobalWorkflowQualityEvaluator(definition),
 

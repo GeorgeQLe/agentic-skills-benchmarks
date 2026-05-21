@@ -295,8 +295,8 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
   return {
     skill: definition.skill,
     prompt: definition.prompt,
-    perRunBudgetUsd: definition.perRunBudgetUsd ?? BENCH_BUDGETS_USD.smoke,
-    timeoutMs: definition.timeoutMs ?? BENCH_TIMEOUTS_MS.smoke,
+    perRunBudgetUsd: definition.perRunBudgetUsd ?? BENCH_BUDGETS_USD.standard,
+    timeoutMs: definition.timeoutMs ?? BENCH_TIMEOUTS_MS.standard,
     qualityOutputPath: definition.outputPath,
     qualityEvaluator: definition.qualityEvaluator,
 

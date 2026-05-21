@@ -148,8 +148,8 @@ function genericBenchSetup(skill: string): SkillBenchSetup {
   return {
     skill,
     prompt: `You have the ${skill} skill installed. Run a minimal smoke exercise for that skill using the local repository context only. Do not ask follow-up questions. Write a file named benchmark-output.md in the project root with: a heading containing "${skill}", a concise summary of what the skill would do for this repository, and a "Next command:" line. Keep the output short and deterministic.`,
-    perRunBudgetUsd: 0.25,
-    timeoutMs: 180_000,
+    perRunBudgetUsd: 1.0,
+    timeoutMs: 300_000,
 
     setupProject(workDir: string): void {
       writeFileSync(

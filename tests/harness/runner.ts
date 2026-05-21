@@ -100,9 +100,12 @@ export async function runClaude(opts: RunOptions): Promise<RunResult> {
 }
 
 export async function runCodex(opts: RunOptions): Promise<RunResult> {
-  const { prompt, workDir, timeoutMs = 120_000 } = opts;
+  const { prompt, workDir, maxBudgetUsd, timeoutMs = 120_000 } = opts;
 
-  const args = codexExecArgs(workDir, prompt);
+  const budgetNote = maxBudgetUsd != null
+    ? `\n\nIMPORTANT: Your budget limit for this task is $${maxBudgetUsd} USD. Stay within this budget.`
+    : "";
+  const args = codexExecArgs(workDir, prompt + budgetNote);
 
   const result = await runSpawnedCommand("codex", args, {
     cwd: workDir,
