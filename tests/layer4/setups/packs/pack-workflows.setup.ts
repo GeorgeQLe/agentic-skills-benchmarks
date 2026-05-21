@@ -117,6 +117,27 @@ const packFamilyContexts: Record<string, { id: string; facts: string[]; traits: 
   },
 };
 
+function domainContextLine(definition: PackWorkflowDefinition): string | undefined {
+  const ctx = packFamilyContexts[definition.pack];
+  if (!ctx) return undefined;
+  const facts = ctx.facts.join(" and ");
+  const traits = ctx.traits.join(", ");
+  return `- domain context: this ${definition.pack} workflow covers ${facts} with attention to ${traits}`;
+}
+
+function domainContextFixtureSection(definition: PackWorkflowDefinition): string[] {
+  const ctx = packFamilyContexts[definition.pack];
+  if (!ctx) return [];
+  return [
+    "## Domain Context",
+    "",
+    `Pack family: ${definition.pack}`,
+    `Key concerns: ${ctx.facts.join(", ")}`,
+    `Practical dimensions: ${ctx.traits.join(", ")}`,
+    "",
+  ];
+}
+
 function expectedRoute(definition: PackWorkflowDefinition, agent?: BenchAgent): string | undefined {
   if (agent && definition.nextRoutes?.[agent]) {
     return definition.nextRoutes[agent];
@@ -150,6 +171,7 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
       "- risks or assumptions",
       "- a literal final handoff label accepted by the harness, such as `Recommended next skill: <command>` or `Recommended next command: <command>`",
       ...(knownRoutes ? [`- known runner-specific route for this benchmark: ${knownRoutes}`] : []),
+      ...(domainContextLine(definition) ? [domainContextLine(definition)!] : []),
       "Use local context only. Do not call external services, mutate git remotes, install packages, or ask follow-up questions.",
     ].join("\n"),
     perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
@@ -167,6 +189,7 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
           `Skill: ${definition.skill}`,
           `Focus: ${definition.focus}`,
           "",
+          ...domainContextFixtureSection(definition),
           "## Inputs",
           ...definition.inputs.map((input) => `- ${input}`),
           "",
