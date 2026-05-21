@@ -518,7 +518,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "desk-flip",
     outputPath: "desk-flip-report.md",
-    prompt: "You have the desk-flip skill installed. Autopsy the stuck project in the current directory. Read README.md and git-log.txt for context. Write desk-flip-report.md with Project Summary, What Went Wrong, Salvageable Specs & Designs, Salvageable Assets, Lessons for the Fresh Start, and Recommended Bootstrap Input. End with Next work and Recommended next command: /bootstrap-repo.",
+    prompt: "You have the desk-flip skill installed. Autopsy the stuck project in the current directory. Read README.md and git-log.txt for context. Write desk-flip-report.md with Project Summary, What Went Wrong, Salvageable Specs & Designs, Salvageable Assets, Lessons for the Fresh Start, and Recommended Bootstrap Input. End with Next work and a Recommended next command for the active runner: /bootstrap-repo for Claude, $bootstrap-repo for Codex.",
     fixtureFiles: {
       "README.md": "# Stuck App\nA todo app that never shipped. Started 6 months ago.\n",
       "git-log.txt": "feat: add auth before any UI\nfeat: add CI pipeline\nfix: CI flake\nchore: upgrade deps\nfix: CI flake again\nfeat: add database migrations\n",
@@ -526,7 +526,10 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     },
     expectedIncludes: ["What Went Wrong", "Salvageable", "Lessons", "bootstrap-repo"],
     expectedPattern: /infrastructure before|never shipped|stuck/i,
-    recommendedRoute: "/bootstrap-repo",
+    recommendedRoutes: {
+      claude: "/bootstrap-repo",
+      codex: "$bootstrap-repo",
+    },
     artifactReferencePattern: DESK_FLIP_ARTIFACT_REFERENCE_PATTERN,
   },
   {
