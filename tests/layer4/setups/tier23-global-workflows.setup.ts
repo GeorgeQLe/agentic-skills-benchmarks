@@ -451,12 +451,12 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "concept-exploration",
     outputPath: "research/concept-brief-poketo-core.md",
-    prompt: "You have the concept-exploration skill installed. Read idea.md and pivot-notes.md, then write research/concept-brief-poketo-core.md and research/concept-brief-poketo-core-interview.md. Use slugged concept brief filenames because this repo has multiple related Poketo concepts. Preserve poketo.work as a related future concept instead of conflating it with Poketo Core. Include problem, audience, value, constraints, open questions, concept slug, output paths, and Next command. End with `Recommended next command: $spec-interview`.",
+    prompt: "You have the concept-exploration skill installed in an already bootstrapped repo. Read idea.md and pivot-notes.md, then write research/concept-brief-poketo-core.md and research/concept-brief-poketo-core-interview.md. Use slugged concept brief filenames because this repo has multiple related Poketo concepts. Preserve poketo.work as a related future concept instead of conflating it with Poketo Core. Include problem, audience, value, constraints, open questions, concept slug, output paths, and Next command. End with `Recommended next command: $icp`.",
     fixtureFiles: {
       "idea.md": "$concept-exploration poketo.work, a kanban project management tool.",
       "pivot-notes.md": "During interview, pivot to Poketo Core as the central coordination layer. Poketo Work remains a related future app concept and should not overwrite or share one generic overall concept brief.",
     },
-    expectedIncludes: ["problem", "audience", "value", "open questions", "poketo-core", "poketo.work"],
+    expectedIncludes: ["problem", "audience", "value", "open questions", "poketo-core", "poketo.work", "icp"],
     expectedEvidence: [
       {
         description: "Output names the slugged Poketo Core brief path.",
@@ -472,7 +472,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
       },
     ],
     expectedPattern: /Poketo Core|central coordination layer/i,
-    recommendedRoute: "$spec-interview",
+    recommendedRoute: "$icp",
   },
   {
     skill: "create-agentic-skill",
@@ -762,11 +762,11 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "scaffold",
     outputPath: "scaffold-plan.md",
-    prompt: "You have the scaffold skill installed. Read scaffold-request.md and write scaffold-plan.md with package path, files, conventions, validation, and Next command. End with `Recommended next command: $run`. Do not install dependencies.",
+    prompt: "You have the scaffold skill installed. Read scaffold-request.md and write scaffold-plan.md with package path, files, conventions, validation, next-step placement after roadmap/plan-phase, and Next command. End with `Recommended next command: $run`. Do not install dependencies.",
     fixtureFiles: {
       "scaffold-request.md": "Add a tests fixture package for benchmark report parsing.",
     },
-    expectedIncludes: ["package path", "files", "conventions", "validation"],
+    expectedIncludes: ["package path", "files", "conventions", "validation", "roadmap"],
     expectedPattern: /benchmark report parsing|fixture package/i,
     recommendedRoute: "$run",
   },
