@@ -406,11 +406,11 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "bootstrap-repo",
     outputPath: "README.md",
-    prompt: "You have the bootstrap-repo skill installed. Convert brief.md into README.md and AGENTS.md with project purpose, workflows, verification, and Next command. This is a product/app bootstrap, so route to alignment-first requirements work, not implementation. End with `Recommended next command: $ui-interview --requirements-only`. Keep files concise.",
+    prompt: "You have the bootstrap-repo skill installed. Convert brief.md into README.md and AGENTS.md with project purpose, workflows, verification, and Next command. This is a product/app bootstrap, so route to alignment-first requirements work, not implementation. If reset mode is discussed, say old docs/research/specs should be archived and only the high-level concept should remain active. End with `Recommended next command: $ui-interview --requirements-only`. Keep files concise.",
     fixtureFiles: {
       "brief.md": "# Brief\n\nPocket Ops is a lightweight operator console for field teams. Purpose: help dispatch leads triage jobs, view technician status, and coordinate handoffs. Setup and test commands are not known yet.\n",
     },
-    expectedIncludes: ["project purpose", "verification", "Next command", "ui-interview"],
+    expectedIncludes: ["project purpose", "verification", "Next command", "ui-interview", "high-level concept"],
     expectedPattern: /Pocket Ops|operator console|field teams/i,
     recommendedRoute: "$ui-interview --requirements-only",
   },
@@ -533,13 +533,13 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "desk-flip",
     outputPath: "desk-flip-report.md",
-    prompt: "You have the desk-flip skill installed. Autopsy the stuck project in the current directory. Read README.md and git-log.txt for context. Write desk-flip-report.md with Project Summary, What Went Wrong, Salvageable Specs & Designs, Salvageable Assets, Lessons for the Fresh Start, and Recommended Bootstrap Input. The user wants to keep this repo, so route to reset/archive bootstrap, then mention alignment-first requirements before prototype work. End with Next work and a Recommended next command for the active runner: /bootstrap-repo --reset-existing for Claude, $bootstrap-repo --reset-existing for Codex.",
+    prompt: "You have the desk-flip skill installed. Autopsy the stuck project in the current directory. Read README.md and git-log.txt for context. Write desk-flip-report.md with Project Summary, What Went Wrong, Salvageable Specs & Designs, Salvageable Assets, Lessons for the Fresh Start, and Recommended Bootstrap Input. The user wants to keep this repo, so route to reset/archive bootstrap. Say old docs/research/specs should be archived too and only the high-level concept should remain active before alignment-first requirements and prototype work. End with Next work and a Recommended next command for the active runner: /bootstrap-repo --reset-existing for Claude, $bootstrap-repo --reset-existing for Codex.",
     fixtureFiles: {
       "README.md": "# Stuck App\nA todo app that never shipped. Started 6 months ago.\n",
       "git-log.txt": "feat: add auth before any UI\nfeat: add CI pipeline\nfix: CI flake\nchore: upgrade deps\nfix: CI flake again\nfeat: add database migrations\n",
       "specs/mvp.md": "# MVP Spec\nBasic CRUD todos with user accounts.\n",
     },
-    expectedIncludes: ["What Went Wrong", "Salvageable", "Lessons", "bootstrap-repo", "reset", "archive", "ui-interview"],
+    expectedIncludes: ["What Went Wrong", "Salvageable", "Lessons", "bootstrap-repo", "reset", "archive", "ui-interview", "high-level concept"],
     expectedPattern: /infrastructure before|never shipped|stuck/i,
     recommendedRoutes: {
       claude: "/bootstrap-repo --reset-existing",
