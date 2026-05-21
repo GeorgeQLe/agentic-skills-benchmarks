@@ -663,6 +663,51 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     recommendedRoute: "$uat --variant-evaluation",
   },
   {
+    skill: "quiz-me",
+    outputPath: "quiz-me-question-plan.md",
+    prompt: "You have the quiz-me skill installed. Read the alignment page at docs/workflow-refactor-proposal.html silently and generate quiz-me-question-plan.md containing: (1) a Document Analysis section listing all major sections found, key decisions, and cross-section relationships identified; (2) a Question Plan section with 8-12 numbered questions covering every major section, each labeled by type (Relationship, Implication, Detail trap, Intent, or Synthesis) with the target section(s) noted; (3) a Sample Verdict section showing a hypothetical pass/fail verdict with per-section comprehension summary. Do not ask follow-up questions. Do not use AskUserQuestion. End with Next command. Questions must target cross-section relationships, specific constraints (the 48-hour migration window, the three-phase rollback), and intent (why event-driven over polling). Do not generate surface-recall questions answerable from headings alone.",
+    fixtureFiles: {
+      "docs/workflow-refactor-proposal.html": [
+        "<html><body>",
+        "<h1>Workflow Refactor Proposal</h1>",
+        "<h2>1. Overview</h2>",
+        "<p>Replace the polling-based task dispatcher with an event-driven architecture. The current system checks for new tasks every 30 seconds, causing up to 30s latency and wasting 40% of API quota on empty polls. The event-driven approach uses webhook callbacks from the task queue, reducing median latency to under 200ms.</p>",
+        "<h2>2. Migration Strategy</h2>",
+        "<p>Migration occurs in three phases over a 48-hour maintenance window. Phase 1 (0-12h): deploy the event bridge alongside the existing poller in shadow mode — events are received but not acted on, allowing validation of event delivery without risk. Phase 2 (12-36h): enable dual-write mode where both the poller and event bridge process tasks, with the poller as fallback. Phase 3 (36-48h): disable the poller and promote the event bridge to primary.</p>",
+        "<h2>3. Rollback Plan</h2>",
+        "<p>Each phase has an independent rollback trigger. Phase 1 rollback: if event delivery rate drops below 99.5%, disable the bridge and revert to polling-only. Phase 2 rollback: if duplicate task execution exceeds 0.1% during dual-write, disable the bridge and let the poller recover. Phase 3 rollback: if p95 latency exceeds 500ms after poller removal, re-enable the poller within 5 minutes via the emergency feature flag <code>FORCE_POLLER_FALLBACK</code>.</p>",
+        "<h2>4. Trade-offs</h2>",
+        "<p>Event-driven eliminates polling waste but introduces a dependency on the webhook infrastructure (currently 99.97% uptime). If the webhook provider has an outage, the fallback poller must be maintained as cold standby for at least 6 months post-migration. The team considered a hybrid approach (reduced-frequency polling + events) but rejected it because maintaining two code paths doubles the testing surface and the 30s polling floor still fails the 200ms latency target.</p>",
+        "<h2>5. Observability</h2>",
+        "<p>New metrics: event_delivery_lag_ms (p50, p95, p99), duplicate_task_rate, and fallback_activation_count. Alert thresholds: event_delivery_lag_p95 > 400ms triggers page, duplicate_task_rate > 0.05% triggers warning, fallback_activation_count > 0 triggers incident. The existing poll_empty_ratio metric will be retained during the 6-month cold standby period to validate that re-enabling the poller remains viable.</p>",
+        "<h2>6. Security Considerations</h2>",
+        "<p>Webhook endpoints require HMAC-SHA256 signature verification using a rotating secret with a 90-day rotation period. The signing secret is stored in the vault under <code>webhook/task-dispatcher/hmac-key</code>. During Phase 2 dual-write, both the poller's API key and the webhook signing secret must be active simultaneously, requiring a temporary exception to the single-credential-per-service policy documented in SEC-2024-0147.</p>",
+        "</body></html>",
+      ].join("\n"),
+    },
+    expectedIncludes: ["cross-section", "relationship", "implication", "verdict"],
+    expectedEvidence: [
+      {
+        description: "Questions reference the 48-hour migration window",
+        pattern: /48[- ]hour/i,
+      },
+      {
+        description: "Questions reference specific rollback thresholds",
+        pattern: /99\.5%|0\.1%|500ms|FORCE_POLLER_FALLBACK/,
+      },
+      {
+        description: "Questions target cross-section relationships between migration and rollback",
+        pattern: /phase\s*[123][\s\S]{0,300}rollback|rollback[\s\S]{0,300}phase\s*[123]/i,
+      },
+      {
+        description: "Questions address the event-driven vs polling trade-off intent",
+        pattern: /event[- ]driven[\s\S]{0,200}poll|poll[\s\S]{0,200}event[- ]driven/i,
+      },
+    ],
+    expectedPattern: /relationship|implication|detail trap|intent|synthesis/i,
+    recommendedRoute: "$quiz-me",
+  },
+  {
     skill: "reconcile-dev-docs",
     outputPath: "tasks/reconciliation-report.md",
     prompt: "You have the reconcile-dev-docs skill installed. Compare docs-state.md with code-state.md and write tasks/reconciliation-report.md with stale docs, missing tasks, fixes, validation, and Next command.",

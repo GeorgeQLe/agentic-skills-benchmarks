@@ -54,6 +54,7 @@ const TIER23_GLOBAL_CUSTOM_SKILLS = [
   "pack",
   "prototype",
   "provision-agentic-config",
+  "quiz-me",
   "reconcile-dev-docs",
   "regression-check",
   "report-website",
@@ -94,10 +95,6 @@ const TIER23_GLOBAL_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "block
   "uat-guide": {
     blocked_reason: "Claude-only manual UAT guidance skill without a Codex skill contract.",
     next_command: "$targeted-skill-builder uat-guide benchmark coverage",
-  },
-  "quiz-me": {
-    blocked_reason: "Claude-only interactive skill requiring AskUserQuestion per turn; cannot run in non-interactive benchmark harness.",
-    next_command: "$targeted-skill-builder quiz-me benchmark coverage",
   },
 };
 
