@@ -37,6 +37,7 @@ interface GlobalWorkflowDefinition {
   remediationReadyPatterns?: RegExp[];
   allowedFixtureTerms?: string[];
   artifactReferencePattern?: RegExp;
+  forbiddenStdoutPatterns?: RegExp[];
   includeStdoutInAssertions?: boolean;
   actionabilityPatterns?: RegExp[];
   actionabilityCritical?: boolean;
@@ -119,6 +120,13 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
 
       if (definition.expectedPattern) {
         assertions.push(assertContentMatches(content, definition.expectedPattern, "Output matches workflow expectation"));
+      }
+
+      for (const forbiddenPattern of definition.forbiddenStdoutPatterns ?? []) {
+        assertions.push({
+          description: `Stdout avoids forbidden pattern ${forbiddenPattern}`,
+          pass: !forbiddenPattern.test(result.stdout),
+        });
       }
 
       assertions.push(assertNextCommand(content));
@@ -691,6 +699,8 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     recommendedRoute: "$run",
     includeStdoutInAssertions: true,
     allowedFixtureTerms: ["package-lock.json"],
+    artifactReferencePattern: /(?:^|\s)(?:\.\/)?AGENTS\.md(?:\s|[.,):]|$)/i,
+    forbiddenStdoutPatterns: [/\/(?:private\/var|var\/folders|tmp)\//i],
   },
   {
     skill: "prototype",
