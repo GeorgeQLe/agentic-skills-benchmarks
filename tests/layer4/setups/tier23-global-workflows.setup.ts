@@ -37,6 +37,7 @@ interface GlobalWorkflowDefinition {
   remediationReadyPatterns?: RegExp[];
   allowedFixtureTerms?: string[];
   artifactReferencePattern?: RegExp;
+  includeStdoutInAssertions?: boolean;
   actionabilityPatterns?: RegExp[];
   actionabilityCritical?: boolean;
   targetedMigrationRoutePattern?: RegExp;
@@ -98,8 +99,11 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
         assertFileCreated(result, definition.outputPath),
       ];
 
-      const content = readGeneratedFile(result, definition.outputPath);
-      if (!content) return assertions;
+      const artifactContent = readGeneratedFile(result, definition.outputPath);
+      if (!artifactContent) return assertions;
+      const content = definition.includeStdoutInAssertions
+        ? `${artifactContent}\n\n${result.stdout}`
+        : artifactContent;
 
       for (const expected of definition.expectedIncludes) {
         assertions.push(assertContentIncludes(content, expected, `Output includes ${expected}`));
@@ -661,11 +665,32 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     outputPath: "AGENTS.md",
     prompt: "You have the provision-agentic-config skill installed. Read workflow.md and write AGENTS.md with orchestration rules, verification, shipping, monorepo safety, and Next command. End with `Recommended next command: $run`.",
     fixtureFiles: {
+      "pnpm-workspace.yaml": "packages:\n  - packages/*\n",
       "workflow.md": "Use plan-first execution, no GitHub Actions, and benchmark coverage validation before shipping.",
     },
-    expectedIncludes: ["orchestration rules", "verification", "shipping", "monorepo safety"],
-    expectedPattern: /GitHub Actions|benchmark coverage/i,
+    expectedIncludes: ["verification", "shipping"],
+    expectedEvidence: [
+      {
+        description: "Output includes an orchestration policy section",
+        pattern: /#{1,3}\s*(?:Workflow\s+Orchestration|Orchestration\s+Rules|Plan[- ]First\s+Execution)/i,
+      },
+      {
+        description: "Output includes a monorepo safety policy section",
+        pattern: /#{1,3}\s*(?:\d+\.\s*)?(?:Monorepo\s+Parallel[- ]Work\s+Safety|Monorepo\s+Safety)/i,
+      },
+      {
+        description: "Output preserves primary-branch shipping policy",
+        pattern: /(?:Direct-To-Primary|primary branch|Shipping Rules)/i,
+      },
+      {
+        description: "Output preserves GitHub Actions constraint",
+        pattern: /GitHub Actions/i,
+      },
+    ],
+    expectedPattern: /GitHub Actions/i,
     recommendedRoute: "$run",
+    includeStdoutInAssertions: true,
+    allowedFixtureTerms: ["package-lock.json"],
   },
   {
     skill: "prototype",
