@@ -461,6 +461,28 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     recommendedRoute: "$run",
   },
   {
+    skill: "compile-central-alignment",
+    outputPath: "alignment/index.html",
+    prompt: "You have the compile-central-alignment skill installed. Scan the alignment/ directory for HTML files, extract titles and metadata, then generate alignment/index.html as a self-contained table of contents with card grid, search filter, and page count. End with `Recommended next command: $skills`.",
+    fixtureFiles: {
+      "alignment/design-system-tokens.html": [
+        '<!doctype html><html lang="en"><head><title>Design System Tokens</title></head>',
+        "<body><main><h1>Design System Tokens</h1>",
+        '<p class="meta">Generated 2026-05-20</p>',
+        "<p>Token extraction report.</p></main></body></html>",
+      ].join(""),
+      "alignment/dead-code-utils.html": [
+        '<!doctype html><html lang="en"><head><title>Dead Code - Utils</title></head>',
+        "<body><main><h1>Dead Code - Utils</h1>",
+        '<p class="meta">Generated 2026-05-18</p>',
+        "<p>Unused export scan results.</p></main></body></html>",
+      ].join(""),
+    },
+    expectedIncludes: ["Design System Tokens", "Dead Code"],
+    expectedPattern: /alignment\/index\.html/i,
+    recommendedRoute: "$skills",
+  },
+  {
     skill: "concept-exploration",
     outputPath: "research/concept-brief-poketo-core.md",
     prompt: "You have the concept-exploration skill installed in an already bootstrapped repo. Read idea.md and pivot-notes.md, then write research/concept-brief-poketo-core.md and research/concept-brief-poketo-core-interview.md. Use slugged concept brief filenames because this repo has multiple related Poketo concepts. Preserve poketo.work as a related future concept instead of conflating it with Poketo Core. Include problem, audience, value, constraints, open questions, concept slug, output paths, and Next command. End with `Recommended next command: $icp`.",
