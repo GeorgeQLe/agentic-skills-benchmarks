@@ -576,7 +576,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "growth-model", pack: "business-growth", focus: "growth model", inputs: ["Acquisition", "Activation", "Referral"], expectedPattern: /growth|model|acquisition/i },
   { skill: "gtm", pack: "business-growth", focus: "go-to-market plan", inputs: ["Founder-led launch", "Community channel"], expectedPattern: /go-to-market|gtm|channel/i },
   { skill: "hook-model", pack: "business-growth", focus: "retention hook model", inputs: ["Trigger", "Action", "Reward"], expectedPattern: /hook|trigger|reward/i },
-  { skill: "icp", pack: "business-discovery", focus: "ideal customer profile", inputs: ["Small teams", "Repeated manual research"], expectedPattern: /ideal customer|icp|profile/i },
+  { skill: "icp", pack: "business-discovery", focus: "ideal customer profile with willingness-to-pay evidence", inputs: ["Small teams", "Repeated manual research", "Budget owner and paid alternatives"], expectedPattern: /ideal customer|icp|willingness-to-pay|WTP|paid alternatives/i },
   { skill: "investor-update", pack: "business-ops", focus: "investor update structure", inputs: ["Wins", "Metrics", "Asks"], expectedPattern: /investor|update|metrics/i },
   { skill: "journey-map", pack: "customer-lifecycle", focus: "customer journey map", inputs: ["Awareness", "Trial", "Activation"], expectedPattern: /journey|customer|activation/i },
   { skill: "onboarding-map", pack: "customer-lifecycle", focus: "activation onboarding", inputs: ["Signup", "Setup", "First success"], expectedPattern: /onboarding|activation|first success/i },
