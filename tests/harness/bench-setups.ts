@@ -3,6 +3,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { designSystemSetup } from "../layer4/setups/design-system.setup.js";
 import { designSystemDraftstonkSetup } from "../layer4/setups/design-system-draftstonk.setup.js";
+import commitAndPushByFeatureSetup from "../layer4/setups/git-fixture-commit-and-push.setup.js";
+import syncSetup from "../layer4/setups/git-fixture-sync.setup.js";
 import {
   benchmarkTestSkillSetup,
   featureInterviewSetup,
@@ -29,6 +31,7 @@ export const CUSTOM_BENCH_SETUPS: Record<string, SkillBenchSetup> = {
   ...GLOBAL_WORKFLOW_SETUPS,
   ...PACK_WORKFLOW_SETUPS,
   "benchmark-test-skill": benchmarkTestSkillSetup,
+  "commit-and-push-by-feature": commitAndPushByFeatureSetup,
   "design-system": designSystemSetup,
   "design-system-draftstonk": designSystemDraftstonkSetup,
   "feature-interview": featureInterviewSetup,
@@ -41,6 +44,7 @@ export const CUSTOM_BENCH_SETUPS: Record<string, SkillBenchSetup> = {
   "ship-end": shipEndSetup,
   "skill-interview": skillInterviewSetup,
   "spec-interview": specInterviewSetup,
+  "sync": syncSetup,
   "targeted-skill-builder": targetedSkillBuilderSetup,
 };
 

@@ -817,6 +817,17 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     recommendedRoute: "$run",
   },
   {
+    skill: "report-website",
+    outputPath: "report-website-plan.md",
+    prompt: "You have the report-website skill installed. Read reports/benchmark-summary.md and write report-website-plan.md with source mapping, route plan, content sections, visual hierarchy, validation, and Next command. End with `Recommended next command: $run`.",
+    fixtureFiles: {
+      "reports/benchmark-summary.md": "# Benchmark Summary\n\nCoverage improved for setup registry validation. Remaining gaps should be visible by skill, agent, and status.",
+    },
+    expectedIncludes: ["source mapping", "route plan", "content sections", "validation"],
+    expectedPattern: /benchmark|coverage|status/i,
+    recommendedRoute: "$run",
+  },
+  {
     skill: "scaffold",
     outputPath: "scaffold-plan.md",
     prompt: "You have the scaffold skill installed. Read scaffold-request.md and write scaffold-plan.md with package path, files, conventions, validation, next-step placement after roadmap/plan-phase, and Next command. End with `Recommended next command: $run`. Do not install dependencies.",
