@@ -95,6 +95,7 @@ export interface SkillBenchSetup {
   perRunBudgetUsd: number;
   timeoutMs: number;
   qualityOutputPath?: string;
+  qualityOutputPaths?: string[];
   setupProject(workDir: string): void;
   assertResult(result: RunResult, context?: { agent: BenchAgent }): Assertion[];
   qualityEvaluator?: QualityEvaluator;

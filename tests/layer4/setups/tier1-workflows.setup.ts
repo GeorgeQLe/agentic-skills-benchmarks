@@ -25,10 +25,13 @@ import {
 interface Tier1WorkflowDefinition {
   skill: string;
   outputPath: string;
+  qualityOutputPaths?: string[];
   prompt: string;
   fixtureFiles: Record<string, string>;
   expectedIncludes: string[];
   expectedPattern?: RegExp;
+  expectedAdditionalFiles?: string[];
+  additionalContentChecks?: Record<string, (content: string) => Assertion[]>;
   perRunBudgetUsd?: number;
   timeoutMs?: number;
   recommendedRoute?: string;
@@ -298,6 +301,7 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
     perRunBudgetUsd: definition.perRunBudgetUsd ?? BENCH_BUDGETS_USD.standard,
     timeoutMs: definition.timeoutMs ?? BENCH_TIMEOUTS_MS.standard,
     qualityOutputPath: definition.outputPath,
+    qualityOutputPaths: definition.qualityOutputPaths,
     qualityEvaluator: definition.qualityEvaluator,
 
     setupProject(workDir: string): void {
@@ -314,6 +318,7 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
           pass: result.exitCode === 0,
         },
         assertFileCreated(result, definition.outputPath),
+        ...(definition.expectedAdditionalFiles ?? []).map((path) => assertFileCreated(result, path)),
       ];
 
       const content = readGeneratedFile(result, definition.outputPath);
@@ -325,6 +330,13 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
 
       if (definition.expectedPattern) {
         assertions.push(assertContentMatches(content, definition.expectedPattern, "Output matches workflow expectation"));
+      }
+
+      for (const [path, check] of Object.entries(definition.additionalContentChecks ?? {})) {
+        const additionalContent = readGeneratedFile(result, path);
+        if (additionalContent) {
+          assertions.push(...check(additionalContent));
+        }
       }
 
       assertions.push(assertNextCommand(content));
@@ -605,13 +617,28 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "investigate",
     outputPath: "investigation-report.md",
-    prompt: "You have the investigate skill installed. Investigate the failing log in logs/failure.txt and write investigation-report.md with Strategy Used, Root Cause, Fix Applied, Prevention, and Next command. Do not edit source. Treat the investigation as already fixed, validated, committed, and pushed: commit 50e118c is on origin/master, `git status --short --branch` is clean, and there are no unpushed commits. Because there is nothing left to ship or document, the final handoff must not recommend ship-end.",
+    qualityOutputPaths: ["alignment/investigate-benchmark-html-evaluation.html"],
+    prompt: "You have the investigate skill installed. Investigate the failing log in logs/failure.txt and write investigation-report.md with Strategy Used, Root Cause, Fix Applied, Prevention, and Next command. Because this investigation produces a durable report, also write alignment/investigate-benchmark-html-evaluation.html as the full-depth HTML alignment page for the report. The HTML page must include the full report content, dark-mode CSS variables, evidence coverage and proposed file changes gates, required radio-button questions with Other / None of the above and Need clarification options, a Compile Answers button, and YAML compilation behavior. Do not edit source. Treat the investigation as already fixed, validated, committed, and pushed: commit 50e118c is on origin/master, `git status --short --branch` is clean, and there are no unpushed commits. Because there is nothing left to ship or document, the final handoff must not recommend ship-end.",
     fixtureFiles: {
       "logs/failure.txt": "ERROR: Custom benchmark coverage row for run points to missing setup_path.\n",
       "tests/harness/bench-coverage.ts": "coverage_status: \"custom\", setup_path: \"tests/layer4/setups/run.setup.ts\"",
     },
     expectedIncludes: ["Strategy Used", "Root Cause", "Prevention"],
     expectedPattern: /missing setup_path|run\.setup\.ts/i,
+    expectedAdditionalFiles: ["alignment/investigate-benchmark-html-evaluation.html"],
+    additionalContentChecks: {
+      "alignment/investigate-benchmark-html-evaluation.html": (content) => [
+        assertContentIncludes(content, "Strategy Used", "Alignment page includes report content"),
+        assertContentIncludes(content, "Root Cause", "Alignment page includes root cause"),
+        assertContentIncludes(content, "Compile Answers", "Alignment page includes compile control"),
+        assertContentIncludes(content, "data-gate-type", "Alignment page includes gate metadata"),
+        assertContentIncludes(content, "Other / None of the above", "Alignment page includes standing Other option"),
+        assertContentIncludes(content, "Need clarification", "Alignment page includes clarification option"),
+        assertContentMatches(content, /--bg:\s*#0d1117/i, "Alignment page uses required dark-mode variable"),
+        assertContentMatches(content, /type=["']radio["']/i, "Alignment page uses radio-button inputs"),
+        assertContentMatches(content, /gate_type/i, "Alignment page compiles gate_type YAML"),
+      ],
+    },
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["custom benchmark coverage row", "setup_path", "run.setup.ts"],
       specificMarkers: ["Root Cause", "Prevention", "missing setup_path"],
@@ -619,8 +646,24 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       coreTraitDescription: "Identifies the concrete failure cause and prevention path",
       coreTraits: ["Strategy Used", "Root Cause", "Fix Applied", "Prevention"],
       validationPatterns: [/missing setup_path|run\.setup\.ts/i],
-      concreteFiles: ["tests/harness/bench-coverage.ts"],
-      extraCriteria: [investigateCleanShippedNoShipEndCriterion],
+      concreteFiles: ["tests/harness/bench-coverage.ts", "alignment/investigate-benchmark-html-evaluation.html"],
+      extraCriteria: [
+        investigateCleanShippedNoShipEndCriterion,
+        requiredFactCoverageCriterion({
+          id: "alignment-html-contract",
+          description: "Generated alignment page preserves report content and review-gate controls",
+          weight: 4,
+          critical: true,
+          facts: [
+            "Compile Answers",
+            "data-gate-type",
+            "Other / None of the above",
+            "Need clarification",
+            "Strategy Used",
+            "Root Cause",
+          ],
+        }),
+      ],
     }),
   },
   {

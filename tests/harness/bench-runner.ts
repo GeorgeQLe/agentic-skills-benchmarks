@@ -117,9 +117,8 @@ function collectRunArtifacts(
   setup: SkillBenchSetup,
   result: RunResult,
 ): Record<string, string> | undefined {
-  const paths = setup.qualityOutputPath
-    ? [setup.qualityOutputPath]
-    : result.files.filter((file) => /\.(md|txt|json|ya?ml)$/i.test(file)).slice(0, 5);
+  const paths = qualityOutputPaths(setup)
+    ?? result.files.filter((file) => /\.(md|txt|json|ya?ml|html?)$/i.test(file)).slice(0, 8);
 
   const artifacts: Record<string, string> = {};
   for (const path of paths) {
@@ -142,12 +141,23 @@ function truncateArtifact(content: string): string {
 }
 
 function collectQualityOutput(setup: SkillBenchSetup, result: RunResult): string {
-  if (setup.qualityOutputPath) {
-    try {
-      return readFileSync(join(result.workDir, setup.qualityOutputPath), "utf8");
-    } catch {
-      return `${result.stdout}\n${result.stderr}`;
-    }
+  const paths = qualityOutputPaths(setup);
+  if (paths) {
+    const fileOutput = paths.map((path) => {
+      try {
+        return [
+          `\n--- BEGIN ${path} ---`,
+          readFileSync(join(result.workDir, path), "utf8"),
+          `--- END ${path} ---`,
+        ].join("\n");
+      } catch {
+        return "";
+      }
+    }).filter(Boolean);
+
+    return fileOutput.length > 0
+      ? fileOutput.join("\n")
+      : `${result.stdout}\n${result.stderr}`;
   }
 
   const fileOutput = result.files.map((file) => {
@@ -159,6 +169,14 @@ function collectQualityOutput(setup: SkillBenchSetup, result: RunResult): string
   });
 
   return [result.stdout, result.stderr, ...fileOutput].filter(Boolean).join("\n");
+}
+
+function qualityOutputPaths(setup: SkillBenchSetup): string[] | undefined {
+  const paths = [
+    setup.qualityOutputPath,
+    ...(setup.qualityOutputPaths ?? []),
+  ].filter((path): path is string => Boolean(path));
+  return paths.length > 0 ? [...new Set(paths)] : undefined;
 }
 
 export function startOrResumeSession(
