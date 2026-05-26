@@ -314,7 +314,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "risk-register",
   "roadmap",
   "roadmap-kanban",
-  "run",
+  "exec",
   "run-kanban",
   "runway-model",
   "scaffold",
@@ -433,7 +433,7 @@ const COVERAGE_OVERRIDES: Record<string, Partial<BenchCoverageRow>> = {
     priority_tier: 1,
     fixture_type: "roadmap-fixture",
   },
-  "run": {
+  "exec": {
     coverage_status: "custom",
     setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
     priority_tier: 1,
@@ -580,6 +580,7 @@ function walkSkillPaths(dir: string): string[] {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const fullPath = join(dir, entry.name);
     if (entry.isDirectory()) {
+      if (entry.name === "archive") continue;
       paths.push(...walkSkillPaths(fullPath));
     } else if (entry.name === "SKILL.md") {
       paths.push(fullPath);
