@@ -10,4 +10,4 @@ Evidence:
 Validation will run `pnpm --dir tests test:layer1 -- bench-quality bench-report bench-setups` and the expected red result is missing quality implementation.
 
 Next work: implement benchmark quality scoring primitives.
-Recommended next command: $run
+Recommended next command: $exec

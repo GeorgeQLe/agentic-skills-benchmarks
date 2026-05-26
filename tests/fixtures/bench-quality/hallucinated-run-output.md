@@ -5,4 +5,4 @@ Step 36.1 updates `.github/workflows/benchmark.yml` and deploys the benchmark da
 Validation passed in GitHub Actions.
 
 Next work: monitor production.
-Recommended next command: $run
+Recommended next command: $exec

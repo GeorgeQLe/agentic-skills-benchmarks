@@ -153,7 +153,7 @@ const sessionTriageNoOverRemediationCriterion: QualityCriterion = {
     const saysOneOffNoncompliance = /one[- ]off|agent noncompliance|noncompliance with an adequate|do not change (a )?skill|no skill change/i.test(output);
     const unconditionalSkillBuilderRoute = /Recommended next (skill|command):\s*[`'"]?\/?\$?targeted-skill-builder\b/im.test(output)
       || /## Next command\s+[`'"]?\/?\$?targeted-skill-builder\b/im.test(output);
-    const rebrandsExistingRuleAsContractChange = /\b(add|patch|update|rewrite|harden|upgrade|tighten)\b[^.\n]{0,120}\b(pre-ship validation|validation evidence|evidence gate|validation gate|contract|run skill|\$run|\/run)\b/i.test(output)
+    const rebrandsExistingRuleAsContractChange = /\b(add|patch|update|rewrite|harden|upgrade|tighten)\b[^.\n]{0,120}\b(pre-ship validation|validation evidence|evidence gate|validation gate|contract|exec skill|\$exec|\/exec)\b/i.test(output)
       || /\b(pre-ship validation|validation evidence|evidence gate|validation gate)\b[^.\n]{0,120}\b(contract change|skill change|targeted-skill-builder|patch|update|rewrite)\b/i.test(output);
     const explicitlyRejectsSkillChange = /\b(no skill change|do not change (a )?skill|not (the )?skill contract|no .*contract gap|none verified)\b/i.test(output)
       || /\bunless\b[^.\n]{0,100}\b(additional evidence|recurrence|contract gap)\b/i.test(output);
@@ -218,13 +218,13 @@ const singleActiveRunnerFinalRouteCriterion: QualityCriterion = {
     const finalHandoff = output.match(
       /(?:^|\n)(?:#{1,6}\s*)?(?:Recommended next command|Next command|Next Command)\s*:?\s*([\s\S]*?)$/i,
     )?.[1] ?? output;
-    const hasSlashRun = /(?:^|[\s`'"(:-])\/run(?:[\s`'".,)]|$)/i.test(finalHandoff);
-    const hasDollarRun = /(?:^|[\s`'"(:-])\$run(?:[\s`'".,)]|$)/i.test(finalHandoff);
+    const hasSlashRun = /(?:^|[\s`'"(:-])\/exec(?:[\s`'".,)]|$)/i.test(finalHandoff);
+    const hasDollarRun = /(?:^|[\s`'"(:-])\$exec(?:[\s`'".,)]|$)/i.test(finalHandoff);
 
     if (hasSlashRun && hasDollarRun) {
       return {
         score: 0,
-        notes: ["final handoff lists both /run and $run instead of one active-runner command"],
+        notes: ["final handoff lists both /exec and $exec instead of one active-runner command"],
       };
     }
 
@@ -344,7 +344,7 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
       if (route) {
         assertions.push(assertRecommendedRoute(content, route));
         if (definition.skill === "ship-end") {
-          const alternateRoute = route === "/run" ? "$run" : "/run";
+          const alternateRoute = route === "/exec" ? "$exec" : "/exec";
           assertions.push({
             description: "Output uses single active-runner final route",
             pass: !new RegExp(`(?:^|[\\s\`'"(:-])${alternateRoute.replace("$", "\\$")}(?:[\\s\`'".,)]|$)`, "im").test(content),
@@ -422,13 +422,13 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     }),
     recommendedRoutes: {
       claude: "/ship",
-      codex: "$run",
+      codex: "$exec",
     },
   },
   {
     skill: "ship",
     outputPath: "ship-manifest.md",
-    prompt: "You have the ship skill installed. Read the fixture task and diff summary, then write ship-manifest.md with User goal, Changed files, Tests run, Deploy status, Rollback note, and Next command. Use your runner's command convention for Next command: Claude uses `/run`; Codex uses `$run`. Do not run git.",
+    prompt: "You have the ship skill installed. Read the fixture task and diff summary, then write ship-manifest.md with User goal, Changed files, Tests run, Deploy status, Rollback note, and Next command. Use your runner's command convention for Next command: Claude uses `/exec`; Codex uses `$exec`. Do not run git.",
     fixtureFiles: {
       "tasks/todo.md": "# Active Phase\n\n## Review\n\nValidation passed for the completed fixture step.\n",
       "diff-summary.txt": "M tests/example.test.ts\nM tasks/todo.md\n",
@@ -438,7 +438,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["tests/example.test.ts", "tasks/todo.md"],
       specificMarkers: ["User goal", "Changed files", "Rollback note"],
-      nextRoutes: ["/run", "$run"],
+      nextRoutes: ["/exec", "$exec"],
       coreTraitId: "shipping-manifest-completeness",
       coreTraitDescription: "Includes the required shipping manifest fields",
       coreTraits: ["User goal", "Changed files", "Tests run", "Deploy status", "Rollback note"],
@@ -456,14 +456,14 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       ],
     }),
     recommendedRoutes: {
-      claude: "/run",
-      codex: "$run",
+      claude: "/exec",
+      codex: "$exec",
     },
   },
   {
     skill: "ship-end",
     outputPath: "session-handoff.md",
-    prompt: "You have the ship-end skill installed. Write session-handoff.md summarizing completed work, validation evidence, remaining risks, next work, and Next command. Use the fixture task files as the source of truth, not the benchmark session's lack of git activity, and name both `tasks/todo.md` and `tasks/history.md` in the handoff. The final Next command must contain exactly one command for the active runner: `/run` when running as Claude, or `$run` when running as Codex. Do not list alternate runner routes in the final handoff. Do not run git.",
+    prompt: "You have the ship-end skill installed. Write session-handoff.md summarizing completed work, validation evidence, remaining risks, next work, and Next command. Use the fixture task files as the source of truth, not the benchmark session's lack of git activity, and name both `tasks/todo.md` and `tasks/history.md` in the handoff. The final Next command must contain exactly one command for the active runner: `/exec` when running as Claude, or `$exec` when running as Codex. Do not list alternate runner routes in the final handoff. Do not run git.",
     fixtureFiles: {
       "tasks/todo.md": "# Active Phase\n\n- [x] Step 1.1 complete\n- [ ] Step 1.2 next\n",
       "tasks/history.md": "# History\n\n- Completed Step 1.1 with tests.\n",
@@ -472,7 +472,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["Step 1.1", "Step 1.2", "Completed Step 1.1 with tests"],
       specificMarkers: ["completed work", "remaining risks", "Step 1.2"],
-      nextRoutes: ["/run", "$run"],
+      nextRoutes: ["/exec", "$exec"],
       coreTraitId: "handoff-continuity",
       coreTraitDescription: "Connects completed work to the next project task",
       coreTraits: ["completed work", "validation", "remaining risks", "next work"],
@@ -481,8 +481,8 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       extraCriteria: [singleActiveRunnerFinalRouteCriterion],
     }),
     recommendedRoutes: {
-      claude: "/run",
-      codex: "$run",
+      claude: "/exec",
+      codex: "$exec",
     },
   },
   {
@@ -531,7 +531,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["Phase 2: SaaS Coverage Dashboard Prototype", "fake benchmark rows", "Production database, auth, analytics, and deployment are not approved"],
       specificMarkers: ["Tests First", "Implementation", "file-level", "prototype"],
-      nextRoute: "$run",
+      nextRoute: "$exec",
       coreTraitId: "phase-plan-specificity",
       coreTraitDescription: "Creates a tests-first phase plan with implementation detail",
       coreTraits: ["Tests First", "Implementation", "file-level", "validation", "prototype"],
@@ -539,7 +539,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       concreteFiles: ["tasks/roadmap.md", "tasks/todo.md"],
       extraCriteria: [],
     }),
-    recommendedRoute: "$run",
+    recommendedRoute: "$exec",
   },
   {
     skill: "feature-interview",
@@ -621,7 +621,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     prompt: "You have the investigate skill installed. Investigate the failing log in logs/failure.txt and write investigation-report.md with Strategy Used, Root Cause, Fix Applied, Prevention, and Next command. Because this investigation produces a durable report, also write alignment/investigate-benchmark-html-evaluation.html as the full-depth HTML alignment page for the report. The HTML page must include the full report content, dark-mode CSS variables, evidence coverage and proposed file changes gates, required radio-button questions with Other / None of the above and Need clarification options, a Compile Answers button, and YAML compilation behavior. Do not edit source. Treat the investigation as already fixed, validated, committed, and pushed: commit 50e118c is on origin/master, `git status --short --branch` is clean, and there are no unpushed commits. Because there is nothing left to ship or document, the final handoff must not recommend ship-end.",
     fixtureFiles: {
       "logs/failure.txt": "ERROR: Custom benchmark coverage row for run points to missing setup_path.\n",
-      "tests/harness/bench-coverage.ts": "coverage_status: \"custom\", setup_path: \"tests/layer4/setups/run.setup.ts\"",
+      "tests/harness/bench-coverage.ts": "coverage_status: \"custom\", setup_path: \"tests/layer4/setups/exec.setup.ts\"",
     },
     expectedIncludes: ["Strategy Used", "Root Cause", "Prevention"],
     expectedPattern: /missing setup_path|run\.setup\.ts/i,
@@ -678,7 +678,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       "After writing the report, verify that session-triage-report.md exists in the project root. If it is missing, create it before responding.",
     ].join(" "),
     fixtureFiles: {
-      "session-log.md": "# Session\n\nUser invoked $run. Agent skipped the planned coverage matrix validation and shipped anyway.\n",
+      "session-log.md": "# Session\n\nUser invoked $exec. Agent skipped the planned coverage matrix validation and shipped anyway.\n",
       "tasks/lessons.md": "# Lessons\n\n- Run required validation before shipping.\n",
     },
     expectedIncludes: ["Verification verdict", "Timeline", "Root cause", "Responsible contract gap", "Validation plan"],
@@ -698,7 +698,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     skill: "targeted-skill-builder",
     outputPath: "skill-update-plan.md",
     perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
-    prompt: "You have the targeted-skill-builder skill installed. Read correction.md and write skill-update-plan.md with workflow gap, existing-skill overlap, proposed contract change, validation checks, and Next command. End with `Recommended next command: $run`. Do not edit SKILL.md files.",
+    prompt: "You have the targeted-skill-builder skill installed. Read correction.md and write skill-update-plan.md with workflow gap, existing-skill overlap, proposed contract change, validation checks, and Next command. End with `Recommended next command: $exec`. Do not edit SKILL.md files.",
     fixtureFiles: {
       "correction.md": "# Correction\n\nFuture skill creation must add benchmark coverage handling or a blocked status.\n",
       "tasks/lessons.md": "# Lessons\n\n- Add durable validation after workflow corrections.\n",
@@ -708,14 +708,14 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["benchmark coverage handling", "blocked status", "durable validation"],
       specificMarkers: ["workflow gap", "existing-skill overlap", "contract change", "validation"],
-      nextRoute: "$run",
+      nextRoute: "$exec",
       coreTraitId: "correction-to-contract-mapping",
       coreTraitDescription: "Maps the correction to a durable skill contract and validation check",
       coreTraits: ["workflow gap", "existing-skill overlap", "contract change", "validation checks"],
       validationPatterns: [/benchmark coverage|blocked status|validation/i],
       concreteFiles: ["correction.md", "tasks/lessons.md"],
     }),
-    recommendedRoute: "$run",
+    recommendedRoute: "$exec",
   },
   {
     skill: "benchmark-test-skill",
