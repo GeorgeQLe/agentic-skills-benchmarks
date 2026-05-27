@@ -81,9 +81,9 @@ const TIER23_GLOBAL_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "block
     blocked_reason: "Requires environment-specific deploy credentials, possible production safety decisions, and external service state.",
     next_command: "$guide deploy benchmark fixture",
   },
-  "install-agentic-skills": {
+  "init-agentic-skills": {
     blocked_reason: "Mutates local Codex and Claude skill installations outside the benchmark worktree.",
-    next_command: "$targeted-skill-builder install-agentic-skills benchmark coverage",
+    next_command: "$targeted-skill-builder init-agentic-skills benchmark coverage",
   },
   "patch-exec-profile": {
     blocked_reason: "Claude-only workflow patching skill without a Codex skill contract.",
@@ -162,6 +162,7 @@ const PACK_CUSTOM_SKILLS = [
   "poketo-kanban",
   "positioning",
   "product-led-media-map",
+  "product-line",
   "project-fleet",
   "quality-sweep",
   "reconcile-research",
@@ -271,7 +272,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "hygiene",
   "icon-handler",
   "icp",
-  "install-agentic-skills",
+  "init-agentic-skills",
   "investigate",
   "investor-update",
   "journey-map",
@@ -296,6 +297,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "poketo-kanban",
   "positioning",
   "product-led-media-map",
+  "product-line",
   "project-fleet",
   "prototype",
   "provision-agentic-config",

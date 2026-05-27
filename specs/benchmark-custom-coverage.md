@@ -114,7 +114,7 @@ Tier 3: skill and pack lifecycle skills.
 
 - `create-agentic-skill`
 - `create-local-skill`
-- `install-agentic-skills`
+- `init-agentic-skills`
 - `pack`
 - `skills`
 - `provision-agentic-config`
