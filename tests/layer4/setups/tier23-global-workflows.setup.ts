@@ -483,11 +483,11 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     recommendedRoute: "$skills",
   },
   {
-    skill: "concept-exploration",
+    skill: "idea-scope-brief",
     outputPath: "research/concept-brief-poketo-core.md",
-    prompt: "You have the concept-exploration skill installed in an already bootstrapped repo. Read idea.md and pivot-notes.md, then write research/concept-brief-poketo-core.md and research/concept-brief-poketo-core-interview.md. Use slugged concept brief filenames because this repo has multiple related Poketo concepts. Preserve poketo.work as a related future concept instead of conflating it with Poketo Core. Include problem, audience, value, constraints, open questions, concept slug, output paths, and Next command. End with `Recommended next command: $icp`.",
+    prompt: "You have the idea-scope-brief skill installed in an already bootstrapped repo. Read idea.md and pivot-notes.md, then write research/concept-brief-poketo-core.md and research/concept-brief-poketo-core-interview.md. Use slugged concept brief filenames because this repo has multiple related Poketo concepts. Preserve poketo.work as a related future concept instead of conflating it with Poketo Core. Include problem, audience, value, constraints, open questions, concept slug, output paths, and Next command. End with `Recommended next command: $icp`.",
     fixtureFiles: {
-      "idea.md": "$concept-exploration poketo.work, a kanban project management tool.",
+      "idea.md": "$idea-scope-brief poketo.work, a kanban project management tool.",
       "pivot-notes.md": "During interview, pivot to Poketo Core as the central coordination layer. Poketo Work remains a related future app concept and should not overwrite or share one generic overall concept brief.",
     },
     expectedIncludes: ["problem", "audience", "value", "open questions", "poketo-core", "poketo.work", "icp"],

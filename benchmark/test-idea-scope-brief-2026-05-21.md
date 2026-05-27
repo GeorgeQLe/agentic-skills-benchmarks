@@ -1,10 +1,10 @@
-# Benchmark Test: concept-exploration
+# Benchmark Test: idea-scope-brief
 
 Date: 2026-05-21
 
-Target skill: `concept-exploration`
+Target skill: `idea-scope-brief`
 
-Command: `pnpm bench --skill concept-exploration --agent both --runs 3 --chunk-size 3 --pause 0`
+Command: `pnpm bench --skill idea-scope-brief --agent both --runs 3 --chunk-size 3 --pause 0`
 
 Coverage: custom, `tests/layer4/setups/tier23-global-workflows.setup.ts`
 
@@ -13,7 +13,7 @@ Coverage: custom, `tests/layer4/setups/tier23-global-workflows.setup.ts`
 | Layer | Status | Wall Time | Notes |
 | --- | --- | ---: | --- |
 | layer1 | PASS | 4.0s | Static harness-contract gate passed. |
-| layer2 | SKIP | -- | No layer2 tests matched `concept-exploration`; benchmark continued with custom layer4 coverage. |
+| layer2 | SKIP | -- | No layer2 tests matched `idea-scope-brief`; benchmark continued with custom layer4 coverage. |
 
 ## Benchmark Summary
 
@@ -41,8 +41,8 @@ Coverage: custom, `tests/layer4/setups/tier23-global-workflows.setup.ts`
 
 ## Raw Sessions
 
-- Claude: `tests/benchmarks/runs/concept-exploration-claude-6ec70f41/`
-- Codex: `tests/benchmarks/runs/concept-exploration-codex-aebc7790/`
+- Claude: `tests/benchmarks/runs/idea-scope-brief-claude-6ec70f41/`
+- Codex: `tests/benchmarks/runs/idea-scope-brief-codex-aebc7790/`
 
 ## Comparison with Pre-Remediation (2026-05-19)
 

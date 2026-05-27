@@ -1,10 +1,10 @@
-# Benchmark Test: concept-exploration
+# Benchmark Test: idea-scope-brief
 
 Date: 2026-05-19
 
-Target skill: `concept-exploration`
+Target skill: `idea-scope-brief`
 
-Command: `$benchmark-test-skill concept-exploration`
+Command: `$benchmark-test-skill idea-scope-brief`
 
 Coverage: custom, `tests/layer4/setups/tier23-global-workflows.setup.ts`
 
@@ -13,7 +13,7 @@ Coverage: custom, `tests/layer4/setups/tier23-global-workflows.setup.ts`
 | Layer | Status | Wall Time | Notes |
 | --- | --- | ---: | --- |
 | layer1 | PASS | 3.2s | Static harness-contract gate passed. Initial run showed transient 939.6s timeout; rerun passed in 3.2s. |
-| layer2 | SKIP | -- | No layer2 tests matched `concept-exploration`; benchmark continued with custom layer4 coverage. |
+| layer2 | SKIP | -- | No layer2 tests matched `idea-scope-brief`; benchmark continued with custom layer4 coverage. |
 
 ## Benchmark Summary
 
@@ -49,8 +49,8 @@ All 3 Claude runs were infrastructure-blocked by agent runner timeout at smoke b
 
 ## Raw Sessions
 
-- Claude: `tests/benchmarks/runs/concept-exploration-claude-b341068b/`
-- Codex: `tests/benchmarks/runs/concept-exploration-codex-3c296f87/`
+- Claude: `tests/benchmarks/runs/idea-scope-brief-claude-b341068b/`
+- Codex: `tests/benchmarks/runs/idea-scope-brief-codex-3c296f87/`
 
 ## Next Route
 
