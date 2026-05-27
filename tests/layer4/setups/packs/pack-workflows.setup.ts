@@ -602,7 +602,6 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "project-fleet", pack: "project-fleet", focus: "project fleet inventory", inputs: ["Project A active", "Project B stale"], expectedPattern: /project|fleet|inventory/i },
   { skill: "quality-sweep", pack: "code-quality", focus: "quality sweep audit", inputs: ["Unchecked error handling", "Missing regression test"], expectedPattern: /quality|sweep|audit/i },
   { skill: "reconcile-research", pack: "business-ops", focus: "research reconciliation", inputs: ["Old customer notes", "New survey"], expectedPattern: /research|reconcile|source/i },
-  { skill: "research-bootstrap", pack: "creator-foundation", focus: "research directory bootstrap", inputs: ["YouTube", "LinkedIn", "Manual exports"], expectedPattern: /research|directory|bootstrap/i },
   { skill: "research-directory-conventions", pack: "creator-foundation", focus: "research directory conventions", inputs: ["Platform folders", "Dated snapshots"], expectedPattern: /directory|convention|snapshot/i },
   { skill: "retro", pack: "business-ops", focus: "retrospective synthesis", inputs: ["What worked", "What failed", "Actions"], expectedPattern: /retro|action|lesson/i },
   { skill: "risk-register", pack: "business-ops", focus: "risk register", inputs: ["Risk", "Likelihood", "Mitigation"], expectedPattern: /risk|mitigation|register/i },
