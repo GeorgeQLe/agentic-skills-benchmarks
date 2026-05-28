@@ -31,7 +31,6 @@ const PACK_WORKFLOW_SETUP_PATH = "tests/layer4/setups/packs/pack-workflows.setup
 
 const TIER23_GLOBAL_CUSTOM_SKILLS = [
   "affected",
-  "afps-status",
   "analyze-sessions",
   "bootstrap-repo",
   "brainstorm",
@@ -203,7 +202,6 @@ const PACK_CUSTOM_SKILLS = [
 
 export const BENCH_COVERAGE_SKILLS = [
   "affected",
-  "afps-status",
   "analyze-sessions",
   "assumption-tracker",
   "benchmark-agent-review",
