@@ -392,6 +392,36 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     recommendedRoute: "$exec",
   },
   {
+    skill: "afps-status",
+    outputPath: "afps-status.md",
+    prompt: "You have the afps-status skill installed. Read .agents/project.json, research/concept-brief-pocket-ops.md, research/icp-pocket-ops.md, specs/pocket-ops.md, and tasks/todo.md, then write afps-status.md with an AFPS artifact map, current stage, contradictions or gaps, and Next command. Discovery exists and specs exist, but tasks/todo.md has no unchecked implementation steps, so route to roadmap. End with `Recommended next command: $roadmap`.",
+    fixtureFiles: {
+      ".agents/project.json": JSON.stringify({
+        project_type: "business-app",
+        enabled_packs: ["business-discovery", "customer-lifecycle", "agent-work-admin"],
+        skill_pack_version: 1,
+      }, null, 2),
+      "research/concept-brief-pocket-ops.md": "# Pocket Ops Concept\n\nPocket Ops helps dispatch leads triage jobs and coordinate field-team handoffs.\n",
+      "research/icp-pocket-ops.md": "# ICP\n\nPrimary ICP: regional field-service dispatch teams with 10-50 technicians.\n",
+      "specs/pocket-ops.md": "# Pocket Ops Spec\n\nBuild a dispatch console with job queue, technician status, and handoff notes.\n",
+      "tasks/todo.md": "# Active Phase\n\nAll prior implementation tasks are checked off.\n\n- [x] Draft the product spec.\n",
+    },
+    expectedIncludes: ["AFPS", "artifact map", "current stage", "tasks", "roadmap"],
+    expectedEvidence: [
+      {
+        description: "Output recognizes research and spec artifacts are already present.",
+        pattern: /concept[\s\S]{0,160}ICP[\s\S]{0,220}spec|spec[\s\S]{0,220}ICP[\s\S]{0,160}concept/i,
+      },
+      {
+        description: "Output identifies the task queue as stale, absent, or not actionable.",
+        pattern: /tasks?[\s\S]{0,180}(stale|absent|missing|not actionable|no unchecked|roadmap-needed)/i,
+      },
+    ],
+    expectedPattern: /Pocket Ops|field-service|dispatch/i,
+    recommendedRoute: "$roadmap",
+    requireFinalRecommendedRoute: true,
+  },
+  {
     skill: "analyze-sessions",
     outputPath: "session-analysis.md",
     prompt: "You have the analyze-sessions skill installed. Analyze all local session history files under sessions/ and write session-analysis.md with recurring patterns, automation opportunities, risks, and a final Recommended next command. The fixture intentionally contains repeated validation and lessons misses across multiple sessions, so recommend a remediation-ready targeted-skill-builder follow-up for this runner. Include the likely owner surface and validation expectation in the report, distinguish explicit evidence from inference, and do not put both route spellings in the final handoff. The final command line must contain exactly one command and no runner label suffix. Use exactly `/targeted-skill-builder run post-doc-edit validation and lessons capture gate` when running as Claude. Use exactly `$targeted-skill-builder run post-doc-edit validation and lessons capture gate` when running as Codex.",
