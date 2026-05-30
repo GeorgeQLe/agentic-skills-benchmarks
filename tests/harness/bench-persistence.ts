@@ -75,6 +75,25 @@ export function updateManifestStatus(
   writeAtomic(join(dir, "manifest.json"), JSON.stringify(manifest, null, 2));
 }
 
+// Pick the most recently updated resumeable (running/paused) session. Sorting by
+// time — not by the random `${skill}-${agent}-${randomUUID8}` dir name — ensures
+// `--resume` attaches to the latest session, not an arbitrary older one.
+export function pickResumeableManifest(
+  manifests: SessionManifest[],
+): SessionManifest | null {
+  const resumeable = manifests.filter(
+    (m) => m.status === "running" || m.status === "paused",
+  );
+  if (resumeable.length === 0) return null;
+
+  const ts = (m: SessionManifest): number => {
+    const t = Date.parse(m.updatedAt ?? m.createdAt ?? "");
+    return Number.isNaN(t) ? 0 : t;
+  };
+  resumeable.sort((a, b) => ts(b) - ts(a)); // newest first
+  return resumeable[0];
+}
+
 export function findResumeableSession(
   skill: string,
   agent: BenchConfig["agent"],
@@ -82,22 +101,19 @@ export function findResumeableSession(
   if (!existsSync(RUNS_DIR)) return null;
 
   const prefix = `${skill}-${agent}-`;
-  const dirs = readdirSync(RUNS_DIR)
-    .filter((d) => d.startsWith(prefix))
-    .sort()
-    .reverse();
-
-  for (const d of dirs) {
+  const manifests: SessionManifest[] = [];
+  for (const d of readdirSync(RUNS_DIR).filter((x) => x.startsWith(prefix))) {
     const manifestPath = join(RUNS_DIR, d, "manifest.json");
     if (!existsSync(manifestPath)) continue;
-    const manifest: SessionManifest = JSON.parse(
-      readFileSync(manifestPath, "utf-8"),
-    );
-    if (manifest.status === "running" || manifest.status === "paused") {
-      return manifest;
+    try {
+      manifests.push(
+        JSON.parse(readFileSync(manifestPath, "utf-8")) as SessionManifest,
+      );
+    } catch {
+      continue; // skip unreadable/corrupt manifest
     }
   }
-  return null;
+  return pickResumeableManifest(manifests);
 }
 
 export function loadSessionRuns(

@@ -1,5 +1,5 @@
 import { execSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { dirname } from "node:path";
@@ -101,6 +101,10 @@ const setup: SkillBenchSetup = {
       "git add -A && git commit -m 'feat: add utils and extend index' && git push origin HEAD",
       { cwd: upstreamPath, stdio: "pipe" },
     );
+
+    // The upstream clone exists only to push divergent history to the remote;
+    // it is never read again, so reclaim it rather than leaking a temp dir per run.
+    rmSync(upstreamClone, { recursive: true, force: true });
 
     writeFileSync(
       join(workDir, "NOTES.md"),
