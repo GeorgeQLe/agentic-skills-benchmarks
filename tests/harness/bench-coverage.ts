@@ -202,6 +202,7 @@ const PACK_CUSTOM_SKILLS = [
 
 export const BENCH_COVERAGE_SKILLS = [
   "affected",
+  "afps-status",
   "analyze-sessions",
   "assumption-tracker",
   "benchmark-agent-review",

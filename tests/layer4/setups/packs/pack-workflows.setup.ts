@@ -599,6 +599,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "poketo-kanban", pack: "poketowork-kanban", focus: "Poketo board operation plan", inputs: ["Board ID", "Card state"], expectedPattern: /poketo|kanban|board/i },
   { skill: "positioning", pack: "business-discovery", focus: "positioning narrative", inputs: ["Target user", "Alternative", "Differentiator"], expectedPattern: /positioning|target|differentiator/i },
   { skill: "product-led-media-map", pack: "creator-foundation", focus: "product-led media map", inputs: ["Feature launch", "Educational series"], expectedPattern: /media|product|map/i },
+  { skill: "product-line", pack: "business-ops", focus: "product-path portfolio review with activation, archive, and revisit triggers", inputs: ["Active path: core CLI", "Stale path: marketing site idle 45 days", "Revisit trigger: 30 days idle"], expectedPattern: /product|path|portfolio|activate|archive|trigger/i },
   { skill: "project-fleet", pack: "project-fleet", focus: "project fleet inventory", inputs: ["Project A active", "Project B stale"], expectedPattern: /project|fleet|inventory/i },
   { skill: "quality-sweep", pack: "code-quality", focus: "quality sweep audit", inputs: ["Unchecked error handling", "Missing regression test"], expectedPattern: /quality|sweep|audit/i },
   { skill: "reconcile-research", pack: "business-ops", focus: "research reconciliation", inputs: ["Old customer notes", "New survey"], expectedPattern: /research|reconcile|source/i },
