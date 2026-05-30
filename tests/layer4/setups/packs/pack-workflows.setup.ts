@@ -45,6 +45,11 @@ const packFamilyContexts: Record<string, { id: string; facts: string[]; traits: 
     facts: ["benchmark", "review"],
     traits: ["artifact", "rubric", "score"],
   },
+  "alignment-page-admin": {
+    id: "alignment-page-admin-context",
+    facts: ["alignment", "html"],
+    traits: ["archive", "gate", "upgrade"],
+  },
   "business-discovery": {
     id: "business-discovery-context",
     facts: ["customer", "positioning"],
@@ -109,6 +114,11 @@ const packFamilyContexts: Record<string, { id: string; facts: string[]; traits: 
     id: "remotion-context",
     facts: ["video", "script"],
     traits: ["scene", "format", "render"],
+  },
+  "session-analytics": {
+    id: "session-analytics-context",
+    facts: ["session", "history"],
+    traits: ["prompt", "confidence", "backfill"],
   },
   "youtube-ops": {
     id: "youtube-ops-context",
@@ -444,6 +454,22 @@ function hasBenchmarkAgentReviewOwnerLabel(output: string): boolean {
 const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "assumption-tracker", pack: "business-ops", focus: "assumption inventory with owner and validation cadence", inputs: ["Unverified pricing assumption", "Unknown onboarding conversion"], expectedPattern: /assumption|validation|owner/i },
   {
+    skill: "upgrade-alignment-pages",
+    pack: "alignment-page-admin",
+    focus: "dry-run drift audit for generated alignment HTML and explicit apply safeguards",
+    inputs: [
+      "alignment/legacy-review.html lacks feedback-only YAML and copy fallback behavior",
+      "alignment/index.html must be excluded from upgrades",
+      "Apply mode must archive originals before replacement",
+    ],
+    expectedPattern: /alignment|html|archive|upgrade|dry-run/i,
+    requiredOutputPatterns: [
+      { description: "Output keeps audit mode non-mutating", pattern: /dry-run|audit|no mutation|without mutating/i },
+      { description: "Output names archive-before-replace behavior", pattern: /archive|docs\/history\/archive/i },
+    ],
+    nextRoutes: { claude: "/compile-central-alignment", codex: "$compile-central-alignment" },
+  },
+  {
     skill: "benchmark-agent-review",
     pack: "agentic-skills-bench",
     focus: "subjective quality review",
@@ -600,6 +626,22 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "positioning", pack: "business-discovery", focus: "positioning narrative", inputs: ["Target user", "Alternative", "Differentiator"], expectedPattern: /positioning|target|differentiator/i },
   { skill: "product-led-media-map", pack: "creator-foundation", focus: "product-led media map", inputs: ["Feature launch", "Educational series"], expectedPattern: /media|product|map/i },
   { skill: "product-line", pack: "business-ops", focus: "product-path portfolio review with activation, archive, and revisit triggers", inputs: ["Active path: core CLI", "Stale path: marketing site idle 45 days", "Revisit trigger: 30 days idle"], expectedPattern: /product|path|portfolio|activate|archive|trigger/i },
+  {
+    skill: "prompt-history-backfill",
+    pack: "session-analytics",
+    focus: "report-only prompt-history audit with explicit apply safeguards",
+    inputs: [
+      "Claude and Codex history contain visible skill invocation prompts",
+      "Existing prompts/skill-name entries should be compared before writing",
+      "Likely secrets must block backfill writes",
+    ],
+    expectedPattern: /prompt|history|backfill|confidence|secret/i,
+    requiredOutputPatterns: [
+      { description: "Output keeps default mode report-only", pattern: /report-only|audit|dry-run/i },
+      { description: "Output mentions explicit apply before writes", pattern: /--apply|explicit apply/i },
+    ],
+    nextRoutes: { claude: "/skills", codex: "$skills" },
+  },
   { skill: "project-fleet", pack: "project-fleet", focus: "project fleet inventory", inputs: ["Project A active", "Project B stale"], expectedPattern: /project|fleet|inventory/i },
   { skill: "quality-sweep", pack: "code-quality", focus: "quality sweep audit", inputs: ["Unchecked error handling", "Missing regression test"], expectedPattern: /quality|sweep|audit/i },
   { skill: "reconcile-research", pack: "business-ops", focus: "research reconciliation", inputs: ["Old customer notes", "New survey"], expectedPattern: /research|reconcile|source/i },

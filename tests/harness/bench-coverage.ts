@@ -101,6 +101,7 @@ const TIER23_GLOBAL_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "block
 
 const PACK_CUSTOM_SKILLS = [
   "assumption-tracker",
+  "upgrade-alignment-pages",
   "benchmark-agent-review",
   "brainstorm-kanban",
   "burn-rate",
@@ -345,6 +346,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "uat-guide",
   "consolidate-variations",
   "ui-interview",
+  "upgrade-alignment-pages",
   "ux-variations",
   "value-prop-canvas",
   "vertical-slice-splitter",
