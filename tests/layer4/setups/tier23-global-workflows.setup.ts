@@ -484,8 +484,8 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   },
   {
     skill: "idea-scope-brief",
-    outputPath: "research/concept-brief-poketo-core.md",
-    prompt: "You have the idea-scope-brief skill installed in an already bootstrapped repo. Read idea.md and pivot-notes.md, then write research/concept-brief-poketo-core.md and research/concept-brief-poketo-core-interview.md. Use slugged concept brief filenames because this repo has multiple related Poketo concepts. Preserve poketo.work as a related future concept instead of conflating it with Poketo Core. Include problem, audience, value, constraints, open questions, concept slug, output paths, and Next command. End with `Recommended next command: $icp`.",
+    outputPath: "research/idea-brief-poketo-core.md",
+    prompt: "You have the idea-scope-brief skill installed in an already bootstrapped repo. Read idea.md and pivot-notes.md, then write research/idea-brief-poketo-core.md and research/idea-brief-poketo-core-interview.md. Use slugged idea brief filenames because this repo has multiple related Poketo concepts. Preserve poketo.work as a related future concept instead of conflating it with Poketo Core. Include problem, audience, value, constraints, open questions, concept slug, output paths, and Next command. End with `Recommended next command: $icp`.",
     fixtureFiles: {
       "idea.md": "$idea-scope-brief poketo.work, a kanban project management tool.",
       "pivot-notes.md": "During interview, pivot to Poketo Core as the central coordination layer. Poketo Work remains a related future app concept and should not overwrite or share one generic overall concept brief.",
@@ -494,11 +494,11 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     expectedEvidence: [
       {
         description: "Output names the slugged Poketo Core brief path.",
-        pattern: /research\/concept-brief-poketo-core\.md/i,
+        pattern: /research\/idea-brief-poketo-core\.md/i,
       },
       {
         description: "Output names the slugged Poketo Core interview path.",
-        pattern: /research\/concept-brief-poketo-core-interview\.md/i,
+        pattern: /research\/idea-brief-poketo-core-interview\.md/i,
       },
       {
         description: "Output preserves Poketo Work as a separate related or future concept.",
