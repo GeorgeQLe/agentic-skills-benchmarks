@@ -643,6 +643,22 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
     nextRoutes: { claude: "/skills", codex: "$skills" },
   },
   { skill: "project-fleet", pack: "project-fleet", focus: "project fleet inventory", inputs: ["Project A active", "Project B stale"], expectedPattern: /project|fleet|inventory/i },
+  {
+    skill: "skill-inventory",
+    pack: "project-fleet",
+    focus: "report-only downstream skill-copy drift inventory",
+    inputs: [
+      "tasks/downstream-repos.md contains Local Path entries for checked-out repos",
+      "Downstream .codex/skills contains a stale managed skill copy",
+      "V1 must not run scripts/pack.sh refresh or delete downstream skill roots",
+    ],
+    expectedPattern: /skill|inventory|stale|report-only|refresh/i,
+    requiredOutputPatterns: [
+      { description: "Output keeps inventory report-only", pattern: /report-only|without mutating|no downstream.*modified/i },
+      { description: "Output names the durable report path", pattern: /tasks\/skill-inventory\.md/i },
+    ],
+    nextRoutes: { claude: "/project-fleet --status", codex: "$project-fleet --status" },
+  },
   { skill: "quality-sweep", pack: "code-quality", focus: "quality sweep audit", inputs: ["Unchecked error handling", "Missing regression test"], expectedPattern: /quality|sweep|audit/i },
   { skill: "reconcile-research", pack: "business-ops", focus: "research reconciliation", inputs: ["Old customer notes", "New survey"], expectedPattern: /research|reconcile|source/i },
   { skill: "research-directory-conventions", pack: "creator-foundation", focus: "research directory conventions", inputs: ["Platform folders", "Dated snapshots"], expectedPattern: /directory|convention|snapshot/i },
