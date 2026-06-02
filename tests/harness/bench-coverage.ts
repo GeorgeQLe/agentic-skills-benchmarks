@@ -93,10 +93,6 @@ const TIER23_GLOBAL_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "block
     blocked_reason: "May create tags, version bumps, and publishable release artifacts; deterministic coverage needs a dry-run fixture first.",
     next_command: "$targeted-skill-builder release benchmark coverage",
   },
-  "uat-guide": {
-    blocked_reason: "Claude-only manual UAT guidance skill without a Codex skill contract.",
-    next_command: "$targeted-skill-builder uat-guide benchmark coverage",
-  },
 };
 
 const PACK_CUSTOM_SKILLS = [
@@ -189,6 +185,7 @@ const PACK_CUSTOM_SKILLS = [
   "strategic-canvas",
   "sync-roadmap-kanban",
   "transaction-map",
+  "uat-guide",
   "value-prop-canvas",
   "vertical-slice-splitter",
   "video-build",
