@@ -169,6 +169,7 @@ const PACK_CUSTOM_SKILLS = [
   "project-fleet",
   "quality-sweep",
   "reconcile-research",
+  "repo-glossary",
   "research-directory-conventions",
   "retention-map",
   "retro",
@@ -419,14 +420,6 @@ const COVERAGE_OVERRIDES: Record<string, Partial<BenchCoverageRow>> = {
     setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
     priority_tier: 1,
     fixture_type: "benchmark-report-fixture",
-  },
-  "repo-glossary": {
-    coverage_status: "blocked",
-    priority_tier: 3,
-    agent_scope: "claude",
-    fixture_type: "blocked-claude-only-glossary-fixture",
-    blocked_reason: "Claude-only glossary reconciliation skill; deterministic Codex setup cannot execute it until a mirror skill or Claude-target layer4 fixture exists.",
-    next_command: "$targeted-skill-builder repo-glossary benchmark coverage",
   },
   "design-system": {
     coverage_status: "custom",
