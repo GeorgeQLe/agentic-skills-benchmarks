@@ -32,6 +32,7 @@ const PACK_WORKFLOW_SETUP_PATH = "tests/layer4/setups/packs/pack-workflows.setup
 const TIER23_GLOBAL_CUSTOM_SKILLS = [
   "affected",
   "analyze-sessions",
+  "animation-design-planner",
   "bootstrap-repo",
   "brainstorm",
   "branch-lifecycle",
@@ -209,6 +210,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "affected",
   "afps-status",
   "analyze-sessions",
+  "animation-design-planner",
   "assumption-tracker",
   "benchmark-agent-review",
   "benchmark-test-skill",
@@ -315,6 +317,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "quiz-me",
   "reconcile-dev-docs",
   "reconcile-research",
+  "repo-glossary",
   "regression-check",
   "release",
   "report-website",
@@ -416,6 +419,14 @@ const COVERAGE_OVERRIDES: Record<string, Partial<BenchCoverageRow>> = {
     setup_path: "tests/layer4/setups/tier1-workflows.setup.ts",
     priority_tier: 1,
     fixture_type: "benchmark-report-fixture",
+  },
+  "repo-glossary": {
+    coverage_status: "blocked",
+    priority_tier: 3,
+    agent_scope: "claude",
+    fixture_type: "blocked-claude-only-glossary-fixture",
+    blocked_reason: "Claude-only glossary reconciliation skill; deterministic Codex setup cannot execute it until a mirror skill or Claude-target layer4 fixture exists.",
+    next_command: "$targeted-skill-builder repo-glossary benchmark coverage",
   },
   "design-system": {
     coverage_status: "custom",

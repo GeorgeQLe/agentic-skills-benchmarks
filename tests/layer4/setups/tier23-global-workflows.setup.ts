@@ -416,6 +416,71 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
   },
   {
+    skill: "animation-design-planner",
+    outputPath: "animation-plan.md",
+    prompt: "You have the animation-design-planner skill installed. Read fixtures/animation-request.md and fixtures/component-lifecycle.md, then write animation-plan.md for the card-pack modal/drawer/list transition. Do not tweak timing constants or local Motion props. The plan must include Visible Motion Contract, Storyboard / Timeline, Lifecycle Ownership Map, Implementation Guardrails, Proof Gate, and Implementation Handoff. It must name one lifecycle owner or state-machine coordinator, explicit state phases, stable keys or identity rules, AnimatePresence placement, Motion sequencing mode, LayoutGroup/layout-animation considerations, reduced-motion behavior, transform/opacity-first performance constraints, and visual proof using slow-motion review plus Playwright screenshot or video capture. End with a runner-native final recommended route: /exec for Claude, $exec for Codex.",
+    fixtureFiles: {
+      "fixtures/animation-request.md": [
+        "# Animation request",
+        "",
+        "The prototype card pack opens from a sealed card into a drawer and detail list.",
+        "Closing currently flashes the bottom sheet, clears activePack before exit, and sometimes drops the shared card layer before the morph is complete.",
+        "Several attempts tweaked duration constants and easing but the drawer/list regression kept returning.",
+        "Plan the animation before implementation.",
+      ].join("\n"),
+      "fixtures/component-lifecycle.md": [
+        "# Component lifecycle notes",
+        "",
+        "- PrototypePage currently owns activePack and openedPacks.",
+        "- BottomSheet owns sheet mount/exit.",
+        "- PackOpener owns the sealed card layout and elevation.",
+        "- DetailList renders rows keyed by item id.",
+        "- The desired close sequence is drawer-open -> closing-collapse -> sheet-exiting -> layout-morph-out -> drop-elevation -> sealed.",
+      ].join("\n"),
+    },
+    expectedIncludes: [
+      "Visible Motion Contract",
+      "Storyboard",
+      "Lifecycle Ownership Map",
+      "Implementation Guardrails",
+      "Proof Gate",
+      "reduced-motion",
+    ],
+    expectedEvidence: [
+      {
+        description: "Output names an explicit lifecycle owner or state-machine coordinator.",
+        pattern: /(one|single|explicit)[\s\S]{0,160}(lifecycle owner|owner|state[- ]machine|coordinator)|(?:lifecycle owner|state[- ]machine coordinator)[\s\S]{0,160}(PrototypePage|parent|controller|coordinator)/i,
+      },
+      {
+        description: "Output preserves the required close state phases.",
+        pattern: /drawer-open[\s\S]{0,260}closing-collapse[\s\S]{0,260}sheet-exiting[\s\S]{0,260}layout-morph-out[\s\S]{0,260}drop-elevation[\s\S]{0,260}sealed/i,
+      },
+      {
+        description: "Output covers stable identity and AnimatePresence placement.",
+        pattern: /(?:stable key|stable identity|identity rule|activePack)[\s\S]{0,260}AnimatePresence|AnimatePresence[\s\S]{0,260}(?:stable key|stable identity|identity rule|activePack)/i,
+      },
+      {
+        description: "Output covers transform/opacity-first performance guardrails.",
+        pattern: /transform[\s\S]{0,160}opacity|opacity[\s\S]{0,160}transform/i,
+      },
+      {
+        description: "Output covers slow-motion and Playwright visual proof.",
+        pattern: /slow[- ]motion[\s\S]{0,260}Playwright[\s\S]{0,120}(screenshot|video)|Playwright[\s\S]{0,120}(screenshot|video)[\s\S]{0,260}slow[- ]motion/i,
+      },
+      {
+        description: "Output rejects local timing tweaks before lifecycle planning.",
+        pattern: /(?:do not|don't|avoid|before|not start)[\s\S]{0,180}(timing constants?|duration|easing|Motion props)|(?:timing constants?|duration|easing|Motion props)[\s\S]{0,180}(?:after|until)[\s\S]{0,120}(owner|state phases|proof|motion contract)/i,
+      },
+    ],
+    expectedPattern: /activePack|closing-collapse|sheet-exiting|layout-morph-out|state[- ]machine/i,
+    recommendedRoutes: {
+      claude: "/exec",
+      codex: "$exec",
+    },
+    requireFinalRecommendedRoute: true,
+    perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
+  },
+  {
     skill: "bootstrap-repo",
     outputPath: "README.md",
     prompt: "You have the bootstrap-repo skill installed. Convert brief.md into README.md and AGENTS.md with project purpose, workflows, verification, and Next command. This is a product/app bootstrap, so route to research-first alignment, not implementation or direct UI work. If reset mode is discussed, say old docs/research/specs should be archived and only the high-level concept should remain active. End with `Recommended next command: $icp`. Keep files concise.",
