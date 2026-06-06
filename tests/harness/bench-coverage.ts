@@ -227,6 +227,10 @@ const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason
     blocked_reason: "Customer-discovery framework subskill lacks a deterministic pack workflow fixture.",
     next_command: "$targeted-skill-builder jtbd-needs benchmark coverage",
   },
+  "pmf-engine": {
+    blocked_reason: "Customer-discovery framework subskill requires real product/user evidence and lacks a deterministic pack workflow fixture.",
+    next_command: "$targeted-skill-builder pmf-engine benchmark coverage",
+  },
   "jtbd-timeline": {
     blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
     next_command: "$targeted-skill-builder jtbd-timeline benchmark coverage",
@@ -360,6 +364,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "patch-exec-profile",
   "plan-phase",
   "platform-strategy",
+  "pmf-engine",
   "pmf-assessment",
   "positioning",
   "product-led-media-map",
