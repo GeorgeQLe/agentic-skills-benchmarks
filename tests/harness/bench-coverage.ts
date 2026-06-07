@@ -215,6 +215,10 @@ const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason
     blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
     next_command: "$targeted-skill-builder experience-map benchmark coverage",
   },
+  "feature-pricing-matrix": {
+    blocked_reason: "Competitive-analysis framework subskill lacks a deterministic pack workflow fixture.",
+    next_command: "$targeted-skill-builder feature-pricing-matrix benchmark coverage",
+  },
   "five-rings": {
     blocked_reason: "Customer-discovery framework subskill lacks a deterministic pack workflow fixture.",
     next_command: "$targeted-skill-builder five-rings benchmark coverage",
@@ -231,6 +235,10 @@ const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason
     blocked_reason: "Customer-discovery framework subskill requires real product/user evidence and lacks a deterministic pack workflow fixture.",
     next_command: "$targeted-skill-builder pmf-engine benchmark coverage",
   },
+  "porter-five-forces": {
+    blocked_reason: "Competitive-analysis framework subskill lacks a deterministic pack workflow fixture.",
+    next_command: "$targeted-skill-builder porter-five-forces benchmark coverage",
+  },
   "jtbd-timeline": {
     blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
     next_command: "$targeted-skill-builder jtbd-timeline benchmark coverage",
@@ -242,6 +250,14 @@ const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason
   "seven-dimensions": {
     blocked_reason: "Customer-discovery framework subskill lacks a deterministic pack workflow fixture.",
     next_command: "$targeted-skill-builder seven-dimensions benchmark coverage",
+  },
+  "strategic-group-map": {
+    blocked_reason: "Competitive-analysis framework subskill lacks a deterministic pack workflow fixture.",
+    next_command: "$targeted-skill-builder strategic-group-map benchmark coverage",
+  },
+  "swot": {
+    blocked_reason: "Competitive-analysis framework subskill lacks a deterministic pack workflow fixture.",
+    next_command: "$targeted-skill-builder swot benchmark coverage",
   },
   "user-story-map": {
     blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
@@ -313,6 +329,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "experience-map",
   "expert-review",
   "extract-shared-types",
+  "feature-pricing-matrix",
   "feature-interview",
   "five-rings",
   "fork-idea-branch",
@@ -366,6 +383,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "platform-strategy",
   "pmf-engine",
   "pmf-assessment",
+  "porter-five-forces",
   "positioning",
   "product-led-media-map",
   "product-line",
@@ -405,7 +423,9 @@ export const BENCH_COVERAGE_SKILLS = [
   "spec-interview",
   "spin-off",
   "strategic-canvas",
+  "strategic-group-map",
   "sync",
+  "swot",
   "transaction-map",
   "targeted-skill-builder",
   "threejs",
