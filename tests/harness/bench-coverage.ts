@@ -222,6 +222,10 @@ const PACK_CUSTOM_SKILLS = [
 ] as const;
 
 const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason" | "next_command">> = {
+  "env-setup": {
+    blocked_reason: "Env scaffolding skill lacks a deterministic pack workflow fixture; secret-safety contract is covered by tests/layer1/env-setup-contract.test.ts.",
+    next_command: "$targeted-skill-builder env-setup benchmark coverage",
+  },
   "customer-journey-canvas": {
     blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
     next_command: "$targeted-skill-builder customer-journey-canvas benchmark coverage",
@@ -341,6 +345,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "devtool-workflow",
   "dogfood",
   "enterprise-icp",
+  "env-setup",
   "experiment",
   "expansion-map",
   "experience-map",
