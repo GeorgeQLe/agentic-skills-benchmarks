@@ -80,6 +80,14 @@ const TIER23_GLOBAL_CUSTOM_SKILLS = [
 ] as const;
 
 const TIER23_GLOBAL_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason" | "next_command">> = {
+  "autoresearch": {
+    blocked_reason: "Claude-only autonomous experiment loop that mutates git branches, repeatedly edits source files, and depends on user-defined metric commands.",
+    next_command: "$targeted-skill-builder autoresearch benchmark coverage",
+  },
+  "autoresearch-prep": {
+    blocked_reason: "Claude-only prep workflow requires an interactive metric/direction interview and may run user-provided metric commands.",
+    next_command: "$targeted-skill-builder autoresearch-prep benchmark coverage",
+  },
   "delegate": {
     blocked_reason: "Claude-only orchestration skill with subagent dispatch semantics that Codex benchmarks cannot execute directly.",
     next_command: "$targeted-skill-builder delegate benchmark coverage",
@@ -210,6 +218,7 @@ const PACK_CUSTOM_SKILLS = [
   "youtube-title-thumbnail-audit",
   "youtube-vid-research",
   "youtube-video-audit",
+  "youtube-video-prelaunch-audit",
 ] as const;
 
 const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason" | "next_command">> = {
@@ -284,6 +293,8 @@ export const BENCH_COVERAGE_SKILLS = [
   "afps-status",
   "analyze-sessions",
   "animation-design-planner",
+  "autoresearch",
+  "autoresearch-prep",
   "assumption-tracker",
   "benchmark-agent-review",
   "benchmark-test-skill",
@@ -471,6 +482,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "youtube-title-thumbnail-audit",
   "youtube-vid-research",
   "youtube-video-audit",
+  "youtube-video-prelaunch-audit",
 ] as const;
 
 const COVERAGE_OVERRIDES: Record<string, Partial<BenchCoverageRow>> = {

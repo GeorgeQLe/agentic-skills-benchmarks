@@ -623,6 +623,9 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "mono-ship", pack: "monorepo", focus: "monorepo ship plan", inputs: ["Package changes", "Commit boundary"], expectedPattern: /ship|monorepo|commit/i },
   { skill: "mvp-gap", pack: "business-ops", focus: "MVP gap analysis", inputs: ["Missing onboarding", "Missing billing"], expectedPattern: /mvp|gap|missing/i },
   { skill: "obviously-awesome", pack: "business-discovery", focus: "April Dunford positioning framework", inputs: ["Customer feedback names switching triggers", "Competitive alternatives are known"], expectedPattern: /alternative|attribute|value|category|positioning/i },
+  { skill: "ord-align", pack: "ord", focus: "ORD candidate alignment", inputs: ["Tool concept", "API surface", "Target developer user"], expectedPattern: /ord|align|candidate/i },
+  { skill: "ord-scan", pack: "ord", focus: "ORD opportunity scan", inputs: ["Developer workflow friction", "Tooling gap"], expectedPattern: /ord|scan|opportun/i },
+  { skill: "ord-ship", pack: "ord", focus: "ORD shipping log and next experiment", inputs: ["Aligned tool candidate", "Adoption signal"], expectedPattern: /ord|ship|experiment/i },
   { skill: "platform-strategy", pack: "business-ops", focus: "platform strategy", inputs: ["API", "Marketplace", "Partners"], expectedPattern: /platform|strategy|partner/i },
   { skill: "pmf-assessment", pack: "business-growth", focus: "PMF assessment", inputs: ["Retention", "Pull signal", "Willingness to pay"], expectedPattern: /pmf|retention|signal/i },
   { skill: "positioning", pack: "business-discovery", focus: "positioning narrative", inputs: ["Target user", "Alternative", "Differentiator"], expectedPattern: /positioning|target|differentiator/i },
@@ -745,6 +748,9 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
     nextRoutes: { claude: "/ui-interview --requirements-only", codex: "$ui-interview --requirements-only" },
   },
   { skill: "value-prop-canvas", pack: "business-discovery", focus: "value proposition canvas", inputs: ["Jobs", "Pains", "Gains"], expectedPattern: /value proposition|canvas|pain/i },
+  { skill: "vard-align", pack: "vard", focus: "VARD candidate alignment", inputs: ["Product concept", "Validation signal", "Risk notes"], expectedPattern: /vard|align|candidate/i },
+  { skill: "vard-scan", pack: "vard", focus: "VARD opportunity scan", inputs: ["Audience problem", "Prototype wedge"], expectedPattern: /vard|scan|opportun/i },
+  { skill: "vard-ship", pack: "vard", focus: "VARD shipping log and next experiment", inputs: ["Aligned concept", "Validation result"], expectedPattern: /vard|ship|experiment/i },
   { skill: "vertical-slice-splitter", pack: "alignment-loop", focus: "vertical slice breakdown", inputs: ["Large feature", "Need shippable slice"], expectedPattern: /vertical slice|split|scope/i },
   { skill: "video-build", pack: "remotion", focus: "video build plan without rendering", inputs: ["Script draft", "Scene list"], expectedPattern: /video|build|scene/i },
   { skill: "video-script", pack: "remotion", focus: "video script outline", inputs: ["Hook", "Demo", "CTA"], expectedPattern: /video|script|hook/i },
@@ -761,6 +767,18 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "youtube-title-thumbnail-audit", pack: "youtube-ops", focus: "YouTube title and thumbnail audit", inputs: ["Title variants", "Thumbnail notes"], expectedPattern: /youtube|title|thumbnail/i },
   { skill: "youtube-vid-research", pack: "youtube-ops", focus: "YouTube video research", inputs: ["Video URL placeholder", "Transcript excerpt"], expectedPattern: /youtube|video|research/i },
   { skill: "youtube-video-audit", pack: "youtube-ops", focus: "YouTube single-video audit", inputs: ["Retention notes", "Packaging notes"], expectedPattern: /youtube|video|audit/i },
+  {
+    skill: "youtube-video-prelaunch-audit",
+    pack: "youtube-ops",
+    focus: "YouTube prelaunch readiness audit for an unlisted video",
+    inputs: ["Unlisted video URL placeholder", "Draft title", "Draft description", "Launch social platforms"],
+    expectedPattern: /youtube|prelaunch|readiness|launch/i,
+    requiredOutputPatterns: [
+      { description: "Output covers edit readiness or polish", pattern: /edit|polish|readiness/i },
+      { description: "Output covers launch strategy or publish settings", pattern: /launch|publish|schedule/i },
+      { description: "Output covers social cross-sharing", pattern: /cross.?shar|social/i },
+    ],
+  },
 ];
 
 export const PACK_WORKFLOW_SETUPS: Record<string, SkillBenchSetup> = Object.fromEntries(
