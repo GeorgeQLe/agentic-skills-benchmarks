@@ -1017,12 +1017,12 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "idea-scope-brief",
     outputPath: "research/idea-brief-poketo-core.md",
-    prompt: "You have the idea-scope-brief skill installed in an already bootstrapped repo. Read idea.md and pivot-notes.md, then write research/idea-brief-poketo-core.md and research/idea-brief-poketo-core-interview.md. Use slugged idea brief filenames because this repo has multiple related Poketo concepts. Preserve poketo.work as a related future concept instead of conflating it with Poketo Core. Include problem, audience, value, constraints, open questions, concept slug, output paths, and Next command. End with `Recommended next command: $icp`.",
+    prompt: "You have the idea-scope-brief skill installed in an already bootstrapped repo. Read idea.md and pivot-notes.md, then write research/idea-brief-poketo-core.md and research/idea-brief-poketo-core-interview.md. Use slugged idea brief filenames because this repo has multiple related Poketo concepts. Preserve poketo.work as a related future concept instead of conflating it with Poketo Core. Include problem, audience, value, constraints, open questions, concept slug, output paths, Deck Fit Handoff, and Next command. Treat Poketo Core as a deliberate business/SaaS product concept, so the primary next command should be the canonical Business AFPS deck install. End with `Recommended next command: npx skillpacks install-deck business-afps`.",
     fixtureFiles: {
       "idea.md": "$idea-scope-brief poketo.work, a kanban project management tool.",
       "pivot-notes.md": "During interview, pivot to Poketo Core as the central coordination layer. Poketo Work remains a related future app concept and should not overwrite or share one generic overall concept brief.",
     },
-    expectedIncludes: ["problem", "audience", "value", "open questions", "poketo-core", "poketo.work", "icp"],
+    expectedIncludes: ["problem", "audience", "value", "open questions", "poketo-core", "poketo.work", "Deck Fit Handoff", "business-afps"],
     expectedEvidence: [
       {
         description: "Output names the slugged Poketo Core brief path.",
@@ -1036,9 +1036,14 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
         description: "Output preserves Poketo Work as a separate related or future concept.",
         pattern: /poketo\.work[\s\S]{0,160}(related|future|separate)|(?:related|future|separate)[\s\S]{0,160}poketo\.work/i,
       },
+      {
+        description: "Output recommends the canonical Business AFPS install-deck command as primary routing.",
+        pattern: /Recommended next command:\s*`?npx skillpacks install-deck business-afps`?/i,
+      },
     ],
     expectedPattern: /Poketo Core|central coordination layer/i,
-    recommendedRoute: "$icp",
+    recommendedRoute: "npx skillpacks install-deck business-afps",
+    requireFinalRecommendedRoute: true,
   },
   {
     skill: "create-agentic-skill",
