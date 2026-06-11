@@ -1522,7 +1522,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "ui-interview",
     outputPath: "specs/ui-spec.md",
-    prompt: "You have the ui-interview skill installed. Convert product-need.md into specs/ui-spec.md with layout, hierarchy, controls, states, responsive behavior, prototype-first boundary, and Next command. End with `Recommended next command: $exec`.",
+    prompt: "You have the ui-interview skill installed. Convert product-need.md into specs/ui-spec.md with layout, hierarchy, controls, states, responsive behavior, prototype-first boundary, and Next command. Treat this instruction as final compiled YAML approval of the research scope and spec content: skip interactive checkpoints, write the canonical spec, and treat the alignment page as confirmed. End with `Recommended next command: $exec`.",
     fixtureFiles: {
       "product-need.md": "A SaaS dashboard table for benchmark coverage status and blocked reasons. The first prototype should use fake rows and visually mock auth, analytics, and saved database states rather than implementing them.",
     },
