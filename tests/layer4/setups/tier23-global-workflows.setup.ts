@@ -285,7 +285,7 @@ const UPDATE_PACKAGES_ACTIONABILITY_PATTERN =
   /(?:^|\n)#{1,6}\s*Verification(?:\s+Commands)?\b|Verification commands:|Focused smoke checks?:|Stop condition:|Major-upgrade risk handling:/i;
 const UPDATE_PACKAGES_BATCH_ACTIONABILITY_PATTERN = new RegExp([
   "(?=[\\s\\S]*(?:Batch\\s*0\\b[\\s\\S]*Batch\\s*1\\b[\\s\\S]*Batch\\s*2\\b|Batch\\s*1\\b[\\s\\S]*Batch\\s*2\\b[\\s\\S]*Batch\\s*3\\b|Batch\\s*A\\b[\\s\\S]*Batch\\s*B\\b[\\s\\S]*Batch\\s*C\\b))",
-  "(?=[\\s\\S]*(?:mutation command|implementation command|exact command|pnpm\\s+(?:install|add|up)|\\.npmrc))",
+  "(?=[\\s\\S]*(?:mutation command|implementation command|exact command|pnpm\\s+(?:install|add|up)|minimumReleaseAge))",
   "(?=[\\s\\S]*(?:verification command|smoke[-\\s]test|pnpm\\s+(?:test|run\\s+test|build|run\\s+build)))",
   "(?=[\\s\\S]*(?:expected proof|expected artifact|pnpm-lock\\.yaml))",
   "(?=[\\s\\S]*(?:do not proceed|do not continue|on red|stop condition|route[\\s\\S]{0,80}migrate))",
@@ -373,7 +373,7 @@ function provesSelectedPnpmToolchainAgeEligibility(content: string): boolean {
   });
 }
 const UPDATE_PACKAGES_AGE_GATE_SEMANTICS_PATTERN =
-  /^(?![\s\S]*(?:\bnpm(?:'s)?\b\s+(?:reads|uses|owns|coverage)[^\n.;]{0,160}(?:minimum-release-age=11520|minimumReleaseAge:?\s*11520)|\bpnpm(?:'s)?\b\s+(?:reads|uses|owns|coverage)[^\n.;]{0,160}min-release-age=8))(?=[\s\S]*\bnpm(?:'s)?\b)(?=[\s\S]*\bpnpm(?:'s)?\b)(?=[\s\S]*min-release-age=8)(?=[\s\S]*(?:minimum-release-age=11520|minimumReleaseAge:?\s*11520))[\s\S]*$/i;
+  /^(?![\s\S]*(?:\bnpm(?:'s)?\b\s+(?:reads|uses|owns|coverage)[^\n.;]{0,160}minimumReleaseAge:?\s*11520|\bpnpm(?:'s)?\b\s+(?:reads|uses|owns|coverage)[^\n.;]{0,160}(?:npm-only|publish-time proof only|manual registry)))(?=[\s\S]*\bnpm(?:'s)?\b)(?=[\s\S]*(?:publish-time proof|registry age verification|npm view|npm-only))(?=[\s\S]*\bpnpm(?:'s)?\b)(?=[\s\S]*minimumReleaseAge:?\s*11520)[\s\S]*$/i;
 
 const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
@@ -1425,7 +1425,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   {
     skill: "update-packages",
     outputPath: "package-update-plan.md",
-    prompt: "You have the update-packages skill installed. Read package.json, npm-view-times.json, and package-lock-note.md, then write package-update-plan.md with package-manager migration strategy, .npmrc/package-manager age-gate config, eligible versions older than 8 days, skipped packages, major-upgrade risk handling, verification commands, and Next command. Prefer pnpm over npm when safe. The package-update-plan.md artifact must name `package-update-plan.md` and include these exact literal strings: `older than 8 days`, `min-release-age=8`, `minimum-release-age=11520`, and a runner-native recommended next-command line. Because this fixture upgrades React 18 to 19 and Vitest 1 to 3, include batch order, peer/config compatibility checks, focused smoke checks, and a stop condition that routes broad compatibility work to migrate. Do not use unqualified `pnpm@latest`; choose an existing project-pinned pnpm version or prove the chosen pnpm version is age-eligible with retained publish-time evidence such as `npm view pnpm@<version> time.version` before recommending it as `packageManager`. Keep age-gate ownership clear: `min-release-age=8` is npm's relative age gate; `minimum-release-age=11520` and `minimumReleaseAge: 11520` are pnpm coverage where supported. Use exactly `Recommended next command: /exec` when running as Claude and exactly `Recommended next command: $exec` when running as Codex. Put package-manager shell commands in a verification or implementation section, not as the final Next command.",
+    prompt: "You have the update-packages skill installed. Read package.json, npm-view-times.json, and package-lock-note.md, then write package-update-plan.md with package-manager migration strategy, package-manager age-gate config, eligible versions older than 8 days, skipped packages, major-upgrade risk handling, verification commands, and Next command. Prefer pnpm over npm when safe. The package-update-plan.md artifact must name `package-update-plan.md` and include these exact literal strings: `older than 8 days`, `publish-time proof`, `minimumReleaseAge: 11520`, and a runner-native recommended next-command line. Because this fixture upgrades React 18 to 19 and Vitest 1 to 3, include batch order, peer/config compatibility checks, focused smoke checks, and a stop condition that routes broad compatibility work to migrate. Do not use unqualified `pnpm@latest`; choose an existing project-pinned pnpm version or prove the chosen pnpm version is age-eligible with retained publish-time evidence such as `npm view pnpm@<version> time.version` before recommending it as `packageManager`. Keep age-gate ownership clear: npm-only projects use retained publish-time proof and pnpm uses persisted `minimumReleaseAge: 11520` where supported. Do not recommend unsupported `.npmrc` age-gate keys. Use exactly `Recommended next command: /exec` when running as Claude and exactly `Recommended next command: $exec` when running as Codex. Put package-manager shell commands in a verification or implementation section, not as the final Next command.",
     fixtureFiles: {
       "package.json": JSON.stringify({
         scripts: {
@@ -1462,7 +1462,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
       }, null, 2),
       "package-lock-note.md": "This fixture has package-lock.json in the source project and no pnpm-lock.yaml. There are no deployment notes requiring npm.",
     },
-    expectedIncludes: ["pnpm", "older than 8 days", ".npmrc", "min-release-age"],
+    expectedIncludes: ["pnpm", "older than 8 days", "publish-time proof", "minimumReleaseAge"],
     expectedEvidence: [
       {
         description: "Output includes verification command evidence",
@@ -1485,7 +1485,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
         pattern: UPDATE_PACKAGES_AGE_GATE_SEMANTICS_PATTERN,
       },
     ],
-    expectedPattern: /(19\.2\.0|3\.25\.76|3\.2\.4).*(min-release-age=8|minimum-release-age=11520|minimumReleaseAge|11520)|(\.npmrc|min-release-age=8|minimum-release-age=11520).*(19\.2\.0|3\.25\.76|3\.2\.4)/is,
+    expectedPattern: /(19\.2\.0|3\.25\.76|3\.2\.4).*(publish-time proof|minimumReleaseAge|11520)|(publish-time proof|minimumReleaseAge|11520).*(19\.2\.0|3\.25\.76|3\.2\.4)/is,
     artifactReferencePattern: UPDATE_PACKAGES_ARTIFACT_REFERENCE_PATTERN,
     actionabilityPatterns: [UPDATE_PACKAGES_ACTIONABILITY_PATTERN, UPDATE_PACKAGES_BATCH_ACTIONABILITY_PATTERN],
     actionabilityCritical: true,
