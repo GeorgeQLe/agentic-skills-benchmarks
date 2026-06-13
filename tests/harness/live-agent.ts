@@ -78,7 +78,7 @@ export function writeFixtureFiles(workDir: string): void {
       "",
       "User asked the agent to create a repo-managed skill in agentic-skills.",
       "The agent initially created a user-local skill under ~/.codex/skills.",
-      "The user corrected the agent: repo-managed skills belong under global/codex and global/claude.",
+      "The user corrected the agent: repo-managed skills belong under base/codex and base/claude.",
       "The agent verified the repo contract and moved the work into the shared repository.",
       "",
       "Expected triage: this is one concrete incident, not a broad trend analysis.",

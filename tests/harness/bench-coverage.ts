@@ -26,10 +26,10 @@ export interface BenchCoverageValidationResult {
 }
 
 const LAST_VERIFIED = "2026-05-21";
-const TIER23_GLOBAL_SETUP_PATH = "tests/layer4/setups/tier23-global-workflows.setup.ts";
+const TIER23_BASE_SETUP_PATH = "tests/layer4/setups/tier23-base-workflows.setup.ts";
 const PACK_WORKFLOW_SETUP_PATH = "tests/layer4/setups/packs/pack-workflows.setup.ts";
 
-const TIER23_GLOBAL_CUSTOM_SKILLS = [
+const TIER23_BASE_CUSTOM_SKILLS = [
   "affected",
   "analyze-sessions",
   "animation-design-planner",
@@ -79,7 +79,7 @@ const TIER23_GLOBAL_CUSTOM_SKILLS = [
   "web-animations-api",
 ] as const;
 
-const TIER23_GLOBAL_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason" | "next_command">> = {
+const TIER23_BASE_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason" | "next_command">> = {
   "autoresearch": {
     blocked_reason: "Claude-only autonomous experiment loop that mutates git branches, repeatedly edits source files, and depends on user-defined metric commands.",
     next_command: "$targeted-skill-builder autoresearch benchmark coverage",
@@ -491,13 +491,13 @@ export const BENCH_COVERAGE_SKILLS = [
 ] as const;
 
 const COVERAGE_OVERRIDES: Record<string, Partial<BenchCoverageRow>> = {
-  ...Object.fromEntries(TIER23_GLOBAL_CUSTOM_SKILLS.map((skill) => [skill, {
+  ...Object.fromEntries(TIER23_BASE_CUSTOM_SKILLS.map((skill) => [skill, {
     coverage_status: "custom",
-    setup_path: TIER23_GLOBAL_SETUP_PATH,
+    setup_path: TIER23_BASE_SETUP_PATH,
     priority_tier: 2,
-    fixture_type: "global-workflow-fixture",
+    fixture_type: "base-workflow-fixture",
   }] satisfies [string, Partial<BenchCoverageRow>])),
-  ...Object.fromEntries(Object.entries(TIER23_GLOBAL_BLOCKED_SKILLS).map(([skill, blocked]) => [skill, {
+  ...Object.fromEntries(Object.entries(TIER23_BASE_BLOCKED_SKILLS).map(([skill, blocked]) => [skill, {
     coverage_status: "blocked",
     priority_tier: 2,
     agent_scope: "codex",
@@ -703,7 +703,7 @@ function discoverRepositorySkillsCached(): Map<string, string[]> {
 
 function skillPaths(): string[] {
   return [
-    ...walkSkillPaths(join(REPO_ROOT, "global")),
+    ...walkSkillPaths(join(REPO_ROOT, "base")),
     ...walkSkillPaths(join(REPO_ROOT, "packs")),
   ];
 }

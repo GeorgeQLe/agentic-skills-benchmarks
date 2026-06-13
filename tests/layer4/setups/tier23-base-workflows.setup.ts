@@ -22,7 +22,7 @@ import {
 } from "../setup-helpers/quality.js";
 import { assertNextCommand, assertRecommendedExactNextRoute, assertRecommendedNextRoute, assertRecommendedRoute } from "../setup-helpers/routing.js";
 
-interface GlobalWorkflowDefinition {
+interface BaseWorkflowDefinition {
   skill: string;
   outputPath: string;
   prompt: string;
@@ -60,14 +60,14 @@ const ICON_SOURCE_SVG = [
   "</svg>\n",
 ].join("");
 
-function expectedRoute(definition: GlobalWorkflowDefinition, agent?: BenchAgent): string | undefined {
+function expectedRoute(definition: BaseWorkflowDefinition, agent?: BenchAgent): string | undefined {
   if (agent && definition.recommendedRoutes?.[agent]) {
     return definition.recommendedRoutes[agent];
   }
   return definition.recommendedRoute;
 }
 
-function qualityRoutes(definition: GlobalWorkflowDefinition): string | string[] | undefined {
+function qualityRoutes(definition: BaseWorkflowDefinition): string | string[] | undefined {
   const routes = Object.values(definition.recommendedRoutes ?? {});
   if (routes.length > 0) {
     return routes;
@@ -75,14 +75,14 @@ function qualityRoutes(definition: GlobalWorkflowDefinition): string | string[] 
   return definition.recommendedRoute;
 }
 
-function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillBenchSetup {
+function createBaseWorkflowSetup(definition: BaseWorkflowDefinition): SkillBenchSetup {
   return {
     skill: definition.skill,
     prompt: definition.prompt,
     perRunBudgetUsd: definition.perRunBudgetUsd ?? BENCH_BUDGETS_USD.standard,
     timeoutMs: BENCH_TIMEOUTS_MS.standard,
     qualityOutputPath: definition.outputPath,
-    qualityEvaluator: createGlobalWorkflowQualityEvaluator(definition),
+    qualityEvaluator: createBaseWorkflowQualityEvaluator(definition),
 
     setupProject(workDir: string): void {
       for (const [relativePath, content] of Object.entries(definition.fixtureFiles)) {
@@ -146,7 +146,7 @@ function createGlobalWorkflowSetup(definition: GlobalWorkflowDefinition): SkillB
   };
 }
 
-function createGlobalWorkflowQualityEvaluator(definition: GlobalWorkflowDefinition) {
+function createBaseWorkflowQualityEvaluator(definition: BaseWorkflowDefinition) {
   const forbiddenFixtureTerms = [
     "Lorem ipsum",
     "production deployment completed",
@@ -375,7 +375,7 @@ function provesSelectedPnpmToolchainAgeEligibility(content: string): boolean {
 const UPDATE_PACKAGES_AGE_GATE_SEMANTICS_PATTERN =
   /^(?![\s\S]*(?:\bnpm(?:'s)?\b\s+(?:reads|uses|owns|coverage)[^\n.;]{0,160}minimumReleaseAge:?\s*11520|\bpnpm(?:'s)?\b\s+(?:reads|uses|owns|coverage)[^\n.;]{0,160}(?:npm-only|publish-time proof only|manual registry)))(?=[\s\S]*\bnpm(?:'s)?\b)(?=[\s\S]*(?:publish-time proof|registry age verification|npm view|npm-only))(?=[\s\S]*\bpnpm(?:'s)?\b)(?=[\s\S]*minimumReleaseAge:?\s*11520)[\s\S]*$/i;
 
-const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
+const baseWorkflowDefinitions: BaseWorkflowDefinition[] = [
   {
     skill: "affected",
     outputPath: "affected-report.md",
@@ -985,7 +985,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     outputPath: "codebase-status.md",
     prompt: "You have the codebase-status skill installed. Read repo-summary.md and tasks/todo.md, then write codebase-status.md with what this repo is, current status, outstanding work, and Next command. End with `Recommended next command: $exec`.",
     fixtureFiles: {
-      "repo-summary.md": "agentic-skills stores global and pack skills with validation tests.",
+      "repo-summary.md": "agentic-skills stores base and pack skills with validation tests.",
       "tasks/todo.md": "# Active Phase\n\n- [ ] Step 2: Add pack coverage.\n",
     },
     expectedIncludes: ["what this repo is", "current status", "outstanding work"],
@@ -1168,7 +1168,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     outputPath: "hygiene-report.md",
     prompt: "You have the hygiene skill installed. Inspect tree.txt and write hygiene-report.md with convention violations, missing files, template drift, fixes, and Next command. End with `Recommended next command: $exec`.",
     fixtureFiles: {
-      "tree.txt": "global/codex/foo/SKILL.md\npacks/example/PACK.md\npacks/example/codex/bar/SKILL.md\n",
+      "tree.txt": "base/codex/foo/SKILL.md\npacks/example/PACK.md\npacks/example/codex/bar/SKILL.md\n",
     },
     expectedIncludes: ["convention violations", "missing files", "template drift"],
     expectedPattern: /SKILL\.md|PACK\.md/i,
@@ -1221,7 +1221,7 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
     outputPath: "pack-plan.md",
     prompt: "You have the pack skill installed. Read pack-request.md and write pack-plan.md with project designation, enabled packs, install checks, validation, and Next command. End with `Recommended next command: $exec`.",
     fixtureFiles: {
-      "pack-request.md": "Enable the benchmark pack for this project without installing domain skills globally.",
+      "pack-request.md": "Enable the benchmark pack for this project without installing domain skills machine-wide.",
     },
     expectedIncludes: ["project designation", "enabled packs", "validation"],
     expectedPattern: /benchmark pack|domain skills/i,
@@ -1562,6 +1562,6 @@ const globalWorkflowDefinitions: GlobalWorkflowDefinition[] = [
   },
 ];
 
-export const GLOBAL_WORKFLOW_SETUPS = Object.fromEntries(
-  globalWorkflowDefinitions.map((definition) => [definition.skill, createGlobalWorkflowSetup(definition)]),
+export const BASE_WORKFLOW_SETUPS = Object.fromEntries(
+  baseWorkflowDefinitions.map((definition) => [definition.skill, createBaseWorkflowSetup(definition)]),
 ) as Record<string, SkillBenchSetup>;
