@@ -1057,6 +1057,18 @@ const baseWorkflowDefinitions: BaseWorkflowDefinition[] = [
     recommendedRoute: "$exec",
   },
   {
+    skill: "create-alignment-page",
+    outputPath: "alignment/repo-glossary-taxonomy.html",
+    prompt: "You have the create-alignment-page skill installed. Read research/repo-glossary.md and the bundled .codex/skills/repo-glossary/ALIGNMENT-PAGE.md convention, then write alignment/repo-glossary-taxonomy.html. Use portable skillpacks commands for TTS, audit, and opening. End with the review handoff and do not recommend downstream implementation yet.",
+    fixtureFiles: {
+      "research/repo-glossary.md": "# Repo Glossary\n\n## Terms\n\n- Skill: A reusable agent workflow.\n- Pack: A distribution bundle of skills.\n\n## Decisions\n\nUse skillpacks as the portable CLI for alignment maintenance.\n",
+      ".codex/skills/repo-glossary/ALIGNMENT-PAGE.md": "# Alignment Page - repo-glossary\n\nCreate `alignment/repo-glossary-{topic}.html`, include review gates, render source content directly, run `npx skillpacks alignment pages audit`, and open with `npx skillpacks alignment pages open alignment/repo-glossary-{topic}.html --browser auto`.\n",
+    },
+    expectedIncludes: ["repo-glossary-taxonomy.html", "npx skillpacks alignment pages audit", "npx skillpacks alignment pages open", "review"],
+    expectedPattern: /skillpacks alignment pages (audit|open|inject-tts)/i,
+    recommendedRoute: "review alignment page",
+  },
+  {
     skill: "create-local-skill",
     outputPath: "local-skill-plan.md",
     prompt: "You have the create-local-skill skill installed. Write local-skill-plan.md for request.md with local skill path, scaffold contents, validation, promotion option, and Next command. End with `Recommended next command: $ship`. Do not write outside the project.",
