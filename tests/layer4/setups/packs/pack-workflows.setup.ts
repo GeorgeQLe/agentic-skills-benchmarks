@@ -28,6 +28,7 @@ interface PackWorkflowDefinition {
   expectedPattern: RegExp;
   promptRequirements?: string[];
   requiredOutputPatterns?: Array<{ description: string; pattern: RegExp }>;
+  forbiddenOutputPatterns?: Array<{ description: string; pattern: RegExp }>;
   retainedArtifacts?: Array<{ path: string; content: string[] }>;
   nextRoute?: string;
   nextRoutes?: Partial<Record<BenchAgent, string>>;
@@ -238,6 +239,15 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
       assertions.push(assertContentMatches(content, definition.expectedPattern, "Output matches pack workflow expectation"));
       for (const requiredPattern of definition.requiredOutputPatterns ?? []) {
         assertions.push(assertContentMatches(content, requiredPattern.pattern, requiredPattern.description));
+      }
+      for (const forbiddenPattern of definition.forbiddenOutputPatterns ?? []) {
+        assertions.push({
+          description: forbiddenPattern.description,
+          pass: !forbiddenPattern.pattern.test(content),
+          detail: forbiddenPattern.pattern.test(content)
+            ? `Output matched forbidden pattern ${forbiddenPattern.pattern}`
+            : undefined,
+        });
       }
       assertions.push(assertNextCommand(content));
       const route = expectedRoute(definition, context?.agent);
@@ -572,7 +582,104 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "clone-spec-store", pack: "project-fleet", focus: "spec-store clone plan without network execution", inputs: ["Spec store URL is unavailable in benchmark", "Need local checklist"], expectedPattern: /clone|spec|store/i },
   { skill: "category-design", pack: "business-discovery", focus: "category diagnosis and POV development", inputs: ["Existing categories underserve the target segment", "Competitors frame the problem too narrowly"], expectedPattern: /category|positioning|pov|market/i },
   { skill: "cohort-review", pack: "business-ops", focus: "cohort retention and activation review", inputs: ["Week 1 activation: 42%", "Week 4 retained: 18%"], expectedPattern: /cohort|retention|activation/i },
-  { skill: "competitive-analysis", pack: "business-discovery", focus: "competitor comparison and positioning gaps", inputs: ["Competitor A has onboarding templates", "Competitor B has integrations"], expectedPattern: /competitor|positioning|gap/i },
+  {
+    skill: "competitive-analysis",
+    pack: "business-discovery",
+    focus: "re-entry routing from approved framework state to the next pending framework",
+    inputs: [
+      "Parent invocation: competitive-analysis is invoked again after selection approval",
+      "Porter's Five Forces is complete and has a canonical intermediate",
+      "SWOT is selected but unchecked and pending",
+      "Legacy tasks/todo.md still contains an approved Competitive Analysis Framework Execution queue",
+    ],
+    expectedPattern: /swot|pending|framework|re-entry|State C/i,
+    promptRequirements: [
+      "- treat this as a repeated parent competitive-analysis invocation, not a cold start",
+      "- use the retained run manifest and legacy tasks/todo.md queue as compatibility evidence",
+      "- route into the parent-owned SWOT framework execution path as the first pending framework",
+      "- say the framework should run inline through the competitive-analysis parent orchestrator",
+      "- do not perform a parent status audit, do not route to exec, and do not suggest direct path-shaped framework commands",
+      "- use the exact runner-specific competitive-analysis route listed below as the final handoff",
+    ],
+    retainedArtifacts: [
+      {
+        path: "research/_working/competitive-analysis-run.yaml",
+        content: [
+          "orchestrator: competitive-analysis",
+          "selected_frameworks:",
+          "  - slug: porter-five-forces",
+          "    intermediate: research/competitive-analysis-porter-five-forces.md",
+          "  - slug: swot",
+          "    intermediate: research/competitive-analysis-swot.md",
+        ],
+      },
+      {
+        path: "research/competitive-analysis-porter-five-forces.md",
+        content: [
+          "# Porter's Five Forces",
+          "",
+          "Approved framework intermediate for the already-complete first framework.",
+        ],
+      },
+      {
+        path: "tasks/todo.md",
+        content: [
+          "## Competitive Analysis Framework Execution",
+          "",
+          "Approved framework queue from the previous orchestrator version.",
+          "",
+          "- [x] Run Porter's Five Forces through the competitive-analysis parent orchestrator.",
+          "- [ ] Run SWOT through the competitive-analysis parent orchestrator.",
+        ],
+      },
+    ],
+    requiredOutputPatterns: [
+      {
+        description: "Output identifies SWOT as the first pending framework",
+        pattern: /(first pending|next pending|pending framework)[\s\S]*SWOT|SWOT[\s\S]*(first pending|next pending|pending framework)/i,
+      },
+      {
+        description: "Output routes through State C parent-owned inline framework execution",
+        pattern: /State C[\s\S]*(parent|orchestrator|inline)|(?:parent|orchestrator|inline)[\s\S]*State C/i,
+      },
+      {
+        description: "Output uses retained re-entry evidence",
+        pattern: /competitive-analysis-run\.yaml|Competitive Analysis Framework Execution|tasks\/todo\.md/i,
+      },
+    ],
+    forbiddenOutputPatterns: [
+      {
+        description: "Output does not hand off to a parent status audit",
+        pattern: /Recommended next (?:skill|command):[^\n]*(?:status audit|audit status|parent audit)/i,
+      },
+      {
+        description: "Output does not route framework execution to exec",
+        pattern: /Recommended next (?:skill|command):\s*(?:\$exec|\/exec)\b/i,
+      },
+      {
+        description: "Output does not suggest direct path-shaped framework commands",
+        pattern: /[$/]competitive-analysis\/frameworks\//,
+      },
+    ],
+    nextRoutes: {
+      claude: "/competitive-analysis",
+      codex: "$competitive-analysis",
+    },
+    forbidden: [
+      "status audit",
+      "$exec",
+      "/exec",
+      "competitive-analysis/frameworks",
+      "google analytics",
+      "stripe dashboard",
+      "salesforce",
+      "hubspot",
+      "api dashboard",
+      "industry-leading",
+      "best-in-class",
+      "proprietary data",
+    ],
+  },
   {
     skill: "content-programming",
     pack: "creator-foundation",
@@ -664,6 +771,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "ord-align", pack: "ord", focus: "ORD candidate alignment", inputs: ["Tool concept", "API surface", "Target developer user"], expectedPattern: /ord|align|candidate/i },
   { skill: "ord-scan", pack: "ord", focus: "ORD opportunity scan", inputs: ["Developer workflow friction", "Tooling gap"], expectedPattern: /ord|scan|opportun/i },
   { skill: "ord-ship", pack: "ord", focus: "ORD shipping log and next experiment", inputs: ["Aligned tool candidate", "Adoption signal"], expectedPattern: /ord|ship|experiment/i },
+  { skill: "ord-traction", pack: "ord", focus: "post-launch ORD adoption gate", inputs: ["Package published 21 days ago", "Downloads: 38", "Two support questions, no repeat usage signal"], expectedPattern: /ord|traction|adoption|graduate|archive|iterate/i },
   { skill: "platform-strategy", pack: "business-ops", focus: "platform strategy", inputs: ["API", "Marketplace", "Partners"], expectedPattern: /platform|strategy|partner/i },
   { skill: "pmf-assessment", pack: "business-growth", focus: "PMF assessment", inputs: ["Retention", "Pull signal", "Willingness to pay"], expectedPattern: /pmf|retention|signal/i },
   { skill: "positioning", pack: "business-discovery", focus: "positioning narrative", inputs: ["Target user", "Alternative", "Differentiator"], expectedPattern: /positioning|target|differentiator/i },
@@ -789,6 +897,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "vard-align", pack: "vard", focus: "VARD candidate alignment", inputs: ["Product concept", "Validation signal", "Risk notes"], expectedPattern: /vard|align|candidate/i },
   { skill: "vard-scan", pack: "vard", focus: "VARD opportunity scan", inputs: ["Audience problem", "Prototype wedge"], expectedPattern: /vard|scan|opportun/i },
   { skill: "vard-ship", pack: "vard", focus: "VARD shipping log and next experiment", inputs: ["Aligned concept", "Validation result"], expectedPattern: /vard|ship|experiment/i },
+  { skill: "vard-traction", pack: "vard", focus: "post-launch VARD traction gate", inputs: ["Landing page live 14 days", "Waitlist: 9", "Activation signal is weak"], expectedPattern: /vard|traction|graduate|archive|iterate|activation/i },
   { skill: "vertical-slice-splitter", pack: "alignment-loop", focus: "vertical slice breakdown", inputs: ["Large feature", "Need shippable slice"], expectedPattern: /vertical slice|split|scope/i },
   { skill: "video-build", pack: "remotion", focus: "video build plan without rendering", inputs: ["Script draft", "Scene list"], expectedPattern: /video|build|scene/i },
   { skill: "video-script", pack: "remotion", focus: "video script outline", inputs: ["Hook", "Demo", "CTA"], expectedPattern: /video|script|hook/i },
