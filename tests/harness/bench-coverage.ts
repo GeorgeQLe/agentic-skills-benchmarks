@@ -210,6 +210,7 @@ const PACK_CUSTOM_SKILLS = [
   "youtube-channel-audit",
   "youtube-concept-research",
   "youtube-competitive-research",
+  "youtube-derivative-cuts",
   "youtube-description-optimizer",
   "youtube-format-research",
   "youtube-peer-benchmark",
@@ -229,6 +230,10 @@ const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason
   "customer-journey-canvas": {
     blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
     next_command: "$targeted-skill-builder customer-journey-canvas benchmark coverage",
+  },
+  "design-inspirations": {
+    blocked_reason: "Design inspiration research requires live web research and source-link inspection; deterministic local fixture coverage needs a safe offline source corpus first.",
+    next_command: "$targeted-skill-builder design-inspirations benchmark coverage",
   },
   "experience-map": {
     blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
@@ -334,6 +339,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "deploy",
   "desk-flip",
   "design-system",
+  "design-inspirations",
   "destination-doc",
   "devtool-adoption",
   "devtool-docs-audit",
@@ -479,6 +485,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "youtube-channel-audit",
   "youtube-concept-research",
   "youtube-competitive-research",
+  "youtube-derivative-cuts",
   "youtube-description-optimizer",
   "youtube-format-research",
   "youtube-peer-benchmark",

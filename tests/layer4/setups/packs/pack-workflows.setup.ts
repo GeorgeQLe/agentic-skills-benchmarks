@@ -348,6 +348,44 @@ function extraPackQualityCriteria(definition: PackWorkflowDefinition) {
     ];
   }
 
+  if (definition.skill === "youtube-derivative-cuts") {
+    return [
+      requiredFactCoverageCriterion({
+        id: "youtube-derivative-cuts-candidate-handles",
+        description: "Includes concrete cut handles with timestamps and duration.",
+        weight: 2,
+        critical: true,
+        facts: [
+          "00:42",
+          "02:15",
+          "estimated duration",
+        ],
+      }),
+      requiredFactCoverageCriterion({
+        id: "youtube-derivative-cuts-format-separation",
+        description: "Separates companion clips from Shorts.",
+        weight: 2,
+        critical: true,
+        facts: [
+          "companion clip",
+          "Shorts",
+        ],
+      }),
+      requiredFactCoverageCriterion({
+        id: "youtube-derivative-cuts-measurement-beyond-views",
+        description: "Measures success beyond Shorts view counts alone.",
+        weight: 2,
+        critical: true,
+        facts: [
+          "subscribers gained",
+          "retention",
+          "long-form spillover",
+          "Shorts views alone are insufficient",
+        ],
+      }),
+    ];
+  }
+
   if (definition.skill !== "content-programming") {
   return [];
 }
@@ -759,6 +797,35 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "youtube-channel-audit", pack: "youtube-ops", focus: "YouTube channel audit", inputs: ["About page", "Top videos"], expectedPattern: /youtube|channel|audit/i },
   { skill: "youtube-concept-research", pack: "youtube-ops", focus: "YouTube concept research", inputs: ["Video concept", "Comparable themes"], expectedPattern: /youtube|concept|research/i },
   { skill: "youtube-competitive-research", pack: "youtube-ops", focus: "YouTube competitive research", inputs: ["Peer channel A", "Peer channel B"], expectedPattern: /youtube|competitive|peer/i },
+  {
+    skill: "youtube-derivative-cuts",
+    pack: "youtube-ops",
+    focus: "YouTube derivative cut slate from one long source video",
+    inputs: [
+      "Source video ID: abc123def45",
+      "Source title: Building an agentic skills workflow end to end",
+      "Transcript segment: 00:42-02:15 explains the core workflow failure mode and payoff.",
+      "Transcript segment: 08:10-08:54 gives a crisp before/after example suitable for Shorts.",
+      "Chapters: setup, diagnosis, implementation, measurement",
+      "Portfolio gap: short proof clips are missing for education and acquisition.",
+      "Metrics note: track source-video traffic, subscribers gained, retention, and long-form spillover.",
+    ],
+    promptRequirements: [
+      "- include candidate timestamp start/end handles and estimated duration",
+      "- distinguish companion clips from Shorts",
+      "- include a publish sequence starting with a companion clip, then 3-5 Shorts, then checkpoint review",
+      "- include measurement beyond views and explicitly state that Shorts views alone are insufficient success evidence",
+      "- hand off thumbnail design to youtube-title-thumbnail-audit and upload-ready description optimization to youtube-description-optimizer",
+    ],
+    expectedPattern: /youtube|derivative|cut|clip|Shorts|timestamp/i,
+    requiredOutputPatterns: [
+      { description: "Output includes candidate timestamps", pattern: /\b\d{1,2}:\d{2}(?::\d{2})?\b[\s\S]*\b\d{1,2}:\d{2}(?::\d{2})?\b/i },
+      { description: "Output distinguishes companion clips from Shorts", pattern: /companion clip[\s\S]*Shorts|Shorts[\s\S]*companion clip/i },
+      { description: "Output includes publish sequence", pattern: /publish sequence|companion clip first|checkpoint review/i },
+      { description: "Output measures beyond views", pattern: /subscribers gained|subs gained|retention|long-form spillover|source-video traffic|Shorts views alone/i },
+    ],
+    nextRoutes: { claude: "/youtube-title-thumbnail-audit", codex: "$youtube-title-thumbnail-audit" },
+  },
   { skill: "youtube-description-optimizer", pack: "youtube-ops", focus: "YouTube description optimization", inputs: ["Draft description", "Links"], expectedPattern: /youtube|description|optimi/i },
   { skill: "youtube-format-research", pack: "remotion", focus: "YouTube format research", inputs: ["Reference video", "Format notes"], expectedPattern: /youtube|format|research/i },
   { skill: "youtube-peer-benchmark", pack: "youtube-ops", focus: "YouTube peer benchmark", inputs: ["Peer metrics", "Topic clusters"], expectedPattern: /youtube|peer|benchmark/i },
