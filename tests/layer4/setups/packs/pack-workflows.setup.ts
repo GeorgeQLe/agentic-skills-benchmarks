@@ -768,7 +768,22 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "mono-ship", pack: "monorepo", focus: "monorepo ship plan", inputs: ["Package changes", "Commit boundary"], expectedPattern: /ship|monorepo|commit/i },
   { skill: "mvp-gap", pack: "business-ops", focus: "MVP gap analysis", inputs: ["Missing onboarding", "Missing billing"], expectedPattern: /mvp|gap|missing/i },
   { skill: "obviously-awesome", pack: "business-discovery", focus: "April Dunford positioning framework", inputs: ["Customer feedback names switching triggers", "Competitive alternatives are known"], expectedPattern: /alternative|attribute|value|category|positioning/i },
-  { skill: "ord-align", pack: "ord", focus: "ORD candidate alignment", inputs: ["Tool concept", "API surface", "Target developer user"], expectedPattern: /ord|align|candidate/i },
+  {
+    skill: "ord-align",
+    pack: "ord",
+    focus: "ORD candidate alignment with report-first approval before markdown finalization",
+    inputs: ["Tool concept", "API surface", "Target developer user"],
+    expectedPattern: /ord|align|candidate/i,
+    requiredOutputPatterns: [
+      { description: "Output names the staged review HTML path", pattern: /alignment\/ord-align-[\w-]+\.html|alignment\/ord-align-<slug>\.html/i },
+      { description: "Output uses report-first approval gate language", pattern: /report-first|review HTML|HTML approval gate|scope-first approval/i },
+      { description: "Output requires final compiled YAML approval", pattern: /final compiled YAML|compiled response YAML/i },
+      {
+        description: "Output blocks direct markdown write before approval",
+        pattern: /do not write [`']?alignment\/ord-<slug>\.md[`']? before approval|no direct [`']?alignment\/ord-<slug>\.md[`']? write before approval|write [`']?alignment\/ord-<slug>\.md[`']? only (after|for) approved GO/i,
+      },
+    ],
+  },
   { skill: "ord-scan", pack: "ord", focus: "ORD opportunity scan", inputs: ["Developer workflow friction", "Tooling gap"], expectedPattern: /ord|scan|opportun/i },
   { skill: "ord-ship", pack: "ord", focus: "ORD shipping log and next experiment", inputs: ["Aligned tool candidate", "Adoption signal"], expectedPattern: /ord|ship|experiment/i },
   { skill: "ord-traction", pack: "ord", focus: "post-launch ORD adoption gate", inputs: ["Package published 21 days ago", "Downloads: 38", "Two support questions, no repeat usage signal"], expectedPattern: /ord|traction|adoption|graduate|archive|iterate/i },
