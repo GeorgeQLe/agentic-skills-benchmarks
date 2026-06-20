@@ -129,6 +129,11 @@ const PACK_CUSTOM_SKILLS = [
   "creator-presence-dossier",
   "customer-discovery",
   "customer-feedback",
+  "customer-journey-canvas",
+  "experience-map",
+  "jtbd-timeline",
+  "service-blueprint",
+  "user-story-map",
   "destination-doc",
   "devtool-adoption",
   "devtool-docs-audit",
@@ -230,17 +235,9 @@ const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason
     blocked_reason: "Env scaffolding skill lacks a deterministic pack workflow fixture; secret-safety contract is covered by tests/layer1/env-setup-contract.test.ts.",
     next_command: "$targeted-skill-builder env-setup benchmark coverage",
   },
-  "customer-journey-canvas": {
-    blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
-    next_command: "$targeted-skill-builder customer-journey-canvas benchmark coverage",
-  },
   "design-inspirations": {
     blocked_reason: "Design inspiration research requires live web research and source-link inspection; deterministic local fixture coverage needs a safe offline source corpus first.",
     next_command: "$targeted-skill-builder design-inspirations benchmark coverage",
-  },
-  "experience-map": {
-    blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
-    next_command: "$targeted-skill-builder experience-map benchmark coverage",
   },
   "feature-pricing-matrix": {
     blocked_reason: "Competitive-analysis framework subskill lacks a deterministic pack workflow fixture.",
@@ -266,14 +263,6 @@ const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason
     blocked_reason: "Competitive-analysis framework subskill lacks a deterministic pack workflow fixture.",
     next_command: "$targeted-skill-builder porter-five-forces benchmark coverage",
   },
-  "jtbd-timeline": {
-    blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
-    next_command: "$targeted-skill-builder jtbd-timeline benchmark coverage",
-  },
-  "service-blueprint": {
-    blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
-    next_command: "$targeted-skill-builder service-blueprint benchmark coverage",
-  },
   "state-model": {
     blocked_reason: "Domain-modeling orchestrator that runs one modeling framework per session and requires an approved flow-tree plus user-flow fixture corpus; deterministic pack workflow fixture coverage needs that multi-artifact prerequisite first.",
     next_command: "$targeted-skill-builder state-model benchmark coverage",
@@ -289,10 +278,6 @@ const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason
   "swot": {
     blocked_reason: "Competitive-analysis framework subskill lacks a deterministic pack workflow fixture.",
     next_command: "$targeted-skill-builder swot benchmark coverage",
-  },
-  "user-story-map": {
-    blocked_reason: "Journey-map framework subskill lacks a deterministic pack workflow fixture.",
-    next_command: "$targeted-skill-builder user-story-map benchmark coverage",
   },
   "w3-hypothesis": {
     blocked_reason: "Customer-discovery framework subskill lacks a deterministic pack workflow fixture.",

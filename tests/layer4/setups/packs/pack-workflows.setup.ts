@@ -499,7 +499,250 @@ function hasBenchmarkAgentReviewOwnerLabel(output: string): boolean {
   ];
 }
 
+// Framework-subskill fixtures (journey-map, customer-discovery, competitive-analysis).
+// Framework subskills never run as a cold direct call: they only execute through their
+// parent orchestrator's Research Session Loop. Each fixture below therefore frames the
+// agent as the parent orchestrator at State C executing one framework inline from seeded
+// local evidence, and routes its final handoff back to the parent (mirroring the existing
+// competitive-analysis re-entry fixture). One shared seed helper per family keeps the
+// prerequisite artifacts identical across that family's frameworks.
+
+const GLOSSARY_HEADER = [
+  "# Project Glossary",
+  "",
+  "| Term | Definition | Source | Category | Status |",
+  "| --- | --- | --- | --- | --- |",
+];
+
+function subskillPromptRequirements(parent: string, framework: string, prereqPath: string): string[] {
+  return [
+    `- treat this as the ${parent} orchestrator at State C executing the ${framework} framework inline (not a cold start, not a direct subskill call)`,
+    `- use the retained run manifest plus ${prereqPath} as the approved framework context`,
+    `- produce the ${framework} canonical artifact content from the seeded local evidence only`,
+    "- do not perform a parent status audit, do not route to exec, do not emit direct frameworks/ path commands, do not call external search",
+    `- end with the exact runner-specific ${parent} route listed below as the final handoff`,
+  ];
+}
+
+function subskillForbiddenOutputPatterns(parent: string): Array<{ description: string; pattern: RegExp }> {
+  return [
+    {
+      description: "Output does not route framework execution to exec",
+      pattern: /Recommended next (?:skill|command):\s*(?:\$exec|\/exec)\b/i,
+    },
+    {
+      description: "Output does not suggest direct path-shaped framework commands",
+      pattern: new RegExp(String.raw`[$/]${parent}\/frameworks\/`),
+    },
+  ];
+}
+
+function subskillForbidden(parent: string): string[] {
+  return [
+    "$exec",
+    "/exec",
+    `${parent}/frameworks`,
+    "google analytics",
+    "stripe dashboard",
+    "salesforce",
+    "hubspot",
+    "api dashboard",
+    "industry-leading",
+    "best-in-class",
+    "proprietary data",
+  ];
+}
+
+function journeyMapSeed(framework: string): Array<{ path: string; content: string[] }> {
+  return [
+    {
+      path: "research/icp.md",
+      content: [
+        "# Ideal Customer Profile",
+        "",
+        "## Segment",
+        "Two-to-five person AI-agent engineering teams shipping internal developer tools.",
+        "",
+        "## Firmographics",
+        "Seed-stage startups, 5-30 employees, remote-first, using a shared monorepo.",
+        "",
+        "## Named Pains",
+        "- Manual benchmark setup eats a full afternoon before any signal arrives.",
+        "- Skill coverage gaps are invisible until a release breaks downstream.",
+        "- Hand-offs between research and implementation lose context.",
+        "",
+        "## Trigger Events",
+        "- A failed release traced back to an unbenchmarked skill.",
+        "- Onboarding a new agent engineer who cannot find coverage status.",
+        "- Quarterly planning that needs a coverage baseline.",
+        "",
+        "## Jobs To Be Done",
+        "Reach a trustworthy coverage baseline without burning a day on fixtures.",
+        "",
+        "## Current Alternatives",
+        "Hand-written spreadsheets, ad-hoc grep scripts, and tribal knowledge.",
+        "",
+        "## Buying Process",
+        "Champion engineer trials locally, then shows the lead a coverage report.",
+        "",
+        "## Willingness To Pay",
+        "Budget owner is the eng lead; pays per-seat once the baseline saves a day per cycle.",
+        "",
+        "## Disqualifiers",
+        "Teams with no monorepo and no shared skill registry.",
+      ],
+    },
+    {
+      path: "research/_working/journey-map-run.yaml",
+      content: [
+        "orchestrator: journey-map",
+        "state: C",
+        "icp: research/icp.md",
+        "selected_frameworks:",
+        `  - slug: ${framework}`,
+        `    intermediate: research/journey-map-${framework}.md`,
+      ],
+    },
+    { path: "research/glossary.md", content: GLOSSARY_HEADER },
+  ];
+}
+
+interface FrameworkSubskillSpec {
+  skill: string;
+  pack: string;
+  parent: string;
+  prereqPath: string;
+  manifestEvidence: RegExp;
+  seed: (framework: string) => Array<{ path: string; content: string[] }>;
+  focus: string;
+  frameworkLabel: string;
+  inputs: string[];
+  expectedPattern: RegExp;
+  requiredOutputPatterns: Array<{ description: string; pattern: RegExp }>;
+}
+
+function makeFrameworkSubskillDefinition(spec: FrameworkSubskillSpec): PackWorkflowDefinition {
+  return {
+    skill: spec.skill,
+    pack: spec.pack,
+    focus: spec.focus,
+    inputs: spec.inputs,
+    expectedPattern: spec.expectedPattern,
+    promptRequirements: subskillPromptRequirements(spec.parent, spec.frameworkLabel, spec.prereqPath),
+    retainedArtifacts: spec.seed(spec.skill),
+    requiredOutputPatterns: [
+      {
+        description: "Output executes the framework inline at State C through the parent orchestrator",
+        pattern: /State C[\s\S]*(parent|orchestrator|inline)|(?:parent|orchestrator|inline)[\s\S]*State C/i,
+      },
+      {
+        description: "Output cites the retained run manifest or seeded prerequisite evidence",
+        pattern: spec.manifestEvidence,
+      },
+      ...spec.requiredOutputPatterns,
+    ],
+    forbiddenOutputPatterns: subskillForbiddenOutputPatterns(spec.parent),
+    nextRoutes: { claude: `/${spec.parent}`, codex: `$${spec.parent}` },
+    forbidden: subskillForbidden(spec.parent),
+  };
+}
+
+const JOURNEY_MAP_MANIFEST_EVIDENCE = /journey-map-run\.yaml|research\/icp\.md/i;
+
+const journeyMapSubskillDefinitions: PackWorkflowDefinition[] = [
+  {
+    skill: "service-blueprint",
+    frameworkLabel: "service blueprint",
+    focus: "service blueprint with frontstage/backstage stages and operational gaps",
+    inputs: [
+      "State C: journey-map executing the service-blueprint framework inline",
+      "Seed: research/icp.md named pains and trigger events",
+      "Selected framework: service-blueprint via research/_working/journey-map-run.yaml",
+    ],
+    expectedPattern: /service|blueprint|stage|backstage|visibility/i,
+    requiredOutputPatterns: [
+      { description: "Output covers service stages and frontstage/backstage layers", pattern: /service stage|front-?stage|backstage/i },
+      { description: "Output covers the line of visibility or internal interaction", pattern: /line of (visibility|internal interaction|interaction)/i },
+      { description: "Output covers operational gaps", pattern: /operational gap|fail point|wait point|bottleneck/i },
+    ],
+  },
+  {
+    skill: "experience-map",
+    frameworkLabel: "experience map",
+    focus: "experience map with phases and thoughts/feelings/pain points",
+    inputs: [
+      "State C: journey-map executing the experience-map framework inline",
+      "Seed: research/icp.md named pains and trigger events",
+      "Selected framework: experience-map via research/_working/journey-map-run.yaml",
+    ],
+    expectedPattern: /experience|phase|feeling|pain|emotion/i,
+    requiredOutputPatterns: [
+      { description: "Output covers experience phases", pattern: /experience phase|phase/i },
+      { description: "Output covers doing, thinking, and feeling", pattern: /thinking|feeling|doing/i },
+      { description: "Output covers pain and delight moments", pattern: /pain (moment|point)|delight moment|emotional arc/i },
+    ],
+  },
+  {
+    skill: "user-story-map",
+    frameworkLabel: "user story map",
+    focus: "user story map with backbone activities and tasks",
+    inputs: [
+      "State C: journey-map executing the user-story-map framework inline",
+      "Seed: research/icp.md jobs-to-be-done and named pains",
+      "Selected framework: user-story-map via research/_working/journey-map-run.yaml",
+    ],
+    expectedPattern: /story|backbone|activity|task|release/i,
+    requiredOutputPatterns: [
+      { description: "Output covers the activity backbone", pattern: /activity backbone|backbone/i },
+      { description: "Output covers activities, tasks, and stories", pattern: /task|user story|as a .*i want/i },
+      { description: "Output covers release slicing", pattern: /release (slic|1|2)|walking skeleton/i },
+    ],
+  },
+  {
+    skill: "jtbd-timeline",
+    frameworkLabel: "JTBD timeline",
+    focus: "time-ordered JTBD switching timeline with the four forces",
+    inputs: [
+      "State C: journey-map executing the jtbd-timeline framework inline",
+      "Seed: research/icp.md trigger events and current alternatives",
+      "Selected framework: jtbd-timeline via research/_working/journey-map-run.yaml",
+    ],
+    expectedPattern: /timeline|switching|job|force|deciding/i,
+    requiredOutputPatterns: [
+      { description: "Output covers the time-ordered switching timeline", pattern: /switching timeline|first thought|passive looking|active looking|deciding/i },
+      { description: "Output covers the four forces", pattern: /push|pull|anxiety|habit/i },
+      { description: "Output covers hiring criteria and jobs", pattern: /hiring criteria|functional job|social job|emotional job/i },
+    ],
+  },
+  {
+    skill: "customer-journey-canvas",
+    frameworkLabel: "customer journey canvas",
+    focus: "customer journey canvas with stages, touchpoints, emotion, and opportunities",
+    inputs: [
+      "State C: journey-map executing the customer-journey-canvas framework inline",
+      "Seed: research/icp.md named pains and trigger events",
+      "Selected framework: customer-journey-canvas via research/_working/journey-map-run.yaml",
+    ],
+    expectedPattern: /canvas|stage|touchpoint|emotion|opportunit/i,
+    requiredOutputPatterns: [
+      { description: "Output covers journey canvas stages and touchpoints", pattern: /journey canvas|stage|touchpoint/i },
+      { description: "Output covers customer actions and emotion", pattern: /customer action|emotion/i },
+      { description: "Output covers pain points and opportunities", pattern: /pain point|opportunit/i },
+    ],
+  },
+].map((spec) =>
+  makeFrameworkSubskillDefinition({
+    ...spec,
+    pack: "customer-lifecycle",
+    parent: "journey-map",
+    prereqPath: "research/icp.md",
+    manifestEvidence: JOURNEY_MAP_MANIFEST_EVIDENCE,
+    seed: journeyMapSeed,
+  }),
+);
+
 const packWorkflowDefinitions: PackWorkflowDefinition[] = [
+  ...journeyMapSubskillDefinitions,
   { skill: "assumption-tracker", pack: "business-ops", focus: "assumption inventory with owner and validation cadence", inputs: ["Unverified pricing assumption", "Unknown onboarding conversion"], expectedPattern: /assumption|validation|owner/i },
   {
     skill: "upgrade-alignment-pages",
