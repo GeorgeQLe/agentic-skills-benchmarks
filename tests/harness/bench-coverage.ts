@@ -131,13 +131,17 @@ const PACK_CUSTOM_SKILLS = [
   "customer-feedback",
   "customer-journey-canvas",
   "experience-map",
+  "feature-pricing-matrix",
   "five-rings",
   "four-forces",
   "jtbd-needs",
   "jtbd-timeline",
   "pmf-engine",
+  "porter-five-forces",
   "service-blueprint",
   "seven-dimensions",
+  "strategic-group-map",
+  "swot",
   "user-story-map",
   "w3-hypothesis",
   "destination-doc",
@@ -245,25 +249,9 @@ const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason
     blocked_reason: "Design inspiration research requires live web research and source-link inspection; deterministic local fixture coverage needs a safe offline source corpus first.",
     next_command: "$targeted-skill-builder design-inspirations benchmark coverage",
   },
-  "feature-pricing-matrix": {
-    blocked_reason: "Competitive-analysis framework subskill lacks a deterministic pack workflow fixture.",
-    next_command: "$targeted-skill-builder feature-pricing-matrix benchmark coverage",
-  },
-  "porter-five-forces": {
-    blocked_reason: "Competitive-analysis framework subskill lacks a deterministic pack workflow fixture.",
-    next_command: "$targeted-skill-builder porter-five-forces benchmark coverage",
-  },
   "state-model": {
     blocked_reason: "Domain-modeling orchestrator that runs one modeling framework per session and requires an approved flow-tree plus user-flow fixture corpus; deterministic pack workflow fixture coverage needs that multi-artifact prerequisite first.",
     next_command: "$targeted-skill-builder state-model benchmark coverage",
-  },
-  "strategic-group-map": {
-    blocked_reason: "Competitive-analysis framework subskill lacks a deterministic pack workflow fixture.",
-    next_command: "$targeted-skill-builder strategic-group-map benchmark coverage",
-  },
-  "swot": {
-    blocked_reason: "Competitive-analysis framework subskill lacks a deterministic pack workflow fixture.",
-    next_command: "$targeted-skill-builder swot benchmark coverage",
   },
   "youtube": {
     blocked_reason: "YouTube parent router skill lacks a deterministic pack workflow fixture distinct from child YouTube ops skills.",

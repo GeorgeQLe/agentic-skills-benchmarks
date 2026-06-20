@@ -648,6 +648,49 @@ function customerDiscoverySeed(framework: string): Array<{ path: string; content
   ];
 }
 
+function competitiveAnalysisSeed(framework: string): Array<{ path: string; content: string[] }> {
+  return [
+    {
+      path: "research/_working/preliminary-competitive-analysis-research.md",
+      content: [
+        "# Preliminary Competitive Analysis Research",
+        "",
+        "## Product Summary",
+        "A local-first benchmark workflow tool that flips skill coverage from blocked to custom",
+        "for small AI-agent engineering teams, with deterministic offline fixtures.",
+        "",
+        "## Seeded Competitors",
+        "### BenchHub (incumbent SaaS)",
+        "- Pricing: $99/seat/mo, public pricing page.",
+        "- Features: hosted dashboards, cloud runs, team analytics.",
+        "- Evidence: requires cloud accounts; no offline fixtures; setup takes an afternoon.",
+        "",
+        "### gridcheck (open-source CLI)",
+        "- Pricing: free, MIT-licensed.",
+        "- Features: local CLI, manual config, no coverage matrix.",
+        "- Evidence: strong local story, but no rubric grading and sparse docs.",
+        "",
+        "### CoverageIQ (enterprise platform)",
+        "- Pricing: sales-gated, not public.",
+        "- Features: governance, SSO, audit trails, heavy onboarding.",
+        "- Evidence: enterprise-only; overkill for small teams; long procurement.",
+      ],
+    },
+    {
+      path: "research/_working/competitive-analysis-run.yaml",
+      content: [
+        "orchestrator: competitive-analysis",
+        "state: C",
+        "preliminary: research/_working/preliminary-competitive-analysis-research.md",
+        "selected_frameworks:",
+        `  - slug: ${framework}`,
+        `    intermediate: research/competitive-analysis-${framework}.md`,
+      ],
+    },
+    { path: "research/glossary.md", content: GLOSSARY_HEADER },
+  ];
+}
+
 interface FrameworkSubskillSpec {
   skill: string;
   pack: string;
@@ -690,6 +733,7 @@ function makeFrameworkSubskillDefinition(spec: FrameworkSubskillSpec): PackWorkf
 
 const JOURNEY_MAP_MANIFEST_EVIDENCE = /journey-map-run\.yaml|research\/icp\.md/i;
 const CUSTOMER_DISCOVERY_MANIFEST_EVIDENCE = /customer-discovery-run\.yaml|preliminary-customer-discovery-research\.md/i;
+const COMPETITIVE_ANALYSIS_MANIFEST_EVIDENCE = /competitive-analysis-run\.yaml|preliminary-competitive-analysis-research\.md/i;
 
 const journeyMapSubskillDefinitions: PackWorkflowDefinition[] = [
   {
@@ -886,9 +930,83 @@ const customerDiscoverySubskillDefinitions: PackWorkflowDefinition[] = [
   }),
 );
 
+const competitiveAnalysisSubskillDefinitions: PackWorkflowDefinition[] = [
+  {
+    skill: "swot",
+    frameworkLabel: "SWOT",
+    focus: "SWOT quadrants with strategic tensions",
+    inputs: [
+      "State C: competitive-analysis executing the swot framework inline",
+      "Seed: seeded competitors BenchHub, gridcheck, CoverageIQ with evidence",
+      "Selected framework: swot via research/_working/competitive-analysis-run.yaml",
+    ],
+    expectedPattern: /strength|weakness|opportunity|threat|tension/i,
+    requiredOutputPatterns: [
+      { description: "Output covers the SWOT quadrants", pattern: /strength[\s\S]*weakness|opportunit[\s\S]*threat|swot matrix/i },
+      { description: "Output covers strategic tensions", pattern: /strategic tension|synthesis implication/i },
+    ],
+  },
+  {
+    skill: "porter-five-forces",
+    frameworkLabel: "Porter's Five Forces",
+    focus: "Porter's Five Forces with rivalry, entrants, substitutes, buyer and supplier power",
+    inputs: [
+      "State C: competitive-analysis executing the porter-five-forces framework inline",
+      "Seed: seeded competitors BenchHub, gridcheck, CoverageIQ with evidence",
+      "Selected framework: porter-five-forces via research/_working/competitive-analysis-run.yaml",
+    ],
+    expectedPattern: /rivalry|entrant|substitute|buyer power|supplier power/i,
+    requiredOutputPatterns: [
+      { description: "Output covers competitive rivalry", pattern: /rivalry/i },
+      { description: "Output covers new entrants and substitutes", pattern: /new entrant|entrant|substitut/i },
+      { description: "Output covers buyer and supplier power", pattern: /buyer power|supplier power/i },
+    ],
+  },
+  {
+    skill: "strategic-group-map",
+    frameworkLabel: "strategic group map",
+    focus: "strategic groups with axis dimensions and mobility barriers",
+    inputs: [
+      "State C: competitive-analysis executing the strategic-group-map framework inline",
+      "Seed: seeded competitors BenchHub, gridcheck, CoverageIQ with evidence",
+      "Selected framework: strategic-group-map via research/_working/competitive-analysis-run.yaml",
+    ],
+    expectedPattern: /strategic group|axis|mobility|whitespace/i,
+    requiredOutputPatterns: [
+      { description: "Output covers strategic groups and axis dimensions", pattern: /strategic group|axis (selection|1|2)/i },
+      { description: "Output covers mobility barriers or whitespace", pattern: /mobility barrier|whitespace|crowded zone/i },
+    ],
+  },
+  {
+    skill: "feature-pricing-matrix",
+    frameworkLabel: "feature and pricing matrix",
+    focus: "feature x competitor matrix with pricing tiers",
+    inputs: [
+      "State C: competitive-analysis executing the feature-pricing-matrix framework inline",
+      "Seed: seeded competitors BenchHub, gridcheck, CoverageIQ with pricing evidence",
+      "Selected framework: feature-pricing-matrix via research/_working/competitive-analysis-run.yaml",
+    ],
+    expectedPattern: /feature|matrix|pricing|tier|competitor/i,
+    requiredOutputPatterns: [
+      { description: "Output covers a feature by competitor matrix", pattern: /competitor matrix|core feature|integration/i },
+      { description: "Output covers pricing models or tiers", pattern: /pricing (model|tier)|public price/i },
+    ],
+  },
+].map((spec) =>
+  makeFrameworkSubskillDefinition({
+    ...spec,
+    pack: "business-discovery",
+    parent: "competitive-analysis",
+    prereqPath: "research/_working/preliminary-competitive-analysis-research.md",
+    manifestEvidence: COMPETITIVE_ANALYSIS_MANIFEST_EVIDENCE,
+    seed: competitiveAnalysisSeed,
+  }),
+);
+
 const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   ...journeyMapSubskillDefinitions,
   ...customerDiscoverySubskillDefinitions,
+  ...competitiveAnalysisSubskillDefinitions,
   { skill: "assumption-tracker", pack: "business-ops", focus: "assumption inventory with owner and validation cadence", inputs: ["Unverified pricing assumption", "Unknown onboarding conversion"], expectedPattern: /assumption|validation|owner/i },
   {
     skill: "upgrade-alignment-pages",
