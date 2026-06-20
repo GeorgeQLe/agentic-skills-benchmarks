@@ -607,6 +607,47 @@ function journeyMapSeed(framework: string): Array<{ path: string; content: strin
   ];
 }
 
+function customerDiscoverySeed(framework: string): Array<{ path: string; content: string[] }> {
+  return [
+    {
+      path: "research/_working/preliminary-customer-discovery-research.md",
+      content: [
+        "# Preliminary Customer Discovery Research",
+        "",
+        "## ICP Candidate A — Solo agent-tooling maintainer",
+        "- Role: Staff engineer who owns an internal skills monorepo alone.",
+        "- Pain evidence: \"I lose an afternoon every release re-checking coverage by hand.\"",
+        "- Accessibility: Active in two public agent-engineering Discords; reachable for interviews.",
+        "- Willingness to pay: Has a discretionary tooling budget under $50/mo, no approval needed.",
+        "",
+        "## ICP Candidate B — Platform team lead",
+        "- Role: Leads a 4-person platform team standardizing agent workflows.",
+        "- Pain evidence: \"Coverage gaps surface only after a downstream break.\"",
+        "- Accessibility: Reachable through a warm intro from an existing design partner.",
+        "- Willingness to pay: Controls a team tooling budget; needs a coverage baseline to justify spend.",
+        "",
+        "## ICP Candidate C — Research-to-impl hand-off owner",
+        "- Role: Tech lead bridging research artifacts into implementation.",
+        "- Pain evidence: \"Context evaporates between the research doc and the PR.\"",
+        "- Accessibility: Hard to reach; mostly async, responds to a shared doc comment.",
+        "- Willingness to pay: Would expense a tool that demonstrably cuts hand-off rework.",
+      ],
+    },
+    {
+      path: "research/_working/customer-discovery-run.yaml",
+      content: [
+        "orchestrator: customer-discovery",
+        "state: C",
+        "preliminary: research/_working/preliminary-customer-discovery-research.md",
+        "selected_frameworks:",
+        `  - slug: ${framework}`,
+        `    intermediate: research/customer-discovery-${framework}.md`,
+      ],
+    },
+    { path: "research/glossary.md", content: GLOSSARY_HEADER },
+  ];
+}
+
 interface FrameworkSubskillSpec {
   skill: string;
   pack: string;
@@ -648,6 +689,7 @@ function makeFrameworkSubskillDefinition(spec: FrameworkSubskillSpec): PackWorkf
 }
 
 const JOURNEY_MAP_MANIFEST_EVIDENCE = /journey-map-run\.yaml|research\/icp\.md/i;
+const CUSTOMER_DISCOVERY_MANIFEST_EVIDENCE = /customer-discovery-run\.yaml|preliminary-customer-discovery-research\.md/i;
 
 const journeyMapSubskillDefinitions: PackWorkflowDefinition[] = [
   {
@@ -741,8 +783,112 @@ const journeyMapSubskillDefinitions: PackWorkflowDefinition[] = [
   }),
 );
 
+const customerDiscoverySubskillDefinitions: PackWorkflowDefinition[] = [
+  {
+    skill: "jtbd-needs",
+    frameworkLabel: "JTBD needs",
+    focus: "JTBD needs with functional/social/emotional jobs and Ulwick outcome statements",
+    inputs: [
+      "State C: customer-discovery executing the jtbd-needs framework inline",
+      "Seed: preliminary ICP candidates A-C with pain evidence",
+      "Selected framework: jtbd-needs via research/_working/customer-discovery-run.yaml",
+    ],
+    expectedPattern: /job|outcome|opportunity|importance|satisfaction/i,
+    requiredOutputPatterns: [
+      { description: "Output covers functional, social, and emotional jobs", pattern: /functional job|social|emotional job/i },
+      { description: "Output covers Ulwick desired-outcome statements", pattern: /desired outcome|outcome statement/i },
+      { description: "Output covers opportunity scores with importance and satisfaction", pattern: /opportunity score|importance|satisfaction|underserved|overserved/i },
+    ],
+  },
+  {
+    skill: "w3-hypothesis",
+    frameworkLabel: "W3 hypothesis",
+    focus: "who/what/why hypotheses with disproval evidence",
+    inputs: [
+      "State C: customer-discovery executing the w3-hypothesis framework inline",
+      "Seed: preliminary ICP candidates A-C with pain evidence",
+      "Selected framework: w3-hypothesis via research/_working/customer-discovery-run.yaml",
+    ],
+    expectedPattern: /who|what|why|hypothesis|disproval/i,
+    requiredOutputPatterns: [
+      { description: "Output covers who/what/why hypotheses", pattern: /who[\s\S]*what[\s\S]*why|who hypothesis/i },
+      { description: "Output covers disproval and falsification evidence", pattern: /disproval|falsif|evidence (for|against)/i },
+    ],
+  },
+  {
+    skill: "four-forces",
+    frameworkLabel: "four forces",
+    focus: "four forces of progress (push/pull/anxiety/habit) with net switching momentum",
+    inputs: [
+      "State C: customer-discovery executing the four-forces framework inline",
+      "Seed: preliminary ICP candidates A-C with pain evidence",
+      "Selected framework: four-forces via research/_working/customer-discovery-run.yaml",
+    ],
+    expectedPattern: /push|pull|anxiety|habit|switching/i,
+    requiredOutputPatterns: [
+      { description: "Output covers push, pull, anxiety, and habit forces", pattern: /push|pull|anxiety|habit/i },
+      { description: "Output covers net switching momentum or force balance", pattern: /force balance|switching momentum|switching catalyst/i },
+    ],
+  },
+  {
+    skill: "five-rings",
+    frameworkLabel: "five rings of buying insight",
+    focus: "five rings of buying insight with buyer persona correlation",
+    inputs: [
+      "State C: customer-discovery executing the five-rings framework inline",
+      "Seed: preliminary ICP candidates A-C with buying-process evidence",
+      "Selected framework: five-rings via research/_working/customer-discovery-run.yaml",
+    ],
+    expectedPattern: /priority|success factor|barrier|decision criteria|buyer/i,
+    requiredOutputPatterns: [
+      { description: "Output covers the five rings of buying insight", pattern: /priority initiative|success factor|perceived barrier|decision criteria|buyer'?s journey/i },
+      { description: "Output covers buyer persona correlation", pattern: /buyer persona|champion|influencer|decision-?maker|end-?user|blocker/i },
+    ],
+  },
+  {
+    skill: "seven-dimensions",
+    frameworkLabel: "seven dimensions of customer fit",
+    focus: "seven dimensions of customer fit with composite score and archetype",
+    inputs: [
+      "State C: customer-discovery executing the seven-dimensions framework inline",
+      "Seed: preliminary ICP candidates A-C with accessibility and WTP evidence",
+      "Selected framework: seven-dimensions via research/_working/customer-discovery-run.yaml",
+    ],
+    expectedPattern: /readiness|willingness|ability|acquisition|advocacy/i,
+    requiredOutputPatterns: [
+      { description: "Output covers the seven fitness dimensions", pattern: /readiness|willingness|ability|acquisition efficiency|ascension potential|advocacy potential/i },
+      { description: "Output covers the composite fitness score and archetype", pattern: /composite|archetype|dimension cluster/i },
+    ],
+  },
+  {
+    skill: "pmf-engine",
+    frameworkLabel: "PMF engine",
+    focus: "PMF engine with the Sean Ellis signal and high-expectation-customer value wedge",
+    inputs: [
+      "State C: customer-discovery executing the pmf-engine framework inline",
+      "Seed: preliminary ICP candidates A-C with WTP and pain evidence",
+      "Selected framework: pmf-engine via research/_working/customer-discovery-run.yaml",
+    ],
+    expectedPattern: /pmf|disappointed|signal|wedge|expectation/i,
+    requiredOutputPatterns: [
+      { description: "Output covers the Sean Ellis very-disappointed signal", pattern: /very disappointed|sean ellis|40%|pmf signal/i },
+      { description: "Output covers high-expectation customers and the value wedge", pattern: /high-?expectation customer|hxc|value wedge|loved benefit/i },
+    ],
+  },
+].map((spec) =>
+  makeFrameworkSubskillDefinition({
+    ...spec,
+    pack: "business-discovery",
+    parent: "customer-discovery",
+    prereqPath: "research/_working/preliminary-customer-discovery-research.md",
+    manifestEvidence: CUSTOMER_DISCOVERY_MANIFEST_EVIDENCE,
+    seed: customerDiscoverySeed,
+  }),
+);
+
 const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   ...journeyMapSubskillDefinitions,
+  ...customerDiscoverySubskillDefinitions,
   { skill: "assumption-tracker", pack: "business-ops", focus: "assumption inventory with owner and validation cadence", inputs: ["Unverified pricing assumption", "Unknown onboarding conversion"], expectedPattern: /assumption|validation|owner/i },
   {
     skill: "upgrade-alignment-pages",
