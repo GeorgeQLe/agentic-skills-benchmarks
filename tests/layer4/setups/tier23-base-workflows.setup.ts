@@ -1513,18 +1513,18 @@ const baseWorkflowDefinitions: BaseWorkflowDefinition[] = [
   {
     skill: "uat",
     outputPath: "uat-journeys.md",
-    prompt: "You have the uat skill installed. Read specs/ui-layout-variations-dashboard.md and write uat-journeys.md with variant evaluation, acceptance criteria, evidence capture, and Next command. End with `Recommended next command: $consolidate-variations`.",
+    prompt: "You have the uat skill installed. Read specs/ui-layout-variations-dashboard.md and write uat-journeys.md with variant evaluation, acceptance criteria, evidence capture, and Next command. End with `Recommended next command: $consolidate-prototypes`.",
     fixtureFiles: {
       "specs/ui-layout-variations-dashboard.md": "Variation A uses a dense table. Variation B uses a card grid. Both must help maintainers compare custom, generic, and blocked benchmark coverage.",
     },
     expectedIncludes: ["variant evaluation", "acceptance criteria", "evidence capture"],
     expectedPattern: /dense table|card grid|benchmark coverage/i,
-    recommendedRoute: "$consolidate-variations",
+    recommendedRoute: "$consolidate-prototypes",
   },
   {
-    skill: "consolidate-variations",
+    skill: "consolidate-prototypes",
     outputPath: "prototypes/dashboard/consolidated/index.html",
-    prompt: "You have the consolidate-variations skill installed. Read specs/ui-layout-variations-dashboard.md, research/uat-variant-evaluation-dashboard.md, and the prototype variation directories, then write prototypes/dashboard/consolidated/index.html with UAT evidence summary, consolidation matrix, conflict resolutions, consolidated prototype, and Next command. End with `Recommended next command: $research-roadmap --post-prototype`.",
+    prompt: "You have the consolidate-prototypes skill installed. Read specs/ui-layout-variations-dashboard.md, research/uat-variant-evaluation-dashboard.md, and the prototype variation directories, then write prototypes/dashboard/consolidated/index.html with UAT evidence summary, consolidation matrix, conflict resolutions, consolidated prototype, and Next command. End with `Recommended next command: $research-roadmap --post-prototype`.",
     fixtureFiles: {
       "specs/ui-requirements-dashboard.md": "The dashboard must show custom, generic, and blocked benchmark coverage rows with blocked reasons.",
       "specs/ui-layout-variations-dashboard.md": "Variation A uses a dense table. Variation B uses a card grid. Variation C uses list plus detail.",
