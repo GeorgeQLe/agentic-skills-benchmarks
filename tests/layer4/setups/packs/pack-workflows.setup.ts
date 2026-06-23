@@ -1342,6 +1342,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "scale-audit", pack: "business-ops", focus: "scale readiness audit", inputs: ["Support load", "Operational bottleneck"], expectedPattern: /scale|audit|bottleneck/i },
   { skill: "series-spec", pack: "creator-foundation", focus: "content series specification", inputs: ["Audience promise", "Episode template"], expectedPattern: /series|spec|episode/i },
   { skill: "spin-off", pack: "project-fleet", focus: "project spin-off plan", inputs: ["Shared code", "New repository target"], expectedPattern: /spin.?off|project|repository/i },
+  { skill: "spinoff-idea", pack: "project-fleet", focus: "repo-derived idea-scope-brief prompt", inputs: ["Source repo suggests an adjacent workflow product", "Need prompt for another repo"], expectedPattern: /idea|prompt|brief|repo/i },
   { skill: "strategic-canvas", pack: "business-discovery", focus: "Blue Ocean strategic canvas", inputs: ["Competitors over-invest in dashboards", "Customers value faster first outcome"], expectedPattern: /canvas|value curve|eliminate|reduce|raise|create|positioning/i },
   {
     skill: "uat-guide",
