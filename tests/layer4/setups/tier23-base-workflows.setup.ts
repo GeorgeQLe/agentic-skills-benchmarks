@@ -888,7 +888,7 @@ const baseWorkflowDefinitions: BaseWorkflowDefinition[] = [
   {
     skill: "fork-idea-branch",
     outputPath: "research/_working/fork-memo-2026-06-05.md",
-    prompt: "You have the fork-idea-branch skill installed. Read research/.progress.yaml and research/poketo-core/idea-brief.md, then write research/_working/fork-memo-2026-06-05.md with source skill, source path, branches created, rationale, reuse decisions, artifact inventory, and restart instructions. The fork splits poketo-core into poketo-teams (B2B team coordination) and poketo-personal (individual productivity). Both branches should use fresh starts (no carry-forward). Archive the current path to research/_archive/poketo-core-pre-fork/. End with a restart checklist and Recommended next command. Use exactly `Recommended next command: /idea-scope-brief poketo-teams` when running as Claude. Use exactly `Recommended next command: $idea-scope-brief poketo-teams` when running as Codex.",
+    prompt: "You have the fork-idea-branch skill installed. Read research/.progress.yaml and research/poketo-core/idea-brief.md, then write research/_working/fork-memo-2026-06-05.md with source skill, source path, mode, source action, branches created, rationale, reuse decisions, artifact inventory, idea-scope-brief kickoff prompts, and restart instructions. The fork splits poketo-core into poketo-teams (B2B team coordination) and poketo-personal (individual productivity). Both branches should use fresh starts (no carry-forward). Do not archive the current path because --archive was not passed; preserve research/poketo-core/ as the source path. End with a restart checklist and Recommended next command. Use exactly `Recommended next command: /idea-scope-brief poketo-teams` when running as Claude. Use exactly `Recommended next command: $idea-scope-brief poketo-teams` when running as Codex.",
     fixtureFiles: {
       "research/.progress.yaml": [
         "active_paths:",
@@ -931,8 +931,8 @@ const baseWorkflowDefinitions: BaseWorkflowDefinition[] = [
         pattern: /fresh start|no carry[- ]forward|clean start/i,
       },
       {
-        description: "Output references the archive location for the source path.",
-        pattern: /research\/_archive\/poketo-core-pre-fork/i,
+        description: "Output states the source path is preserved because archive mode was not requested.",
+        pattern: /(?:preserv|kept|leave|leav|not archive|no archive)[\s\S]{0,220}research\/poketo-core|research\/poketo-core[\s\S]{0,220}(?:preserv|kept|leave|leav|not archive|no archive)/i,
       },
       {
         description: "Output includes restart instructions with idea-scope-brief per branch.",
