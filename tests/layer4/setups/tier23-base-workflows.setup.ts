@@ -1263,9 +1263,9 @@ const baseWorkflowDefinitions: BaseWorkflowDefinition[] = [
     forbiddenStdoutPatterns: [/\/(?:private\/var|var\/folders|tmp)\//i],
   },
   {
-    skill: "prototype",
+    skill: "logic-wiring",
     outputPath: "prototypes/dashboard/index.html",
-    prompt: "You have the prototype skill installed. Read specs/ux-variations-dashboard.md, specs/ui-dashboard.md, and .agents/project.json, then build prototypes/dashboard/index.html as a clickable hub page linking each variation with fake data and Next command. End with `Recommended next command: $uat --variant-evaluation`.",
+    prompt: "You have the logic-wiring skill installed. Read specs/ux-variations-dashboard.md, specs/ui-dashboard.md, and .agents/project.json, then build prototypes/dashboard/index.html as a clickable hub page linking each variation with fake data and Next command. End with `Recommended next command: $uat --variant-evaluation`.",
     fixtureFiles: {
       "specs/ux-variations-dashboard.md": "Variation A: dense table for scanning blocked reasons. Variation B: card grid for browsing coverage status.",
       "specs/ui-dashboard.md": "Layout: sidebar navigation, main content area with coverage table. Controls: filter by status, sort by skill name.",
