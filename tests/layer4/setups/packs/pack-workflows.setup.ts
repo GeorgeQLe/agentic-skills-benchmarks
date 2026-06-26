@@ -51,6 +51,11 @@ const packFamilyContexts: Record<string, { id: string; facts: string[]; traits: 
     facts: ["alignment", "html"],
     traits: ["archive", "gate", "upgrade"],
   },
+  "interrogation-page-admin": {
+    id: "interrogation-page-admin-context",
+    facts: ["interrogation", "html"],
+    traits: ["archive", "marker", "upgrade"],
+  },
   "business-discovery": {
     id: "business-discovery-context",
     facts: ["customer", "positioning"],
@@ -1023,6 +1028,22 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
       { description: "Output names archive-before-replace behavior", pattern: /archive|docs\/history\/archive/i },
     ],
     nextRoutes: { claude: "/compile-central-alignment", codex: "$compile-central-alignment" },
+  },
+  {
+    skill: "upgrade-interrogation-pages",
+    pack: "interrogation-page-admin",
+    focus: "dry-run drift audit for generated interrogation HTML round pages and explicit apply safeguards",
+    inputs: [
+      "interrogation/idea-scope-brief-r1-checkout.html lacks data-recommended-answer and data-agent-confidence markers",
+      "Round filenames and data-answer-sidecar paths must be preserved on rewrite",
+      "Apply mode must archive originals before replacement",
+    ],
+    expectedPattern: /interrogation|html|archive|upgrade|dry-run/i,
+    requiredOutputPatterns: [
+      { description: "Output keeps audit mode non-mutating", pattern: /dry-run|audit|no mutation|without mutating/i },
+      { description: "Output names archive-before-replace behavior", pattern: /archive|docs\/history\/archive/i },
+    ],
+    nextRoutes: { claude: "node scripts/audit-interrogation-pages.mjs", codex: "node scripts/audit-interrogation-pages.mjs" },
   },
   {
     skill: "benchmark-agent-review",

@@ -113,6 +113,7 @@ const TIER23_BASE_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked
 const PACK_CUSTOM_SKILLS = [
   "assumption-tracker",
   "upgrade-alignment-pages",
+  "upgrade-interrogation-pages",
   "benchmark-agent-review",
   "burn-rate",
   "clone-spec-store",
@@ -457,6 +458,7 @@ export const BENCH_COVERAGE_SKILLS = [
   "consolidate-prototypes",
   "ui-interview",
   "upgrade-alignment-pages",
+  "upgrade-interrogation-pages",
   "user-flow-map",
   "user-story-map",
   "ux-variations",
