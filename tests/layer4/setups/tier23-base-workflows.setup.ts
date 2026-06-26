@@ -1229,17 +1229,6 @@ const baseWorkflowDefinitions: BaseWorkflowDefinition[] = [
     recommendedRoute: "$exec",
   },
   {
-    skill: "pack",
-    outputPath: "pack-plan.md",
-    prompt: "You have the pack skill installed. Read pack-request.md and write pack-plan.md with project designation, enabled packs, install checks, validation, and Next command. End with `Recommended next command: $exec`.",
-    fixtureFiles: {
-      "pack-request.md": "Enable the benchmark pack for this project without installing domain skills machine-wide.",
-    },
-    expectedIncludes: ["project designation", "enabled packs", "validation"],
-    expectedPattern: /benchmark pack|domain skills/i,
-    recommendedRoute: "$exec",
-  },
-  {
     skill: "provision-agentic-config",
     outputPath: "AGENTS.md",
     prompt: "You have the provision-agentic-config skill installed. Read workflow.md and write AGENTS.md with orchestration rules, verification, shipping, monorepo safety, and Next command. End with `Recommended next command: $exec`.",
