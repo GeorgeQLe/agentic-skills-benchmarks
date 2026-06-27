@@ -1209,6 +1209,96 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
     ],
   },
   {
+    skill: "eval-ideas",
+    pack: "product-design",
+    focus: "re-entry routing from a recorded idea selection to the next pending feature-interview",
+    inputs: [
+      "Parent invocation: eval-ideas is invoked again after the multi-select idea gate was approved",
+      "Idea inline-pr-comments already has a written feature-interview log (done)",
+      "Idea batch-export is selected but has no interview log yet and is pending",
+      "The run manifest tasks/_working/eval-ideas-run.yaml records both selected ideas",
+    ],
+    expectedPattern: /batch-export|pending|feature-interview|re-entry|State C/i,
+    promptRequirements: [
+      "- treat this as a repeated parent eval-ideas invocation, not a cold start",
+      "- use the retained run manifest tasks/_working/eval-ideas-run.yaml as the selection evidence",
+      "- identify batch-export as the next pending idea (its interview log does not yet exist)",
+      "- run the next /feature-interview inline through the eval-ideas parent (State C), not as a separate user invocation",
+      "- do not write a spec directly, do not route to roadmap while ideas remain pending, and do not perform a parent status audit",
+      "- use the exact runner-specific eval-ideas route listed below as the final handoff",
+    ],
+    retainedArtifacts: [
+      {
+        path: "tasks/_working/eval-ideas-run.yaml",
+        content: [
+          "orchestrator: eval-ideas",
+          "source: alignment/brainstorm-export.html",
+          "selected_ideas:",
+          "  - id: idea-1",
+          "    topic: inline-pr-comments",
+          "    interview_log: specs/inline-pr-comments-feature-interview.md",
+          "  - id: idea-2",
+          "    topic: batch-export",
+          "    interview_log: specs/batch-export-feature-interview.md",
+        ],
+      },
+      {
+        path: "specs/inline-pr-comments-feature-interview.md",
+        content: [
+          "# Feature Interview — inline-pr-comments",
+          "",
+          "Completed interview log for the first selected idea; marks it done for pending detection.",
+        ],
+      },
+    ],
+    requiredOutputPatterns: [
+      {
+        description: "Output identifies batch-export as the next pending idea",
+        pattern: /(first pending|next pending|pending idea)[\s\S]*batch-export|batch-export[\s\S]*(first pending|next pending|pending idea)/i,
+      },
+      {
+        description: "Output routes through State C parent-owned inline feature-interview",
+        pattern: /State C[\s\S]*(parent|orchestrator|inline)|(?:parent|orchestrator|inline)[\s\S]*State C/i,
+      },
+      {
+        description: "Output uses retained re-entry evidence",
+        pattern: /eval-ideas-run\.yaml/i,
+      },
+    ],
+    forbiddenOutputPatterns: [
+      {
+        description: "Output does not hand off to roadmap while ideas remain pending",
+        pattern: /Recommended next (?:skill|command):[^\n]*roadmap/i,
+      },
+      {
+        description: "Output does not route interview execution to exec",
+        pattern: /Recommended next (?:skill|command):\s*(?:\$exec|\/exec)\b/i,
+      },
+      {
+        description: "Output does not suggest a path-shaped child command",
+        pattern: /[$/]eval-ideas\//,
+      },
+    ],
+    nextRoutes: {
+      claude: "/eval-ideas",
+      codex: "$eval-ideas",
+    },
+    forbidden: [
+      "status audit",
+      "$exec",
+      "/exec",
+      "eval-ideas/",
+      "google analytics",
+      "stripe dashboard",
+      "salesforce",
+      "hubspot",
+      "api dashboard",
+      "industry-leading",
+      "best-in-class",
+      "proprietary data",
+    ],
+  },
+  {
     skill: "content-programming",
     pack: "creator-foundation",
     focus: "creator content programming strategy",
