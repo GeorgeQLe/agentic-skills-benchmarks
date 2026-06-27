@@ -49,7 +49,7 @@ export async function runChunk(
     }
 
     const workDir = createProject();
-    setup.setupProject(workDir);
+    setup.setupProject(workDir, { index, agent: manifest.config.agent });
 
     const startedAt = new Date().toISOString();
     const t0 = Date.now();
@@ -247,6 +247,7 @@ export function classifyInfrastructureBlock(result: RunResult): string | undefin
     output.includes("failed to connect to websocket") ||
     output.includes("failed to lookup address information") ||
     output.includes("socket connection was closed unexpectedly") ||
+    output.includes("connection closed mid-response") ||
     output.includes("stream disconnected before completion") ||
     output.includes("http/request failed") ||
     output.includes("transport channel closed")

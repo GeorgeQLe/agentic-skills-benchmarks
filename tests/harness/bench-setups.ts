@@ -5,6 +5,7 @@ import { designSystemSetup } from "../layer4/setups/design-system.setup.js";
 import { designSystemDraftstonkSetup } from "../layer4/setups/design-system-draftstonk.setup.js";
 import commitAndPushByFeatureSetup from "../layer4/setups/git-fixture-commit-and-push.setup.js";
 import syncSetup from "../layer4/setups/git-fixture-sync.setup.js";
+import { alignmentYamlRoutingSetup } from "../layer4/setups/alignment-yaml-routing.setup.js";
 import {
   benchmarkTestSkillSetup,
   featureInterviewSetup,
@@ -48,12 +49,38 @@ export const CUSTOM_BENCH_SETUPS: Record<string, SkillBenchSetup> = {
   "targeted-skill-builder": targetedSkillBuilderSetup,
 };
 
+export interface BenchScenarioRow {
+  scenario: string;
+  setup_path: string;
+  description: string;
+}
+
+export const CUSTOM_BENCH_SCENARIOS: Record<string, SkillBenchSetup> = {
+  "alignment-yaml-routing": alignmentYamlRoutingSetup,
+};
+
+const BENCH_SCENARIO_ROWS: BenchScenarioRow[] = [
+  {
+    scenario: "alignment-yaml-routing",
+    setup_path: "tests/layer4/setups/alignment-yaml-routing.setup.ts",
+    description: "Fresh-session compiled alignment/interrogation YAML routing compliance.",
+  },
+];
+
 export function supportedBenchSkills(): string[] {
   return benchmarkCoverageMatrix().map((row) => row.skill).sort();
 }
 
 export function supportedBenchSkillRows(): BenchCoverageRow[] {
   return benchmarkCoverageMatrix().sort((a, b) => a.skill.localeCompare(b.skill));
+}
+
+export function supportedBenchScenarios(): string[] {
+  return BENCH_SCENARIO_ROWS.map((row) => row.scenario).sort();
+}
+
+export function supportedBenchScenarioRows(): BenchScenarioRow[] {
+  return [...BENCH_SCENARIO_ROWS].sort((a, b) => a.scenario.localeCompare(b.scenario));
 }
 
 export function resolveBenchTarget(
@@ -93,6 +120,23 @@ export function resolveBenchTarget(
 
 export function resolveBenchSetup(skill: string): SkillBenchSetup | undefined {
   return resolveBenchTarget(skill)?.setup;
+}
+
+export function resolveBenchScenarioTarget(scenario: string): ResolvedBenchTarget | undefined {
+  const row = BENCH_SCENARIO_ROWS.find((candidate) => candidate.scenario === scenario);
+  const setup = CUSTOM_BENCH_SCENARIOS[scenario];
+  if (!row || !setup) return undefined;
+
+  return {
+    skill: scenario,
+    coverageStatus: "custom",
+    setup,
+    setupPath: row.setup_path,
+  };
+}
+
+export function resolveBenchScenarioSetup(scenario: string): SkillBenchSetup | undefined {
+  return resolveBenchScenarioTarget(scenario)?.setup;
 }
 
 export function allRepositorySkillNames(): string[] {

@@ -13,6 +13,11 @@ export interface BenchConfig {
   timeoutMs: number;
 }
 
+export interface BenchRunContext {
+  index: number;
+  agent: BenchAgent;
+}
+
 export interface SingleRunResult {
   index: number;
   startedAt: string;
@@ -96,7 +101,7 @@ export interface SkillBenchSetup {
   timeoutMs: number;
   qualityOutputPath?: string;
   qualityOutputPaths?: string[];
-  setupProject(workDir: string): void;
+  setupProject(workDir: string, context?: BenchRunContext): void;
   assertResult(result: RunResult, context?: { agent: BenchAgent }): Assertion[];
   qualityEvaluator?: QualityEvaluator;
 }
