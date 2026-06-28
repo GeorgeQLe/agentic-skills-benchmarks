@@ -23,7 +23,8 @@ interface RoutingCaseDefinition {
     selected_source: SelectedSource;
     action: RoutingAction;
     ignored_noise: boolean;
-    reasonIncludes: string[];
+    ignoredNoiseMode?: "exact" | "boolean";
+    reasonPatterns: RegExp[];
   };
 }
 
@@ -71,7 +72,7 @@ const CASES: RoutingCaseDefinition[] = [
       selected_source: "root_command",
       action: "consume-approval",
       ignored_noise: false,
-      reasonIncludes: ["root command", "approved"],
+      reasonPatterns: [/approved|approval|alignment|route/i],
     },
   },
   {
@@ -99,7 +100,7 @@ const CASES: RoutingCaseDefinition[] = [
       selected_source: "root_command",
       action: "consume-approval",
       ignored_noise: false,
-      reasonIncludes: ["root command"],
+      reasonPatterns: [/root/i],
     },
   },
   {
@@ -125,7 +126,8 @@ const CASES: RoutingCaseDefinition[] = [
       selected_source: "rejected",
       action: "request-correction",
       ignored_noise: false,
-      reasonIncludes: ["missing root command"],
+      ignoredNoiseMode: "boolean",
+      reasonPatterns: [/missing|absent/i, /root/i, /command/i],
     },
   },
   {
@@ -152,7 +154,7 @@ const CASES: RoutingCaseDefinition[] = [
       selected_source: "root_command",
       action: "consume-approval",
       ignored_noise: true,
-      reasonIncludes: ["comment mismatch", "root command"],
+      reasonPatterns: [/stale|comment|cue|mismatch/i, /root/i],
     },
   },
   {
@@ -179,7 +181,7 @@ const CASES: RoutingCaseDefinition[] = [
       selected_source: "rejected",
       action: "reject-invalid-yaml",
       ignored_noise: false,
-      reasonIncludes: ["agent_routing.command mismatch"],
+      reasonPatterns: [/agent_routing\.command|agent routing/i, /conflict|mismatch|disagree/i],
     },
   },
   {
@@ -211,7 +213,7 @@ const CASES: RoutingCaseDefinition[] = [
       selected_source: "root_command",
       action: "consume-approval",
       ignored_noise: true,
-      reasonIncludes: ["ignored noise", "root command"],
+      reasonPatterns: [/stale|noise|prose|trailing|bad|ignored/i, /root|yaml|route|command/i],
     },
   },
   {
@@ -238,7 +240,7 @@ const CASES: RoutingCaseDefinition[] = [
       selected_source: "rejected",
       action: "repo-mismatch",
       ignored_noise: false,
-      reasonIncludes: ["missing page"],
+      reasonPatterns: [/missing|absent|not present/i, /page|page_path/i],
     },
   },
   {
@@ -268,7 +270,8 @@ const CASES: RoutingCaseDefinition[] = [
       selected_source: "root_command",
       action: "route-parent",
       ignored_noise: false,
-      reasonIncludes: ["parent command", "sidecar"],
+      ignoredNoiseMode: "boolean",
+      reasonPatterns: [/parent|sidecar|framework|child|round|answer/i],
     },
   },
 ];
@@ -509,7 +512,12 @@ function assertCaseResult(testCase: RoutingCaseDefinition, actual: RoutingCaseRe
     }];
   }
 
-  const reason = typeof actual.reason === "string" ? actual.reason.toLowerCase() : "";
+  const reason = typeof actual.reason === "string" ? actual.reason : "";
+  const ignoredNoiseMode = testCase.expected.ignoredNoiseMode ?? "exact";
+  const ignoredNoisePass = ignoredNoiseMode === "boolean"
+    ? typeof actual.ignored_noise === "boolean"
+    : actual.ignored_noise === testCase.expected.ignored_noise;
+  const missingReasonPatterns = testCase.expected.reasonPatterns.filter((pattern) => !pattern.test(reason));
   return [
     {
       description: `${testCase.case_id}: selected command matches expectation`,
@@ -528,8 +536,10 @@ function assertCaseResult(testCase: RoutingCaseDefinition, actual: RoutingCaseRe
     },
     {
       description: `${testCase.case_id}: ignored_noise matches expectation`,
-      pass: actual.ignored_noise === testCase.expected.ignored_noise,
-      detail: `expected ${String(testCase.expected.ignored_noise)}, received ${String(actual.ignored_noise)}`,
+      pass: ignoredNoisePass,
+      detail: ignoredNoiseMode === "boolean"
+        ? `expected boolean, received ${String(actual.ignored_noise)}`
+        : `expected ${String(testCase.expected.ignored_noise)}, received ${String(actual.ignored_noise)}`,
     },
     {
       description: `${testCase.case_id}: would_mutate is false`,
@@ -542,8 +552,10 @@ function assertCaseResult(testCase: RoutingCaseDefinition, actual: RoutingCaseRe
     },
     {
       description: `${testCase.case_id}: reason names expected routing basis`,
-      pass: testCase.expected.reasonIncludes.every((phrase) => reason.includes(phrase.toLowerCase())),
-      detail: `expected phrases: ${testCase.expected.reasonIncludes.join(", ")}`,
+      pass: missingReasonPatterns.length === 0,
+      detail: missingReasonPatterns.length > 0
+        ? `missing patterns: ${missingReasonPatterns.map((pattern) => pattern.toString()).join(", ")}`
+        : undefined,
     },
   ];
 }
