@@ -11,8 +11,13 @@ const outRoot = path.join(repoRoot, "data", "skills-catalog", "v1");
 const schemaVersion = "skills-catalog.v1";
 const defaultRepoUrl = "https://github.com/GeorgeQLe/agentic-skills.git";
 
+// Pinned root commit for reproducible catalog snapshots. Refresh deliberately:
+// bump this SHA -> `pnpm catalog:import` -> commit the regenerated data/ files.
+// `SKILLS_REPO_REF=master` (or any ref) and `SKILLS_REPO_REF=WORKTREE` still override.
+const defaultRepoRef = "8b71c638a32df52daa3f1bdfe05f4116ae42a55f";
+
 const skillsRepoUrl = process.env.SKILLS_REPO_URL || defaultRepoUrl;
-const skillsRepoRef = process.env.SKILLS_REPO_REF || "master";
+const skillsRepoRef = process.env.SKILLS_REPO_REF || defaultRepoRef;
 
 function readJson(file) {
   return JSON.parse(readFileSync(file, "utf8"));
