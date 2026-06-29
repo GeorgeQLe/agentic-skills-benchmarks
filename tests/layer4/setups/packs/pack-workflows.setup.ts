@@ -1034,7 +1034,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
     pack: "interrogation-page-admin",
     focus: "dry-run drift audit for generated interrogation HTML round pages and explicit apply safeguards",
     inputs: [
-      "interrogation/idea-scope-brief-r1-checkout.html lacks data-recommended-answer and data-agent-confidence markers",
+      "interrogation/idea-scope-brief-r1-checkout.html lacks hidden data-agent-recommended-answer and data-agent-confidence markers",
       "Round filenames and data-answer-sidecar paths must be preserved on rewrite",
       "Apply mode must archive originals before replacement",
     ],
