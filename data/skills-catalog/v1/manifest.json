@@ -1,0 +1,41 @@
+{
+  "schema_version": "skills-catalog.v1",
+  "source_commit": "b7c0775bc8b3b87e53942e589ede3eb428065b47",
+  "generated_at": "2026-06-29T17:15:46.720Z",
+  "source_fingerprint": "057a4d184b9970a70e4f898941971c2ea2d23354aa4e253cfa3786f5c60714e1",
+  "source_count": 453,
+  "exports": {
+    "catalog": "exports/skills-catalog/v1/catalog.json",
+    "proof": "exports/skills-catalog/v1/proof.json",
+    "manifest": "exports/skills-catalog/v1/manifest.json"
+  },
+  "package": {
+    "name": "skillpacks",
+    "version": "0.1.17",
+    "license": "MIT",
+    "repository": {
+      "type": "git",
+      "url": "git+https://github.com/GeorgeQLe/agentic-skills.git",
+      "directory": "packages/skillpacks"
+    },
+    "homepage": "https://github.com/GeorgeQLe/agentic-skills#readme"
+  },
+  "manifest": {
+    "schema_version": 1,
+    "package": {
+      "name": "skillpacks",
+      "version": "0.1.17"
+    },
+    "source_fingerprint": "802bbc58f8529f3ff7e725306ba5717e7efa0aaba080341819d491efc421ff08",
+    "skill_count": 411,
+    "pack_count": 42,
+    "deck_count": 5,
+    "deck_names": [
+      "business-afps",
+      "devtool-afps",
+      "game-afps",
+      "ord",
+      "vard"
+    ]
+  }
+}

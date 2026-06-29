@@ -1,6 +1,7 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { catalogSkillMap } from "./skills-catalog.js";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -690,47 +691,8 @@ let repositorySkillsCache: Map<string, string[]> | undefined;
 
 function discoverRepositorySkillsCached(): Map<string, string[]> {
   if (repositorySkillsCache) return repositorySkillsCache;
-
-  const skills = new Map<string, string[]>();
-  for (const skillPath of skillPaths()) {
-    const name = frontmatterName(skillPath);
-    if (!name) continue;
-    const paths = skills.get(name) ?? [];
-    paths.push(relative(REPO_ROOT, skillPath));
-    skills.set(name, paths.sort());
-  }
-  repositorySkillsCache = new Map([...skills.entries()].sort(([a], [b]) => a.localeCompare(b)));
+  repositorySkillsCache = catalogSkillMap();
   return repositorySkillsCache;
-}
-
-function skillPaths(): string[] {
-  return [
-    ...walkSkillPaths(join(REPO_ROOT, "base")),
-    ...walkSkillPaths(join(REPO_ROOT, "packs")),
-  ];
-}
-
-function walkSkillPaths(dir: string): string[] {
-  if (!existsSync(dir)) return [];
-
-  const paths: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name === "archive") continue;
-      paths.push(...walkSkillPaths(fullPath));
-    } else if (entry.name === "SKILL.md") {
-      paths.push(fullPath);
-    }
-  }
-  return paths;
-}
-
-function frontmatterName(skillPath: string): string | undefined {
-  const content = readFileSync(skillPath, "utf8");
-  const frontmatter = content.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
-  const match = frontmatter.match(/^name:\s*["']?([^"'\n]+)["']?\s*$/m);
-  return match?.[1]?.trim();
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

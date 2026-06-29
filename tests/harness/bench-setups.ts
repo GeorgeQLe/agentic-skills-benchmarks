@@ -1,6 +1,5 @@
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { designSystemSetup } from "../layer4/setups/design-system.setup.js";
 import { designSystemDraftstonkSetup } from "../layer4/setups/design-system-draftstonk.setup.js";
 import commitAndPushByFeatureSetup from "../layer4/setups/git-fixture-commit-and-push.setup.js";
@@ -25,8 +24,7 @@ import { PACK_WORKFLOW_SETUPS } from "../layer4/setups/packs/pack-workflows.setu
 import { benchmarkCoverageMatrix, type BenchCoverageRow } from "./bench-coverage.js";
 import type { ResolvedBenchTarget, SkillBenchSetup } from "./bench-types.js";
 import type { Assertion, RunResult } from "./types.js";
-
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+import { catalogSkillNames } from "./skills-catalog.js";
 
 export const CUSTOM_BENCH_SETUPS: Record<string, SkillBenchSetup> = {
   ...BASE_WORKFLOW_SETUPS,
@@ -140,56 +138,7 @@ export function resolveBenchScenarioSetup(scenario: string): SkillBenchSetup | u
 }
 
 export function allRepositorySkillNames(): string[] {
-  const names = new Set<string>();
-  for (const skillPath of skillPaths()) {
-    const name = frontmatterName(skillPath);
-    if (name) names.add(name);
-  }
-  return [...names].sort();
-}
-
-function skillPaths(): string[] {
-  return [
-    ...baseSkillPaths("base/claude"),
-    ...baseSkillPaths("base/codex"),
-    ...packSkillPaths("packs"),
-  ];
-}
-
-function baseSkillPaths(relativeDir: string): string[] {
-  const dir = join(REPO_ROOT, relativeDir);
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => join(dir, entry.name, "SKILL.md"))
-    .filter((path) => existsSync(path));
-}
-
-function packSkillPaths(relativeDir: string): string[] {
-  const packsDir = join(REPO_ROOT, relativeDir);
-  if (!existsSync(packsDir)) return [];
-
-  const paths: string[] = [];
-  for (const pack of readdirSync(packsDir, { withFileTypes: true })) {
-    if (!pack.isDirectory()) continue;
-    for (const platform of ["claude", "codex"]) {
-      const platformDir = join(packsDir, pack.name, platform);
-      if (!existsSync(platformDir)) continue;
-      for (const skill of readdirSync(platformDir, { withFileTypes: true })) {
-        if (!skill.isDirectory()) continue;
-        const skillPath = join(platformDir, skill.name, "SKILL.md");
-        if (existsSync(skillPath)) paths.push(skillPath);
-      }
-    }
-  }
-  return paths;
-}
-
-function frontmatterName(skillPath: string): string | undefined {
-  const content = readFileSync(skillPath, "utf8");
-  const frontmatter = content.match(/^---\n([\s\S]*?)\n---/)?.[1] ?? "";
-  const match = frontmatter.match(/^name:\s*["']?([^"'\n]+)["']?\s*$/m);
-  return match?.[1]?.trim();
+  return catalogSkillNames();
 }
 
 function genericBenchSetup(skill: string): SkillBenchSetup {

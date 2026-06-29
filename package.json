@@ -1,0 +1,24 @@
+{
+  "name": "agentic-skills-benchmarks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "catalog:import": "node scripts/import-skills-catalog.mjs",
+    "catalog:check": "scripts/validate-skills-catalog-import.sh",
+    "bench:coverage": "tsx tests/harness/bench-coverage.ts",
+    "bench:list": "tsx tests/bench.ts --list-skills",
+    "bench": "tsx tests/bench.ts",
+    "verify": "tsx tests/bench.ts --verify",
+    "test": "vitest run tests/layer1"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  }
+}

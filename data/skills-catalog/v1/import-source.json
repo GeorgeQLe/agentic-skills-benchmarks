@@ -1,0 +1,8 @@
+{
+  "schema_version": "skills-catalog.v1",
+  "imported_at": "1970-01-01T00:00:00.000Z",
+  "skills_repo_url": "/Users/georgele/projects/tools/agentic-skills",
+  "skills_repo_ref": "WORKTREE",
+  "source_commit": "b7c0775bc8b3b87e53942e589ede3eb428065b47",
+  "source_fingerprint": "057a4d184b9970a70e4f898941971c2ea2d23354aa4e253cfa3786f5c60714e1"
+}
