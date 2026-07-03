@@ -1,6 +1,7 @@
 import {
   createQualityEvaluator,
   qualityAssertions,
+  type FactRequirement,
   type QualityRubric,
 } from "../../harness/bench-quality.js";
 import type { QualityCriterion, QualityEvaluator } from "../../harness/bench-types.js";
@@ -14,7 +15,7 @@ type CriterionOptions = {
 };
 
 type RequiredFactsOptions = CriterionOptions & {
-  facts: string[];
+  facts: FactRequirement[];
 };
 
 type ForbiddenFabricationOptions = CriterionOptions & {

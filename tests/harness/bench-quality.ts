@@ -59,12 +59,12 @@ function evaluateCriterion(criterion: QualityCriterion, output: string): Quality
 }
 
 export const qualityAssertions = {
-  requiredFacts(facts: string[]) {
+  requiredFacts(facts: FactRequirement[]) {
     return (output: string) => {
-      const missing = facts.filter((fact) => !includesFolded(output, fact));
+      const missing = facts.filter((fact) => !factCovered(output, fact));
       return {
         score: missing.length === 0 ? 1 : 0,
-        notes: missing.map((fact) => `missing required fact: ${fact}`),
+        notes: missing.map((fact) => `missing required fact: ${describeFact(fact)}`),
       };
     };
   },
@@ -113,6 +113,24 @@ export const qualityAssertions = {
     };
   },
 };
+
+/**
+ * A required fact is either an exact substring (strict — keep this for file paths,
+ * step ids, and route tokens) or an alias group that is satisfied when any listed
+ * wording variant appears. Alias groups exist to absorb equivalent-wording drift
+ * (e.g. "benchmark coverage reporting" vs "Benchmark Coverage Model") without
+ * loosening the strict identifiers that must match verbatim.
+ */
+export type FactRequirement = string | { anyOf: string[] };
+
+function factCovered(output: string, fact: FactRequirement): boolean {
+  if (typeof fact === "string") return includesFolded(output, fact);
+  return fact.anyOf.some((variant) => includesFolded(output, variant));
+}
+
+function describeFact(fact: FactRequirement): string {
+  return typeof fact === "string" ? fact : `any of [${fact.anyOf.join(" | ")}]`;
+}
 
 function includesFolded(output: string, needle: string): boolean {
   return output.toLowerCase().includes(needle.toLowerCase());

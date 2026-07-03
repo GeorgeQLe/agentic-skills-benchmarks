@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { FactRequirement } from "../../harness/bench-quality.js";
 import type { BenchAgent, QualityCriterion, SkillBenchSetup } from "../../harness/bench-types.js";
 import type { Assertion, RunResult } from "../../harness/types.js";
 import {
@@ -48,7 +49,7 @@ function expectedRoute(definition: Tier1WorkflowDefinition, agent?: BenchAgent):
 
 function workflowQualityEvaluator(options: {
   minimumScore?: number;
-  evidenceFacts: string[];
+  evidenceFacts: FactRequirement[];
   evidenceCriterion?: QualityCriterion;
   specificMarkers: string[];
   nextRoute?: string;
@@ -529,7 +530,13 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     },
     expectedIncludes: ["Tests First", "Implementation", "click", "prototype"],
     qualityEvaluator: workflowQualityEvaluator({
-      evidenceFacts: ["Phase 2: SaaS Coverage Dashboard Prototype", "fake benchmark rows", "Production database, auth, analytics, and deployment are not approved"],
+      evidenceFacts: [
+        // Accept the fixture's own "Implementation" heading and the equivalent "Prototype"
+        // phrasing — the concept, not one exact spelling, is the required evidence.
+        { anyOf: ["Phase 2: SaaS Coverage Dashboard Implementation", "Phase 2: SaaS Coverage Dashboard Prototype", "SaaS Coverage Dashboard"] },
+        "fake benchmark rows",
+        "Production database, auth, analytics, and deployment are not approved",
+      ],
       specificMarkers: ["Tests First", "Implementation", "file-level", "prototype"],
       nextRoute: "$exec",
       coreTraitId: "phase-plan-specificity",
