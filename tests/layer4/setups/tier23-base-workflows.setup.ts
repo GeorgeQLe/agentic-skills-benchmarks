@@ -339,7 +339,7 @@ function lineOnlyWarnsAgainstPnpmLatest(line: string): boolean {
   return /(?:do\s+not\s+use|don't(?:\s+use)?|not\s+(?:use\s+)?(?:unqualified\s+)?|no\s+unqualified|avoid|reject|never(?:\s+default\s+to)?|rather than|instead of|violates|would float|break reproducibility)/i.test(normalized);
 }
 
-function avoidsUnqualifiedPnpmLatest(content: string): boolean {
+export function avoidsUnqualifiedPnpmLatest(content: string): boolean {
   return content
     .split(/\r?\n/)
     .filter((line) => /pnpm@latest/i.test(line))
@@ -357,7 +357,7 @@ const UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_PATTERN = new RegExp([
   "(?=[\\s\\S]*(?:older than 8 days|8-day|age[-\\s]eligible|16 days old|eligible because it is older))",
 ].join(""), "i");
 const UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_DESCRIPTION = "Output proves selected pnpm toolchain age eligibility";
-function provesSelectedPnpmToolchainAgeEligibility(content: string): boolean {
+export function provesSelectedPnpmToolchainAgeEligibility(content: string): boolean {
   if (UPDATE_PACKAGES_PNPM_TOOLCHAIN_PROOF_PATTERN.test(content)) return true;
   if (!/(?:older than 8 days|8-day|age[-\s]eligible|16 days old|eligible because it is older)/i.test(content)) return false;
 
@@ -1496,7 +1496,10 @@ const baseWorkflowDefinitions: BaseWorkflowDefinition[] = [
       codex: "$exec",
     },
     requireFinalRecommendedRoute: true,
-    allowedFixtureTerms: ["package-lock.json"],
+    // package-lock.json is now excused by the negation-aware forbidden-term
+    // primitive (the npm-to-pnpm migration names the lockfile only to remove
+    // it), so the manual allow hatch is redundant. The `allowedFixtureTerms`
+    // field remains available for genuine hard allows.
     perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
   },
   {

@@ -64,6 +64,9 @@ export const designSystemSetup: SkillBenchSetup = {
         description: "Output avoids design values not present in the fixture.",
         weight: 2,
         critical: true,
+        // Design token/asset guard: presence-based, never excused by an
+        // adjacent Don'ts/negation word.
+        strict: true,
         forbidden: ["#8B5CF6", "Inter Tight", "glassmorphism", "neon"],
       }),
     ],

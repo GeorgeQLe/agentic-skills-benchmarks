@@ -20,11 +20,16 @@ type RequiredFactsOptions = CriterionOptions & {
 
 type ForbiddenFabricationOptions = CriterionOptions & {
   forbidden: string[];
+  // When true, any presence of a forbidden term fails — never excused by an
+  // adjacent negation word. Default (unset) is negation-aware. Use for design
+  // token/asset guards that must stay presence-based.
+  strict?: boolean;
 };
 
 type SpecificityOptions = CriterionOptions & {
   requiredAny: string[];
   forbiddenPhrases?: string[];
+  strict?: boolean;
 };
 
 type RequiredPatternsOptions = CriterionOptions & {
@@ -49,7 +54,7 @@ export function requiredFactCoverageCriterion(options: RequiredFactsOptions): Qu
 export function forbiddenFabricationCriterion(options: ForbiddenFabricationOptions): QualityCriterion {
   return {
     ...criterionOptions(options),
-    evaluate: qualityAssertions.forbiddenFabrications(options.forbidden),
+    evaluate: qualityAssertions.forbiddenFabrications(options.forbidden, { strict: options.strict }),
   };
 }
 
@@ -59,6 +64,7 @@ export function specificityCriterion(options: SpecificityOptions): QualityCriter
     evaluate: qualityAssertions.specificity({
       requiredAny: options.requiredAny,
       forbiddenPhrases: options.forbiddenPhrases ?? [],
+      strict: options.strict,
     }),
   };
 }

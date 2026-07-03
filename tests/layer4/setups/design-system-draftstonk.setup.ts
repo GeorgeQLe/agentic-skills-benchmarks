@@ -69,6 +69,9 @@ export const designSystemDraftstonkSetup: SkillBenchSetup = {
         description: "Output avoids unrelated palette and type values.",
         weight: 2,
         critical: true,
+        // Design token/asset guard: presence-based, never excused by an
+        // adjacent Don'ts/negation word.
+        strict: true,
         forbidden: ["#2563EB", "SF Pro", "pastel", "minimal white dashboard"],
       }),
     ],
