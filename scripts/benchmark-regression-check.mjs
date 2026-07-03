@@ -50,19 +50,12 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { classifyVerdict } from "./lib/regression-verdict.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "..");
 const runsDir = path.join(repoRoot, "tests", "benchmarks", "runs");
 const historyPath = path.join(repoRoot, "benchmark", "grade-history.json");
-
-// Drop of this many percentage points (expressed as a 0..1 fraction) in any
-// metric counts as a regression; the same magnitude rise counts as improvement.
-const THRESHOLD = 0.10;
-
-// Status badge ordering, worst -> best. Mirrors the showcase generator and
-// benchmarks.tsx badges: a move toward a lower rank is a demotion (regression).
-const STATUS_RANK = { blocked: 0, "partially graded": 1, graded: 2 };
 
 function fail(msg) {
   console.error(`benchmark-regression-check: ${msg}`);
@@ -177,38 +170,7 @@ for (const agent of Array.from(newest.keys()).sort()) {
     status: grade.status,
   };
 
-  let verdict;
-  const reasons = [];
-
-  if (!prior) {
-    verdict = "baseline";
-  } else {
-    const checks = [
-      ["passRate", prior.passRate, grade.passRate],
-      ["wilsonLower", prior.wilsonLower, grade.wilsonLower],
-      ["averageScore", prior.averageScore, grade.averageScore],
-    ];
-    let regressed = false;
-    let improved = false;
-    for (const [name, p, n] of checks) {
-      if (p === null || p === undefined || n === null || n === undefined) continue;
-      if (p - n >= THRESHOLD) {
-        regressed = true;
-        reasons.push(`${name} dropped ${((p - n) * 100).toFixed(1)}pp (${pct(p)} -> ${pct(n)})`);
-      } else if (n - p >= THRESHOLD) {
-        improved = true;
-      }
-    }
-    const priorRank = STATUS_RANK[prior.status] ?? 1;
-    const nextRank = STATUS_RANK[grade.status] ?? 1;
-    if (nextRank < priorRank) {
-      regressed = true;
-      reasons.push(`status demoted (${prior.status} -> ${grade.status})`);
-    } else if (nextRank > priorRank) {
-      improved = true;
-    }
-    verdict = regressed ? "regression" : improved ? "improvement" : "stable";
-  }
+  const { verdict, reasons } = classifyVerdict({ prior, grade });
 
   // Append + persist.
   history[key] = [...priorArr, entry];
@@ -236,6 +198,13 @@ for (const agent of Array.from(newest.keys()).sort()) {
     anyRegression = true;
     console.log(`\n  Regression reasons: ${reasons.join("; ")}`);
     console.log(`\nRecommended next skill: /session-triage ${skill} benchmark regression`);
+  } else if (verdict === "blocked") {
+    // Fully infra-blocked lane (0 evaluated runs). The skill was never
+    // exercised, so this is inconclusive — do NOT route to skill triage or
+    // exit non-zero. Surface the infra block for a human to investigate.
+    if (reasons.length) console.log(`\n  ${reasons.join("; ")}`);
+    console.log(`\n  Lane fully infra-blocked (0 evaluated runs) — inconclusive, not a skill regression.`);
+    console.log(`  Investigate the infra block (credentials / tooling / quota) and re-run \`pnpm bench --skill ${skill}\`.`);
   }
 }
 
