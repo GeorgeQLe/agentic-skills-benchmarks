@@ -4,5 +4,8 @@
   "skill_pack_version": 1,
   "enabled_skills": {
     "ship-end": "exec-loop"
+  },
+  "alignment": {
+    "bip_prompt_dismissed": true
   }
 }
