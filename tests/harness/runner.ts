@@ -56,18 +56,25 @@ export interface RunOptions {
   workDir: string;
   maxBudgetUsd?: number;
   timeoutMs?: number;
+  /**
+   * Optional model override passed through to the underlying CLI
+   * (`claude --model <model>` / `codex --model <model>`). When unset each
+   * CLI uses its own default model, preserving prior behaviour.
+   */
+  model?: string;
 }
 
 export const CODEX_EXEC_STDIO = ["ignore", "pipe", "pipe"] as const;
 
 export async function runClaude(opts: RunOptions): Promise<RunResult> {
-  const { prompt, workDir, maxBudgetUsd = 0.5, timeoutMs = 120_000 } = opts;
+  const { prompt, workDir, maxBudgetUsd = 0.5, timeoutMs = 120_000, model } = opts;
 
   const args = [
     "--print",
     "--dangerously-skip-permissions",
     "--max-turns", "25",
     "--max-budget-usd", String(maxBudgetUsd),
+    ...(model ? ["--model", model] : []),
     "-p", prompt,
   ];
 
@@ -100,12 +107,12 @@ export async function runClaude(opts: RunOptions): Promise<RunResult> {
 }
 
 export async function runCodex(opts: RunOptions): Promise<RunResult> {
-  const { prompt, workDir, maxBudgetUsd, timeoutMs = 120_000 } = opts;
+  const { prompt, workDir, maxBudgetUsd, timeoutMs = 120_000, model } = opts;
 
   const budgetNote = maxBudgetUsd != null
     ? `\n\nIMPORTANT: Your budget limit for this task is $${maxBudgetUsd} USD. Stay within this budget.`
     : "";
-  const args = codexExecArgs(workDir, prompt + budgetNote);
+  const args = codexExecArgs(workDir, prompt + budgetNote, model);
 
   const result = await runSpawnedCommand("codex", args, {
     cwd: workDir,
@@ -121,12 +128,13 @@ export async function runCodex(opts: RunOptions): Promise<RunResult> {
   };
 }
 
-export function codexExecArgs(workDir: string, prompt: string): string[] {
+export function codexExecArgs(workDir: string, prompt: string, model?: string): string[] {
   return [
     "exec",
     "--cd", workDir,
     "--sandbox", "workspace-write",
     "--ephemeral",
+    ...(model ? ["--model", model] : []),
     prompt,
   ];
 }

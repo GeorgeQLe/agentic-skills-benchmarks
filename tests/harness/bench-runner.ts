@@ -13,6 +13,14 @@ import {
 
 const MAX_ARTIFACT_BYTES = 24_000;
 
+// Opt-in quality gating, mirroring LIVE_AGENT_TESTS. When enabled, a run must
+// clear its qualityEvaluator rubric in addition to its assertions. Default
+// (unset) preserves assertion-only pass/fail, so rubric false-fails can be
+// fixed before anyone flips this on.
+export function qualityGatingEnabled(): boolean {
+  return process.env.BENCH_GATE_ON_QUALITY === "1";
+}
+
 export interface ChunkResult {
   manifest: SessionManifest;
   runs: SingleRunResult[];
@@ -62,33 +70,11 @@ export async function runChunk(
     });
 
     const durationMs = Date.now() - t0;
-    const infrastructureReason = classifyInfrastructureBlock(result);
-    const infrastructureBlocked = Boolean(infrastructureReason);
-    const assertions = infrastructureBlocked ? [] : setup.assertResult(result, { agent: manifest.config.agent });
-    const output = collectQualityOutput(setup, result);
-    const artifacts = collectRunArtifacts(setup, result);
-    const qualityResult = !infrastructureBlocked && setup.qualityEvaluator
-      ? setup.qualityEvaluator.evaluate(output)
-      : undefined;
-    const passed = !infrastructureBlocked && assertions.every((a) => a.pass);
-
-    const runResult: SingleRunResult = {
+    const runResult = buildRunResult(setup, manifest.config.agent, result, {
       index,
       startedAt,
-      completedAt: new Date().toISOString(),
       durationMs,
-      exitCode: result.exitCode,
-      assertions,
-      passed,
-      stdout: result.stdout,
-      stderr: result.stderr,
-      files: result.files,
-      artifacts,
-      estimatedCostUsd: setup.perRunBudgetUsd,
-      infrastructureBlocked,
-      infrastructureReason,
-      qualityResult,
-    };
+    });
 
     saveRunResult(manifest, runResult);
     runs.push(runResult);
@@ -111,6 +97,51 @@ export async function runChunk(
   }
 
   return { manifest, runs, haltedByBudget };
+}
+
+/**
+ * Evaluate a single completed agent run into a persisted `SingleRunResult`.
+ * Extracted from `runChunk` so the live dashboard orchestrator scores runs
+ * through the exact same assertion + quality-gate logic (single source of
+ * truth for pass/fail), rather than reimplementing it.
+ */
+export function buildRunResult(
+  setup: SkillBenchSetup,
+  agent: BenchAgent,
+  result: RunResult,
+  meta: { index: number; startedAt: string; durationMs: number },
+): SingleRunResult {
+  const infrastructureReason = classifyInfrastructureBlock(result);
+  const infrastructureBlocked = Boolean(infrastructureReason);
+  const assertions = infrastructureBlocked ? [] : setup.assertResult(result, { agent });
+  const output = collectQualityOutput(setup, result);
+  const artifacts = collectRunArtifacts(setup, result);
+  const qualityResult = !infrastructureBlocked && setup.qualityEvaluator
+    ? setup.qualityEvaluator.evaluate(output)
+    : undefined;
+  // An empty (non-infra-blocked) assertions array must NOT vacuously pass —
+  // [].every(...) is true. A setup that produced no assertions is a defect.
+  const assertionsPassed = !infrastructureBlocked && assertions.length > 0 && assertions.every((a) => a.pass);
+  const qualityGatePassed = !qualityGatingEnabled() || (qualityResult?.passed ?? true);
+  const passed = assertionsPassed && qualityGatePassed;
+
+  return {
+    index: meta.index,
+    startedAt: meta.startedAt,
+    completedAt: new Date().toISOString(),
+    durationMs: meta.durationMs,
+    exitCode: result.exitCode,
+    assertions,
+    passed,
+    stdout: result.stdout,
+    stderr: result.stderr,
+    files: result.files,
+    artifacts,
+    estimatedCostUsd: setup.perRunBudgetUsd,
+    infrastructureBlocked,
+    infrastructureReason,
+    qualityResult,
+  };
 }
 
 function collectRunArtifacts(
@@ -155,9 +186,10 @@ function collectQualityOutput(setup: SkillBenchSetup, result: RunResult): string
       }
     }).filter(Boolean);
 
-    return fileOutput.length > 0
-      ? fileOutput.join("\n")
-      : `${result.stdout}\n${result.stderr}`;
+    // A declared qualityOutputPath that produced no file means the agent never
+    // wrote the required artifact. Score against an empty string rather than
+    // stdout+stderr, so agent chatter can never satisfy fact/pattern criteria.
+    return fileOutput.length > 0 ? fileOutput.join("\n") : "";
   }
 
   const fileOutput = result.files.map((file) => {
@@ -217,41 +249,37 @@ function runBenchAgent(agent: BenchAgent, opts: RunOptions): Promise<RunResult> 
 }
 
 export function classifyInfrastructureBlock(result: RunResult): string | undefined {
-  const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
-  const failed = result.exitCode !== 0;
+  // Only a non-zero exit can be an infrastructure block. Scan STDERR (and the
+  // runner-injected timeout sentinel) rather than combined output: a genuine
+  // failure whose STDOUT merely discusses "rate limit"/"connection closed"
+  // must not be silently dropped from evaluatedRuns (which inflates passRate).
+  if (result.exitCode === 0) return undefined;
+  const stderr = (result.stderr ?? "").toLowerCase();
+  const has = (...needles: string[]) => needles.some((needle) => stderr.includes(needle));
 
-  if (failed && (
-    output.includes("hit your limit") ||
-    output.includes("rate limit") ||
-    output.includes("rate_limit") ||
-    output.includes("quota exceeded") ||
-    output.includes("too many requests")
-  )) {
+  if (has("hit your limit", "rate limit", "rate_limit", "quota exceeded", "too many requests")) {
     return "agent runner rate limit";
   }
-  if (failed && output.includes("exceeded usd budget")) {
+  if (has("exceeded usd budget")) {
     return "agent runner budget exceeded";
   }
-  if (failed && output.includes("could not process image")) {
+  if (has("could not process image")) {
     return "agent runner image processing error";
   }
-  if (
-    output.includes("agent runner timed out") ||
-    (result.exitCode === 143 && !result.stdout.trim())
-  ) {
+  if (has("agent runner timed out") || (result.exitCode === 143 && !result.stdout.trim())) {
     return "agent runner timeout";
   }
-  if (
-    output.includes("connectionrefused") ||
-    output.includes("unable to connect to api") ||
-    output.includes("failed to connect to websocket") ||
-    output.includes("failed to lookup address information") ||
-    output.includes("socket connection was closed unexpectedly") ||
-    output.includes("connection closed mid-response") ||
-    output.includes("stream disconnected before completion") ||
-    output.includes("http/request failed") ||
-    output.includes("transport channel closed")
-  ) {
+  if (has(
+    "connectionrefused",
+    "unable to connect to api",
+    "failed to connect to websocket",
+    "failed to lookup address information",
+    "socket connection was closed unexpectedly",
+    "connection closed mid-response",
+    "stream disconnected before completion",
+    "http/request failed",
+    "transport channel closed",
+  )) {
     return "agent runner connection failure";
   }
   return undefined;

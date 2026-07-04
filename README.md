@@ -34,6 +34,41 @@ pnpm bench:coverage
 pnpm test
 pnpm bench:list
 BENCH_SKILL=design-system BENCH_AGENT=codex BENCH_RUNS=1 BENCH_CHUNK_SIZE=1 pnpm bench
+# Opt-in: also gate pass/fail on each suite's quality rubric (default: assertions only)
+BENCH_GATE_ON_QUALITY=1 BENCH_SKILL=design-system BENCH_AGENT=codex BENCH_RUNS=1 pnpm bench
 ```
 
 Benchmark run output stays under `tests/benchmarks/runs/`.
+
+`BENCH_GATE_ON_QUALITY=1` makes a run additionally require its `qualityEvaluator`
+rubric to pass (critical criteria + minimum score). Unset (the default), pass/fail
+is computed from `assertResult` alone and the rubric is diagnostic only.
+
+## Live model dashboard
+
+`pnpm bench:dashboard` runs the benchmark suite across a matrix of Claude and GPT
+models and renders a live, SkateBench-style TUI: a ranked leaderboard (pass rate,
+p50 latency, cost), a model × task grid, and a rolling activity tail. The same
+`assertResult` + quality-gate logic scores every cell, so pass/fail matches
+`pnpm bench` exactly — only the model varies (via each CLI's `--model`).
+
+```bash
+# Preview the dashboard with simulated runs (no live agents, no spend)
+pnpm bench:dashboard --mock
+
+# Real runs — requires LIVE_AGENT_TESTS=1 (spends on claude/codex)
+LIVE_AGENT_TESTS=1 pnpm bench:dashboard \
+  --models claude-opus,claude-sonnet,gpt-5-codex \
+  --skills investigate,ship,session-triage \
+  --runs 3 --concurrency 4 --budget 15
+
+pnpm bench:dashboard --list-models   # show the model matrix
+pnpm bench:dashboard --help          # all options
+```
+
+Flags: `--models` (default: all; ids from `--list-models`), `--skills` /
+`--scenarios`, `--runs` per cell, `--concurrency`, `--budget` (hard USD ceiling —
+the matrix stops spending once reached), `--mock`, and `--no-live` (plain line
+log for CI / piping). Live runs are gated behind `LIVE_AGENT_TESTS=1`; a per-run
+summary is written to `tests/benchmarks/dashboard/`. Edit the model matrix in
+`tests/harness/dashboard/model-matrix.ts`.

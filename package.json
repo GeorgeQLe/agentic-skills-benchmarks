@@ -8,6 +8,7 @@
     "catalog:check": "scripts/validate-skills-catalog-import.sh",
     "bench:coverage": "tsx tests/harness/bench-coverage.ts",
     "bench:list": "tsx tests/bench.ts --list-skills",
+    "bench:dashboard": "tsx tests/dashboard.ts",
     "bench": "tsx tests/bench.ts",
     "verify": "tsx tests/bench.ts --verify",
     "test": "vitest run tests/layer1"
