@@ -18,9 +18,11 @@ export function assertNextCommand(content: string): Assertion {
 }
 
 export function assertRecommendedRoute(content: string, command: string): Assertion {
+  // Anchor to the next-command handoff line so a route like `/ship` is not
+  // spuriously satisfied by an unrelated substring (e.g. `/ship-end`).
   return {
     description: `Output recommends ${command}`,
-    pass: content.includes(command),
+    pass: recommendedExactNextRoutePattern(command).test(content),
   };
 }
 

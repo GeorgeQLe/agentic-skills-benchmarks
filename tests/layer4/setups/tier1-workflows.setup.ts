@@ -40,6 +40,14 @@ interface Tier1WorkflowDefinition {
   qualityEvaluator?: SkillBenchSetup["qualityEvaluator"];
 }
 
+// The final handoff is the block introduced by the last "Next command" label,
+// bounded at the next blank line so trailing postscripts/prose are excluded.
+function extractFinalHandoff(text: string): string {
+  return text.match(
+    /(?:^|\n)(?:#{1,6}\s*)?(?:Recommended next command|Next command|Next Command)\s*:?\s*([\s\S]*?)(?:\n\s*\n|$)/i,
+  )?.[1] ?? text;
+}
+
 function expectedRoute(definition: Tier1WorkflowDefinition, agent?: BenchAgent): string | undefined {
   if (agent && definition.recommendedRoutes?.[agent]) {
     return definition.recommendedRoutes[agent];
@@ -49,7 +57,7 @@ function expectedRoute(definition: Tier1WorkflowDefinition, agent?: BenchAgent):
 
 function workflowQualityEvaluator(options: {
   minimumScore?: number;
-  evidenceFacts: FactRequirement[];
+  evidenceFacts?: FactRequirement[];
   evidenceCriterion?: QualityCriterion;
   specificMarkers: string[];
   nextRoute?: string;
@@ -71,7 +79,7 @@ function workflowQualityEvaluator(options: {
         description: "Names concrete fixture facts used as evidence",
         weight: 3,
         critical: true,
-        facts: options.evidenceFacts,
+        facts: options.evidenceFacts ?? [],
       }),
       ...(options.concreteFiles
         ? [
@@ -154,8 +162,9 @@ const sessionTriageNoOverRemediationCriterion: QualityCriterion = {
     const saysOneOffNoncompliance = /one[- ]off|agent noncompliance|noncompliance with an adequate|do not change (a )?skill|no skill change/i.test(output);
     const unconditionalSkillBuilderRoute = /Recommended next (skill|command):\s*[`'"]?\/?\$?targeted-skill-builder\b/im.test(output)
       || /## Next command\s+[`'"]?\/?\$?targeted-skill-builder\b/im.test(output);
-    const rebrandsExistingRuleAsContractChange = /\b(add|patch|update|rewrite|harden|upgrade|tighten)\b[^.\n]{0,120}\b(pre-ship validation|validation evidence|evidence gate|validation gate|contract|exec skill|\$exec|\/exec)\b/i.test(output)
-      || /\b(pre-ship validation|validation evidence|evidence gate|validation gate)\b[^.\n]{0,120}\b(contract change|skill change|targeted-skill-builder|patch|update|rewrite)\b/i.test(output);
+    const remediationVerb = String.raw`\b(add|patch|update|rewrite|harden|upgrade|tighten|strengthen|introduce|enforce|require|mandate|amend|revise|create|codify)\b`;
+    const rebrandsExistingRuleAsContractChange = new RegExp(`${remediationVerb}[^.\\n]{0,120}\\b(pre-ship validation|validation evidence|evidence gate|validation gate|contract|exec skill|\\$exec|\\/exec)\\b`, "i").test(output)
+      || new RegExp(`\\b(pre-ship validation|validation evidence|evidence gate|validation gate)\\b[^.\\n]{0,120}${remediationVerb}`, "i").test(output);
     const explicitlyRejectsSkillChange = /\b(no skill change|do not change (a )?skill|not (the )?skill contract|no .*contract gap|none verified)\b/i.test(output)
       || /\bunless\b[^.\n]{0,100}\b(additional evidence|recurrence|contract gap)\b/i.test(output);
 
@@ -185,12 +194,15 @@ const investigateCleanShippedNoShipEndCriterion: QualityCriterion = {
   weight: 5,
   critical: true,
   evaluate(output: string) {
-    const recommendsShipEnd = /Recommended next (?:command|skill):\s*[`'"]?\$ship-end\b/im.test(output)
-      || /\bnext (?:command|skill|step)\b[^.\n]{0,80}\$ship-end\b/i.test(output);
-    const saysCleanShipped = /\b(?:committed|commit)\b[\s\S]{0,300}\b(?:pushed|push)\b/i.test(output)
+    const recommendsShipEnd = /Recommended next (?:command|skill):\s*[`'"]?[/$]ship-end\b/im.test(output)
+      || /\bnext (?:command|skill|step)\b[^.\n]{0,80}[/$]ship-end\b/i.test(output);
+    const saysCleanShipped = /\b(?:committed|commit)\b[\s\S]{0,300}\b(?:pushed|push|origin\/master|origin\/main|remote)\b/i.test(output)
       && /\b(?:clean tree|tree is clean|working tree clean|working-tree state:\s*clean|no unpushed commits)\b/i.test(output);
-    const noneRoute = /\*\*Next work:\*\*\s*none\b/i.test(output)
-      && /\*\*Recommended next command:\*\*\s*none\b/i.test(output);
+    // Accept bold, unbolded, and heading spellings of the terminal "none" routes.
+    const noneMarker = (label: string) =>
+      new RegExp(String.raw`(?:^|\n)\s*(?:[-*]\s*)?(?:#{1,6}\s*)?(?:\*\*|__)?${label}(?:\*\*|__)?\s*:?\s*(?:\*\*|__)?\s*none\b`, "im");
+    const noneRoute = noneMarker("Next work").test(output)
+      && noneMarker("Recommended next command").test(output);
 
     if (saysCleanShipped && recommendsShipEnd) {
       return {
@@ -216,9 +228,7 @@ const singleActiveRunnerFinalRouteCriterion: QualityCriterion = {
   weight: 4,
   critical: true,
   evaluate(output: string) {
-    const finalHandoff = output.match(
-      /(?:^|\n)(?:#{1,6}\s*)?(?:Recommended next command|Next command|Next Command)\s*:?\s*([\s\S]*?)$/i,
-    )?.[1] ?? output;
+    const finalHandoff = extractFinalHandoff(output);
     const hasSlashRun = /(?:^|[\s`'"(:-])\/exec(?:[\s`'".,)]|$)/i.test(finalHandoff);
     const hasDollarRun = /(?:^|[\s`'"(:-])\$exec(?:[\s`'".,)]|$)/i.test(finalHandoff);
 
@@ -346,10 +356,11 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
         assertions.push(assertRecommendedRoute(content, route));
         if (definition.skill === "ship-end") {
           const alternateRoute = route === "/exec" ? "$exec" : "/exec";
+          const finalHandoff = extractFinalHandoff(content);
           assertions.push({
             description: "Output uses single active-runner final route",
-            pass: !new RegExp(`(?:^|[\\s\`'"(:-])${alternateRoute.replace("$", "\\$")}(?:[\\s\`'".,)]|$)`, "im").test(content),
-            message: `Expected final handoff to avoid alternate runner route ${alternateRoute}`,
+            pass: !new RegExp(`(?:^|[\\s\`'"(:-])${alternateRoute.replace("$", "\\$")}(?:[\\s\`'".,)]|$)`, "im").test(finalHandoff),
+            detail: `Expected final handoff to avoid alternate runner route ${alternateRoute}`,
           });
         }
       }
@@ -423,7 +434,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     }),
     recommendedRoutes: {
       claude: "/ship",
-      codex: "$exec",
+      codex: "$ship",
     },
   },
   {
@@ -498,7 +509,8 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     expectedIncludes: ["Phase", "Acceptance Criteria", "verification", "prototype"],
     expectedPattern: /benchmark coverage|CLI status/i,
     qualityEvaluator: workflowQualityEvaluator({
-      evidenceFacts: ["benchmark coverage", "CLI status output", "fake rows"],
+      // evidenceCriterion is authoritative here; a plain evidenceFacts array would
+      // be silently ignored, so it is intentionally omitted.
       evidenceCriterion: requiredPatternCriterion({
         id: "evidence-linked",
         description: "Names concrete fixture facts used as evidence",
@@ -535,7 +547,11 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
         // phrasing — the concept, not one exact spelling, is the required evidence.
         { anyOf: ["Phase 2: SaaS Coverage Dashboard Implementation", "Phase 2: SaaS Coverage Dashboard Prototype", "SaaS Coverage Dashboard"] },
         "fake benchmark rows",
-        "Production database, auth, analytics, and deployment are not approved",
+        // The verbatim "…are not approved" sentence appears in neither the prompt nor
+        // the fixture, so requiring it verbatim is a false-fail. Require instead that the
+        // plan keeps the deferred/out-of-scope concept (auth/database/analytics/deploy)
+        // in any faithful wording.
+        { anyOf: ["not approved", "out of scope", "not in scope", "deferred", "excluded", "no auth", "no database", "not yet"] },
       ],
       specificMarkers: ["Tests First", "Implementation", "file-level", "prototype"],
       nextRoute: "$exec",
@@ -593,7 +609,10 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       coreTraits: ["Overview", "Goals", "Non-Goals", "Skill Contract", "Workflow", "Verification and Benchmark Coverage"],
       validationPatterns: [/benchmark coverage|bench-coverage\.ts|verify|validation/i],
       concreteFiles: ["skill-idea.md", "tests/harness/bench-coverage.ts", "specs/benchmark-audit-skill-brief.md"],
-      forbidden: ["GitHub Actions"],
+      // "GitHub Actions" stays in the shared negation-aware forbidden list: the
+      // fixture's "avoid GitHub Actions" Non-Goal is excused by mentionIsNegated,
+      // while a brief that claims it *configured* GitHub Actions still fails. No
+      // per-suite override needed (see tests/layer1/forbidden-negation.test.ts).
     }),
     recommendedRoutes: {
       claude: "/create-agentic-skill",

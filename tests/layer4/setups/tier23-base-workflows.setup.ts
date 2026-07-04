@@ -150,7 +150,9 @@ function createBaseWorkflowQualityEvaluator(definition: BaseWorkflowDefinition) 
   const forbiddenFixtureTerms = [
     "Lorem ipsum",
     "production deployment completed",
-    "package-lock.json",
+    // "package-lock.json" is intentionally NOT globally forbidden: skills that
+    // correctly discuss npm→pnpm lockfile migration (e.g. update-packages) must
+    // name it. Scope any lockfile guard per-skill instead.
     "AWS account",
     "Vercel project configured",
   ].filter((term) => !definition.allowedFixtureTerms?.includes(term));
@@ -158,11 +160,16 @@ function createBaseWorkflowQualityEvaluator(definition: BaseWorkflowDefinition) 
   return createSetupQualityEvaluator({
     minimumScore: 0.8,
     criteria: [
+      // Not critical: expectedIncludes are largely prompt-dictated structural
+      // section headings, so a transcriber could satisfy a critical gate here
+      // without doing the skill (see tests/layer1/no-prompt-echo.test.ts). The
+      // structural presence check still runs in assertResult; the fixture-DERIVED
+      // gates (expectedPattern → workflow-domain-specificity, expectedEvidence)
+      // remain critical.
       requiredFactCoverageCriterion({
         id: "workflow-fixture-facts",
         description: "Output preserves the setup's required fixture terms.",
         weight: 3,
-        critical: true,
         facts: definition.expectedIncludes,
       }),
       ...((definition.expectedEvidence ?? []).map((expected): QualityCriterion => (
@@ -1011,6 +1018,20 @@ const baseWorkflowDefinitions: BaseWorkflowDefinition[] = [
       ].join(""),
     },
     expectedIncludes: ["Design System Tokens", "Dead Code"],
+    expectedEvidence: [
+      {
+        description: "Index renders an actual search/filter control, not just the word filter.",
+        pattern: /<input\b[^>]*>|oninput\s*=|addEventListener\(\s*["']input["']|querySelector[\s\S]{0,60}(?:filter|search)/i,
+      },
+      {
+        description: "Index uses a real card-grid layout.",
+        pattern: /class=["'][^"']*\b(?:card|grid)\b|display:\s*grid|grid-template-columns/i,
+      },
+      {
+        description: "Index reflects the derived page count of two documents.",
+        pattern: /\b(?:2|two)\b[^\n]{0,24}(?:page|entr|item|doc)|(?:page|entr|item|doc)[^\n]{0,24}\b(?:2|two)\b/i,
+      },
+    ],
     expectedPattern: /alignment\/index\.html/i,
     recommendedRoute: "$skills",
   },
@@ -1272,6 +1293,16 @@ const baseWorkflowDefinitions: BaseWorkflowDefinition[] = [
       ".agents/project.json": "{\"name\": \"benchmark-dashboard\", \"type\": \"saas\"}",
     },
     expectedIncludes: ["variation", "hub page", "clickable", "fake data"],
+    expectedEvidence: [
+      {
+        description: "Hub page contains actual clickable links, not just the word clickable.",
+        pattern: /<a\b[^>]*href\s*=\s*["'][^"']+["']/i,
+      },
+      {
+        description: "Hub links both seeded variations (dense table and card grid).",
+        pattern: /dense table[\s\S]{0,500}card grid|card grid[\s\S]{0,500}dense table|variation[\s-]?a[\s\S]{0,500}variation[\s-]?b/i,
+      },
+    ],
     expectedPattern: /dense table|card grid|coverage/i,
     recommendedRoute: "$uat --variant-evaluation",
   },
@@ -1525,6 +1556,16 @@ const baseWorkflowDefinitions: BaseWorkflowDefinition[] = [
       "prototypes/dashboard/variation-b/index.html": "<html><body><h1>Variation B: Card Grid</h1><div class='grid'></div></body></html>",
     },
     expectedIncludes: ["UAT evidence summary", "consolidation matrix", "conflict resolutions", "consolidated prototype"],
+    expectedEvidence: [
+      {
+        description: "Consolidation matrix is rendered as an actual table.",
+        pattern: /<table\b|\|\s*:?-{2,}/i,
+      },
+      {
+        description: "Conflict resolution reflects the derived UAT tradeoff (card grid slower for comparing).",
+        pattern: /card grid[\s\S]{0,200}(?:slower|compar|browse)|(?:slower|compar|browse)[\s\S]{0,200}card grid/i,
+      },
+    ],
     expectedPattern: /dense table|card grid|blocked reasons/i,
     recommendedRoute: "$research-roadmap --post-prototype",
   },

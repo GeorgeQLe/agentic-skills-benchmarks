@@ -133,27 +133,6 @@ const packFamilyContexts: Record<string, { id: string; facts: string[]; traits: 
   },
 };
 
-function domainContextLine(definition: PackWorkflowDefinition): string | undefined {
-  const ctx = packFamilyContexts[definition.pack];
-  if (!ctx) return undefined;
-  const facts = ctx.facts.join(" and ");
-  const traits = ctx.traits.join(", ");
-  return `- domain context: this ${definition.pack} workflow covers ${facts} with attention to ${traits}`;
-}
-
-function domainContextFixtureSection(definition: PackWorkflowDefinition): string[] {
-  const ctx = packFamilyContexts[definition.pack];
-  if (!ctx) return [];
-  return [
-    "## Domain Context",
-    "",
-    `Pack family: ${definition.pack}`,
-    `Key concerns: ${ctx.facts.join(", ")}`,
-    `Practical dimensions: ${ctx.traits.join(", ")}`,
-    "",
-  ];
-}
-
 function expectedRoute(definition: PackWorkflowDefinition, agent?: BenchAgent): string | undefined {
   if (agent && definition.nextRoutes?.[agent]) {
     return definition.nextRoutes[agent];
@@ -187,7 +166,6 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
       "- risks or assumptions",
       "- a literal final handoff label accepted by the harness, such as `Recommended next skill: <command>` or `Recommended next command: <command>`",
       ...(knownRoutes ? [`- known runner-specific route for this benchmark: ${knownRoutes}`] : []),
-      ...(domainContextLine(definition) ? [domainContextLine(definition)!] : []),
       "Use local context only. Do not call external services, mutate git remotes, install packages, or ask follow-up questions.",
     ].join("\n"),
     perRunBudgetUsd: BENCH_BUDGETS_USD.standard,
@@ -205,7 +183,6 @@ function createPackWorkflowSetup(definition: PackWorkflowDefinition): SkillBench
           `Skill: ${definition.skill}`,
           `Focus: ${definition.focus}`,
           "",
-          ...domainContextFixtureSection(definition),
           "## Inputs",
           ...definition.inputs.map((input) => `- ${input}`),
           "",
@@ -273,28 +250,35 @@ function createPackQualityEvaluator(definition: PackWorkflowDefinition) {
   };
 
   return createSetupQualityEvaluator({
-    id: `${definition.skill}-pack-quality`,
     minimumScore: 0.75,
     criteria: [
+      // Naming the pack + skill is dictated identity, not a derived conclusion —
+      // keep it as a weak (non-critical) signal so it no longer gates purely on
+      // prompt-echoed tokens.
       requiredFactCoverageCriterion({
         id: "pack-skill-context",
         description: "Names the exact pack and skill under benchmark.",
         weight: 2,
-        critical: true,
         facts: [definition.pack, definition.skill],
       }),
+      // Gate on fixture *content* the agent must read (the seeded input lines),
+      // not the prompt-named fixture filenames. The input lines are written only
+      // into pack-input.md, never into the prompt, so this forces real reading.
       requiredFactCoverageCriterion({
         id: "pack-fixture-evidence",
         description: "Uses deterministic local fixture evidence instead of generic pack prose.",
         weight: 2,
         critical: true,
-        facts: ["pack-input.md", "fixtures/local-evidence.md", ...definition.inputs.slice(0, 2)],
+        facts: [...definition.inputs.slice(0, 2)],
       }),
       specificityCriterion({
         id: "pack-practical-risk-or-validation",
         description: "Includes a practical risk, assumption, or validation detail for the pack workflow.",
         weight: 1,
-        requiredAny: ["risk", "risks", "assumption", "assumptions", "validation", "validate", "metric", "evidence"],
+        // "evidence"/"risk" are dictated by the prompt's own requirement lines;
+        // requiring a concrete validation/measurement marker instead keeps this
+        // from being an always-true echo check.
+        requiredAny: ["risks", "assumption", "assumptions", "validation", "validate", "metric"],
         forbiddenPhrases: ["best practices", "industry-leading", "comprehensive strategy"],
       }),
       nextRouteCriterion({
@@ -376,11 +360,14 @@ function extraPackQualityCriteria(definition: PackWorkflowDefinition) {
           "estimated duration",
         ],
       }),
+      // Not critical: "companion clip"/"Shorts" are dictated by the prompt's own
+      // requirement line, so a transcriber satisfies it without doing the skill.
+      // The fixture-derived gates (candidate-handles timestamps,
+      // measurement-beyond-views) remain critical.
       requiredFactCoverageCriterion({
         id: "youtube-derivative-cuts-format-separation",
         description: "Separates companion clips from Shorts.",
         weight: 2,
-        critical: true,
         facts: [
           "companion clip",
           "Shorts",
@@ -1106,10 +1093,51 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
     },
     forbidden: ["google analytics", "stripe dashboard", "salesforce", "hubspot", "api dashboard", "industry-leading", "best-in-class", "proprietary data"],
   },
-  { skill: "burn-rate", pack: "business-ops", focus: "runway and burn-rate analysis", inputs: ["Cash: 120000", "Monthly burn: 18000"], expectedPattern: /burn|runway|cash/i },
+  {
+    skill: "burn-rate",
+    pack: "business-ops",
+    focus: "runway and burn-rate analysis",
+    inputs: ["Cash: 120000", "Monthly burn: 18000"],
+    expectedPattern: /burn|runway|cash/i,
+    // Derived, not echoed: 120000 / 18000 ≈ 6.7 months of runway. The prompt
+    // never states the answer; a transcriber cannot satisfy this.
+    requiredOutputPatterns: [
+      { description: "Output states the derived runway (~6-7 months) from cash/burn", pattern: /\b(?:6|7|6\.\d+|6\s*(?:to|-|–|and)\s*7)\s*months?\b/i },
+    ],
+  },
   { skill: "clone-spec-store", pack: "project-fleet", focus: "spec-store clone plan without network execution", inputs: ["Spec store URL is unavailable in benchmark", "Need local checklist"], expectedPattern: /clone|spec|store/i },
-  { skill: "category-design", pack: "business-discovery", focus: "category diagnosis and POV development", inputs: ["Existing categories underserve the target segment", "Competitors frame the problem too narrowly"], expectedPattern: /category|positioning|pov|market/i },
-  { skill: "cohort-review", pack: "business-ops", focus: "cohort retention and activation review", inputs: ["Week 1 activation: 42%", "Week 4 retained: 18%"], expectedPattern: /cohort|retention|activation/i },
+  {
+    skill: "category-design",
+    pack: "business-discovery",
+    focus: "category diagnosis and POV development",
+    inputs: ["Existing categories underserve the target segment", "Competitors frame the problem too narrowly"],
+    expectedPattern: /category|positioning|pov|market/i,
+    // Derived, not echoed: given that existing categories underserve and competitors
+    // frame too narrowly, the conclusion is to reframe/create a new category with a
+    // contrastive POV. The prompt states the gaps, never the resolution.
+    requiredOutputPatterns: [
+      {
+        description: "Output reframes or creates a category (contrastive POV), not just naming the gaps",
+        pattern: /(reframe\w*|redefin\w+|new category|category creation|create (?:a|the) category|different point of view|point of view[\s\S]{0,40}(?:unlike|instead|different)|unlike[\s\S]{0,40}(?:categor|competitor|narrow))/i,
+      },
+    ],
+  },
+  {
+    skill: "cohort-review",
+    pack: "business-ops",
+    focus: "cohort retention and activation review",
+    inputs: ["Week 1 activation: 42%", "Week 4 retained: 18%"],
+    expectedPattern: /cohort|retention|activation/i,
+    // Derived, not echoed: the fixture seeds W1=42% and W4=18%; a real review
+    // states the drop (≈24pp) or the ~43% W4/W1 retention ratio. A transcriber
+    // that copies both rates never computes the delta.
+    requiredOutputPatterns: [
+      {
+        description: "Output derives the W1→W4 retention drop (≈24pp / ~43% retained), not just the echoed rates",
+        pattern: /\b2[345]\s*(?:pp|percentage[- ]?points?|points?)\b|4[0-4]\s*%?\s*(?:retained|retention)|(?:42|18)\s*%?\s*(?:to|→|->|down to|dropping to)\s*(?:18|42)\s*%?|retention (?:drop|decline|cliff|falls?|fell)/i,
+      },
+    ],
+  },
   {
     skill: "competitive-analysis",
     pack: "business-discovery",
@@ -1333,7 +1361,22 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
     nextRoutes: { claude: "/series-spec", codex: "$series-spec" },
   },
   { skill: "creator-evidence-schema", pack: "creator-foundation", focus: "evidence schema fields and provenance", inputs: ["YouTube export", "LinkedIn manual snapshot"], expectedPattern: /evidence|schema|provenance/i },
-  { skill: "creator-metrics-review", pack: "creator-foundation", focus: "creator metrics interpretation", inputs: ["CTR: 4.5%", "Average view duration: 38%"], expectedPattern: /metrics|ctr|duration/i },
+  {
+    skill: "creator-metrics-review",
+    pack: "creator-foundation",
+    focus: "creator metrics interpretation",
+    inputs: ["CTR: 4.5%", "Average view duration: 38%"],
+    expectedPattern: /metrics|ctr|duration/i,
+    // Derived, not echoed: interpreting 4.5% CTR / 38% AVD against norms yields a
+    // qualitative verdict (e.g. CTR solid, AVD weak/retention drop-off). The
+    // prompt states the raw rates; a transcriber never judges them.
+    requiredOutputPatterns: [
+      {
+        description: "Output gives a qualitative verdict tied to the metrics, not just the raw numbers",
+        pattern: /(?:4\.5\s*%|CTR|click-?through)[\s\S]{0,45}(?:healthy|solid|decent|above|below|strong|weak|good|low|high|underperform\w*|benchmark)|(?:38\s*%|AVD|average view duration|watch time|retention)[\s\S]{0,45}(?:low|weak|below|short|needs? (?:work|improvement)|underperform\w*|drop-?off|concern\w*|thin)/i,
+      },
+    ],
+  },
   { skill: "creator-platform-capability-matrix", pack: "creator-foundation", focus: "platform capability matrix", inputs: ["YouTube analytics available", "LinkedIn export manual"], expectedPattern: /platform|capability|matrix/i },
   { skill: "creator-positioning", pack: "creator-foundation", focus: "creator positioning statement", inputs: ["Audience: agentic engineers", "Differentiator: workflow library"], expectedPattern: /positioning|audience|differentiator/i },
   { skill: "creator-presence-dossier", pack: "creator-foundation", focus: "presence dossier from local evidence", inputs: ["Website bio", "Repository proof"], expectedPattern: /presence|dossier|evidence/i },
@@ -1352,7 +1395,18 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "extract-shared-types", pack: "code-quality", focus: "shared type extraction plan", inputs: ["Duplicate User type", "Duplicate Account type"], expectedPattern: /shared|type|duplicate/i },
   { skill: "game-audience", pack: "game", focus: "game audience definition", inputs: ["Cozy strategy players", "Short sessions"], expectedPattern: /audience|player|game/i },
   { skill: "game-comparables", pack: "game", focus: "game comparable analysis", inputs: ["Comparable A", "Comparable B"], expectedPattern: /comparable|game|market/i },
-  { skill: "game-core-loop", pack: "game", focus: "core loop articulation", inputs: ["Collect", "Upgrade", "Challenge"], expectedPattern: /core loop|collect|upgrade/i },
+  {
+    skill: "game-core-loop",
+    pack: "game",
+    focus: "core loop articulation",
+    inputs: ["Collect", "Upgrade", "Challenge"],
+    expectedPattern: /core loop|collect|upgrade/i,
+    // Derived, not echoed: a real core-loop articulation names what ends/breaks
+    // the loop (failure/exit condition), which the seeded verbs never state.
+    requiredOutputPatterns: [
+      { description: "Output names the loop's failure or exit condition, not just the seeded verbs", pattern: /\b(fail(?:ure|s|ing)?|lose|losing|lost|game over|run ends?|defeat|death|exit condition|loop (?:closes|resets|breaks))\b/i },
+    ],
+  },
   { skill: "game-fantasy", pack: "game", focus: "player fantasy", inputs: ["Be the clever shopkeeper", "Optimize daily choices"], expectedPattern: /fantasy|player|game/i },
   { skill: "game-genre-map", pack: "game", focus: "genre map", inputs: ["Sim", "Strategy", "Idle"], expectedPattern: /genre|map|game/i },
   { skill: "game-launch", pack: "game", focus: "launch plan", inputs: ["Steam page", "Demo festival"], expectedPattern: /launch|steam|demo/i },
@@ -1365,10 +1419,40 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "growth-model", pack: "business-growth", focus: "growth model", inputs: ["Acquisition", "Activation", "Referral"], expectedPattern: /growth|model|acquisition/i },
   { skill: "gtm", pack: "business-growth", focus: "go-to-market plan", inputs: ["Founder-led launch", "Community channel"], expectedPattern: /go-to-market|gtm|channel/i },
   { skill: "hook-model", pack: "business-growth", focus: "retention hook model", inputs: ["Trigger", "Action", "Reward"], expectedPattern: /hook|trigger|reward/i },
-  { skill: "customer-discovery", pack: "business-discovery", focus: "customer discovery with willingness-to-pay evidence", inputs: ["Small teams", "Repeated manual research", "Budget owner and paid alternatives"], expectedPattern: /customer discovery|ideal customer|willingness-to-pay|WTP|paid alternatives/i },
+  {
+    skill: "customer-discovery",
+    pack: "business-discovery",
+    focus: "customer discovery with willingness-to-pay evidence",
+    inputs: ["Small teams", "Repeated manual research", "Budget owner and paid alternatives"],
+    expectedPattern: /customer discovery|ideal customer|willingness-to-pay|WTP|paid alternatives/i,
+    // Derived, not echoed: the budget-owner + paid-alternatives evidence must be
+    // turned into a willingness-to-pay judgment. The prompt lists the evidence; a
+    // transcriber never concludes whether the segment will actually pay.
+    requiredOutputPatterns: [
+      {
+        description: "Output derives a willingness-to-pay judgment from the budget-owner / paid-alternatives evidence",
+        pattern: /(?:will|would|can|are able to|ready to|likely to)\s+(?:pay|spend|purchase|buy)\b|willing(?:ness)? to pay[\s\S]{0,40}(?:confirmed|strong|high|clear|eviden\w+|likely|yes)|already pay\w*[\s\S]{0,50}(?:for|alternative|competing|tool)/i,
+      },
+    ],
+  },
   { skill: "investor-update", pack: "business-ops", focus: "investor update structure", inputs: ["Wins", "Metrics", "Asks"], expectedPattern: /investor|update|metrics/i },
   { skill: "journey-map", pack: "customer-lifecycle", focus: "customer journey map", inputs: ["Awareness", "Trial", "Activation"], expectedPattern: /journey|customer|activation/i },
-  { skill: "jtbd-positioning", pack: "business-discovery", focus: "job outcome positioning", inputs: ["Customers hire the product to reduce manual planning risk", "The current alternative is spreadsheets plus meetings"], expectedPattern: /job|outcome|positioning|customer/i },
+  {
+    skill: "jtbd-positioning",
+    pack: "business-discovery",
+    focus: "job outcome positioning",
+    inputs: ["Customers hire the product to reduce manual planning risk", "The current alternative is spreadsheets plus meetings"],
+    expectedPattern: /job|outcome|positioning|customer/i,
+    // Derived, not echoed: positioning the job against the named alternative
+    // (spreadsheets + meetings) is the conclusion. The prompt names the alternative
+    // as a fact; only the skill frames the switch away from it.
+    requiredOutputPatterns: [
+      {
+        description: "Output positions the job against the named alternative (switch from spreadsheets + meetings)",
+        pattern: /(unlike|instead of|rather than|better than|replaces?|switch(?:ing)? (?:from|away)|beats?|over)[\s\S]{0,45}(spreadsheet|meeting)/i,
+      },
+    ],
+  },
   { skill: "onboarding-map", pack: "customer-lifecycle", focus: "activation onboarding", inputs: ["Signup", "Setup", "First success"], expectedPattern: /onboarding|activation|first success/i },
   { skill: "conversion-map", pack: "customer-lifecycle", focus: "trial conversion", inputs: ["Evaluation", "Objection", "Payment trigger"], expectedPattern: /conversion|trial|objection/i },
   { skill: "transaction-map", pack: "customer-lifecycle", focus: "checkout transaction", inputs: ["Checkout", "Receipt", "Refund"], expectedPattern: /transaction|payment|refund/i },
@@ -1381,11 +1465,41 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "monetization", pack: "business-growth", focus: "monetization strategy", inputs: ["Packaging", "Pricing", "Expansion"], expectedPattern: /monetization|pricing|package/i },
   { skill: "mono-detect", pack: "monorepo", focus: "monorepo detection", inputs: ["pnpm-workspace.yaml", "packages/app"], expectedPattern: /monorepo|workspace|package/i },
   { skill: "mono-guard", pack: "monorepo", focus: "parallel lane safety guard", inputs: ["Lane A owns packages/a", "Lane B owns packages/b"], expectedPattern: /guard|lane|safety/i },
-  { skill: "moore-positioning", pack: "business-discovery", focus: "Geoffrey Moore positioning hypothesis", inputs: ["Target segment needs a practical positioning statement", "Evidence confidence differs by claim"], expectedPattern: /positioning|segment|unlike|evidence/i },
+  {
+    skill: "moore-positioning",
+    pack: "business-discovery",
+    focus: "Geoffrey Moore positioning hypothesis",
+    inputs: ["Target segment needs a practical positioning statement", "Evidence confidence differs by claim"],
+    expectedPattern: /positioning|segment|unlike|evidence/i,
+    // Derived, not echoed: the Moore template forces a contrastive "unlike
+    // <alternative>" clause the fixture never supplies. A transcriber restates the
+    // ask ("needs a positioning statement") without producing the differentiator.
+    requiredOutputPatterns: [
+      {
+        description: "Output produces the Moore contrastive 'unlike <alternative>' differentiator",
+        pattern: /\bunlike\b\s+\w|for\s+[\s\S]{0,60}who\s+[\s\S]{0,80}\bunlike\b/i,
+      },
+    ],
+  },
   { skill: "mono-exec", pack: "monorepo", focus: "monorepo run planning", inputs: ["Affected package", "Validation command"], expectedPattern: /monorepo|run|validation/i },
   { skill: "mono-ship", pack: "monorepo", focus: "monorepo ship plan", inputs: ["Package changes", "Commit boundary"], expectedPattern: /ship|monorepo|commit/i },
   { skill: "mvp-gap", pack: "business-ops", focus: "MVP gap analysis", inputs: ["Missing onboarding", "Missing billing"], expectedPattern: /mvp|gap|missing/i },
-  { skill: "obviously-awesome", pack: "business-discovery", focus: "April Dunford positioning framework", inputs: ["Customer feedback names switching triggers", "Competitive alternatives are known"], expectedPattern: /alternative|attribute|value|category|positioning/i },
+  {
+    skill: "obviously-awesome",
+    pack: "business-discovery",
+    focus: "April Dunford positioning framework",
+    inputs: ["Customer feedback names switching triggers", "Competitive alternatives are known"],
+    expectedPattern: /alternative|attribute|value|category|positioning/i,
+    // Derived, not echoed: Dunford's chain turns known alternatives + switching
+    // triggers into unique attributes → the value they enable → a best-fit market
+    // category. The prompt names the inputs, never the derived value/category.
+    requiredOutputPatterns: [
+      {
+        description: "Output derives unique attributes → value or a best-fit market category, not just the inputs",
+        pattern: /(unique attribute|differentiat\w+)[\s\S]{0,60}(value|benefit|matter)|value theme|(best[- ]?fit|target) (?:market )?(?:category|segment)|market category[\s\S]{0,40}(?:frame|fit|win)/i,
+      },
+    ],
+  },
   {
     skill: "ord-align",
     pack: "ord",
@@ -1404,12 +1518,42 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   },
   { skill: "ord-scan", pack: "ord", focus: "ORD opportunity scan", inputs: ["Developer workflow friction", "Tooling gap"], expectedPattern: /ord|scan|opportun/i },
   { skill: "ord-ship", pack: "ord", focus: "ORD shipping log and next experiment", inputs: ["Aligned tool candidate", "Adoption signal"], expectedPattern: /ord|ship|experiment/i },
-  { skill: "ord-traction", pack: "ord", focus: "post-launch ORD adoption gate", inputs: ["Package published 21 days ago", "Downloads: 38", "Two support questions, no repeat usage signal"], expectedPattern: /ord|traction|adoption|graduate|archive|iterate/i },
+  {
+    skill: "ord-traction",
+    pack: "ord",
+    focus: "post-launch ORD adoption gate",
+    inputs: ["Package published 21 days ago", "Downloads: 38", "Two support questions, no repeat usage signal"],
+    expectedPattern: /ord|traction|adoption|graduate|archive|iterate/i,
+    // Derived, not echoed: 38 downloads with no repeat usage after 21 days is weak
+    // traction, so the gate decision is iterate/archive — NOT graduate. The prompt
+    // lists the gate options but never picks one; a transcriber leaves it open.
+    requiredOutputPatterns: [
+      {
+        description: "Output's gate decision is iterate/archive, not graduate, given weak traction",
+        pattern: /(?:do not|don'?t|not (?:ready )?to|too early to|hold off|insufficient to)\s*graduat|graduat\w*[\s\S]{0,20}\b(?:no|not|denied|blocked|fail|withhold)|recommendation[\s\S]{0,40}(?:iterate|archive)|verdict[\s\S]{0,25}(?:iterate|archive)|\b(?:iterate|archive)\b[\s\S]{0,30}(?:instead|rather than|not graduat|over graduat)/i,
+      },
+    ],
+  },
   { skill: "platform-strategy", pack: "business-ops", focus: "platform strategy", inputs: ["API", "Marketplace", "Partners"], expectedPattern: /platform|strategy|partner/i },
   { skill: "pmf-assessment", pack: "business-growth", focus: "PMF assessment", inputs: ["Retention", "Pull signal", "Willingness to pay"], expectedPattern: /pmf|retention|signal/i },
   { skill: "positioning", pack: "business-discovery", focus: "positioning narrative", inputs: ["Target user", "Alternative", "Differentiator"], expectedPattern: /positioning|target|differentiator/i },
   { skill: "product-led-media-map", pack: "creator-foundation", focus: "product-led media map", inputs: ["Feature launch", "Educational series"], expectedPattern: /media|product|map/i },
-  { skill: "product-line", pack: "business-ops", focus: "product-path portfolio review with activation, archive, and revisit triggers", inputs: ["Active path: core CLI", "Stale path: marketing site idle 45 days", "Revisit trigger: 30 days idle"], expectedPattern: /product|path|portfolio|activate|archive|trigger/i },
+  {
+    skill: "product-line",
+    pack: "business-ops",
+    focus: "product-path portfolio review with activation, archive, and revisit triggers",
+    inputs: ["Active path: core CLI", "Stale path: marketing site idle 45 days", "Revisit trigger: 30 days idle"],
+    expectedPattern: /product|path|portfolio|activate|archive|trigger/i,
+    // Derived, not echoed: 45 days idle exceeds the 30-day revisit trigger, so
+    // the marketing path is past due for archive-or-revisit. The prompt never
+    // states that the trigger has tripped; a transcriber only restates the inputs.
+    requiredOutputPatterns: [
+      {
+        description: "Output flags the marketing path as past the 30-day revisit trigger (idle 45 > 30 → archive/revisit)",
+        pattern: /(past|beyond|exceed\w*|over|breach\w*|trip\w*|overdue|surpass\w*|crossed?|due for (?:a )?(?:revisit|archive))[\s\S]{0,50}(revisit|30[- ]?day|trigger|threshold)|45[\s\S]{0,20}(?:>|exceeds?|beyond|past|over)[\s\S]{0,20}30|archive or revisit|revisit or archive|recommend\w*[\s\S]{0,40}(?:archive|revisit)/i,
+      },
+    ],
+  },
   {
     skill: "prompt-history-backfill",
     pack: "session-analytics",
@@ -1445,7 +1589,22 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   },
   { skill: "quality-sweep", pack: "code-quality", focus: "quality sweep audit", inputs: ["Unchecked error handling", "Missing regression test"], expectedPattern: /quality|sweep|audit/i },
   { skill: "reconcile-research", pack: "business-ops", focus: "research reconciliation", inputs: ["Old customer notes", "New survey"], expectedPattern: /research|reconcile|source/i },
-  { skill: "repo-glossary", pack: "business-ops", focus: "shared glossary audit with stale terms and conflicts", inputs: ["Term A has conflicting definitions", "Term B is missing from the shared glossary"], expectedPattern: /glossary|term|definition|conflict/i },
+  {
+    skill: "repo-glossary",
+    pack: "business-ops",
+    focus: "shared glossary audit with stale terms and conflicts",
+    inputs: ["Term A has conflicting definitions", "Term B is missing from the shared glossary"],
+    expectedPattern: /glossary|term|definition|conflict/i,
+    // Derived, not echoed: the fixture names the tensions (A conflicts, B missing);
+    // a real audit resolves them (a canonical definition for A, a proposed one for
+    // B). A transcriber restates the tensions without resolving either.
+    requiredOutputPatterns: [
+      {
+        description: "Output resolves the conflict / proposes a definition, not just restating the tensions",
+        pattern: /(resolv\w*|reconcil\w*|canonical|unif\w+|merge|single (?:agreed|shared) definition|proposed? definition|propose a definition|draft(?:ed)? definition|recommended definition)/i,
+      },
+    ],
+  },
   { skill: "research-directory-conventions", pack: "creator-foundation", focus: "research directory conventions", inputs: ["Platform folders", "Dated snapshots"], expectedPattern: /directory|convention|snapshot/i },
   { skill: "retro", pack: "business-ops", focus: "retrospective synthesis", inputs: ["What worked", "What failed", "Actions"], expectedPattern: /retro|action|lesson/i },
   { skill: "risk-register", pack: "business-ops", focus: "risk register", inputs: ["Risk", "Likelihood", "Mitigation"], expectedPattern: /risk|mitigation|register/i },
@@ -1454,7 +1613,22 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "series-spec", pack: "creator-foundation", focus: "content series specification", inputs: ["Audience promise", "Episode template"], expectedPattern: /series|spec|episode/i },
   { skill: "spin-off", pack: "project-fleet", focus: "project spin-off plan", inputs: ["Shared code", "New repository target"], expectedPattern: /spin.?off|project|repository/i },
   { skill: "spinoff-idea", pack: "project-fleet", focus: "repo-derived idea-scope-brief prompt", inputs: ["Source repo suggests an adjacent workflow product", "Need prompt for another repo"], expectedPattern: /idea|prompt|brief|repo/i },
-  { skill: "strategic-canvas", pack: "business-discovery", focus: "Blue Ocean strategic canvas", inputs: ["Competitors over-invest in dashboards", "Customers value faster first outcome"], expectedPattern: /canvas|value curve|eliminate|reduce|raise|create|positioning/i },
+  {
+    skill: "strategic-canvas",
+    pack: "business-discovery",
+    focus: "Blue Ocean strategic canvas",
+    inputs: ["Competitors over-invest in dashboards", "Customers value faster first outcome"],
+    expectedPattern: /canvas|value curve|eliminate|reduce|raise|create|positioning/i,
+    // Derived, not echoed: the ERRC grid applied to the fixture factors means
+    // reduce/eliminate dashboards and raise/create time-to-first-outcome. The
+    // prompt names the factors; only the skill maps them onto the ERRC verbs.
+    requiredOutputPatterns: [
+      {
+        description: "Output maps the ERRC verbs onto the fixture factors (reduce dashboards, raise faster first outcome)",
+        pattern: /(reduce|eliminat\w+|lower)[\s\S]{0,45}dashboard|(raise|creat\w+|boost|increase)[\s\S]{0,45}(first outcome|time[- ]to|faster|speed)/i,
+      },
+    ],
+  },
   {
     skill: "uat-guide",
     pack: "guided-walkthrough",
@@ -1508,6 +1682,14 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
       },
     ],
     expectedPattern: /UAT|journey|tester|checkpoint|evidence|result log/i,
+    // Derived from the retained plan, not the prompt: the specific journey name
+    // and target user live only in research/uat-plan.md, never in the prompt, so
+    // citing them proves the agent read the seeded artifact rather than emitting
+    // generic UAT prose.
+    requiredOutputPatterns: [
+      { description: "Output cites the specific seeded UAT journey (Signup smoke test)", pattern: /Signup smoke test/i },
+      { description: "Output names the seeded target user (Trial evaluator)", pattern: /Trial evaluator/i },
+    ],
     nextRoutes: { claude: "/uat-guide next", codex: "$uat-guide next" },
   },
   {
@@ -1531,7 +1713,22 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
   { skill: "vard-align", pack: "vard", focus: "VARD candidate alignment", inputs: ["Product concept", "Validation signal", "Risk notes"], expectedPattern: /vard|align|candidate/i },
   { skill: "vard-scan", pack: "vard", focus: "VARD opportunity scan", inputs: ["Audience problem", "Prototype wedge"], expectedPattern: /vard|scan|opportun/i },
   { skill: "vard-ship", pack: "vard", focus: "VARD shipping log and next experiment", inputs: ["Aligned concept", "Validation result"], expectedPattern: /vard|ship|experiment/i },
-  { skill: "vard-traction", pack: "vard", focus: "post-launch VARD traction gate", inputs: ["Landing page live 14 days", "Waitlist: 9", "Activation signal is weak"], expectedPattern: /vard|traction|graduate|archive|iterate|activation/i },
+  {
+    skill: "vard-traction",
+    pack: "vard",
+    focus: "post-launch VARD traction gate",
+    inputs: ["Landing page live 14 days", "Waitlist: 9", "Activation signal is weak"],
+    expectedPattern: /vard|traction|graduate|archive|iterate|activation/i,
+    // Derived, not echoed: a 9-person waitlist with weak activation after 14 days
+    // is below the graduation bar, so the gate decision is iterate/archive. The
+    // prompt lists the options but never picks one; a transcriber leaves it open.
+    requiredOutputPatterns: [
+      {
+        description: "Output's gate decision is iterate/archive, not graduate, given weak traction",
+        pattern: /(?:do not|don'?t|not (?:ready )?to|too early to|hold off|insufficient to)\s*graduat|graduat\w*[\s\S]{0,20}\b(?:no|not|denied|blocked|fail|withhold)|recommendation[\s\S]{0,40}(?:iterate|archive)|verdict[\s\S]{0,25}(?:iterate|archive)|\b(?:iterate|archive)\b[\s\S]{0,30}(?:instead|rather than|not graduat|over graduat)/i,
+      },
+    ],
+  },
   { skill: "vertical-slice-splitter", pack: "alignment-loop", focus: "vertical slice breakdown", inputs: ["Large feature", "Need shippable slice"], expectedPattern: /vertical slice|split|scope/i },
   { skill: "video-build", pack: "remotion", focus: "video build plan without rendering", inputs: ["Script draft", "Scene list"], expectedPattern: /video|build|scene/i },
   { skill: "video-script", pack: "remotion", focus: "video script outline", inputs: ["Hook", "Demo", "CTA"], expectedPattern: /video|script|hook/i },
@@ -1594,3 +1791,15 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
 export const PACK_WORKFLOW_SETUPS: Record<string, SkillBenchSetup> = Object.fromEntries(
   packWorkflowDefinitions.map((definition) => [definition.skill, createPackWorkflowSetup(definition)]),
 );
+
+/**
+ * Pack skills whose only content gate is the prompt-echoed `expectedPattern`
+ * derived from `focus` — they carry no `requiredOutputPatterns`, so a transcriber
+ * that copies the prompt/fixture back passes `assertResult` without doing the
+ * skill's actual work. This is the tracked de-leak backlog; the shrinking ratchet
+ * in tests/layer1/pack-discriminator-ratchet.test.ts pins it and forces it down.
+ * Adding a `requiredOutputPatterns` entry to a definition removes it from here.
+ */
+export const PACK_SKILLS_WITHOUT_DISCRIMINATOR: string[] = packWorkflowDefinitions
+  .filter((definition) => (definition.requiredOutputPatterns?.length ?? 0) === 0)
+  .map((definition) => definition.skill);

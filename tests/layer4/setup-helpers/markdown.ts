@@ -46,9 +46,11 @@ export function assertMarkdownHeadings(prose: string, headings: string[]): Asser
 }
 
 export function assertTokenCrossReferences(content: string): Assertion {
+  // Accept any design-token namespace and nested token paths, not only
+  // single-segment color tokens (e.g. `{colors.brand.500}`, `{spacing.md}`).
   return {
     description: "Uses token cross-references",
-    pass: /\{colors\.\w+\}/.test(content),
+    pass: /\{(colors|typography|spacing|rounded|elevation)\.[\w.]+\}/.test(content),
   };
 }
 

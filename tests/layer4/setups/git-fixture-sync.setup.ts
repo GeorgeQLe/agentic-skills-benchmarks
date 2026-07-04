@@ -1,20 +1,16 @@
 import { execSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { dirname } from "node:path";
+import { join, dirname } from "node:path";
 import type { BenchAgent, SkillBenchSetup } from "../../harness/bench-types.js";
 import type { Assertion, RunResult } from "../../harness/types.js";
 import { BENCH_BUDGETS_USD, BENCH_TIMEOUTS_MS } from "../setup-helpers/budgets.js";
-import type {
-  ConfirmationGate,
-  CreateResult,
-  DisposableRepo,
-} from "../helpers/disposable-repo.js";
-import {
-  createDisposableRepo,
-  seedRepo,
-} from "../helpers/disposable-repo.js";
+
+// See git-fixture-commit-and-push.setup.ts for the bare-origin-under-workDir rationale.
+const ORIGIN_DIR = ".bench-origin.git";
+const UPSTREAM_SUBJECT = "feat: add utils and extend index";
+const CONFLICT_MARKER = /^(<{7}|={7}|>{7})/m;
+const UPSTREAM_MARKER_FILE = "src/utils.ts";
 
 const SEED_FILES: Record<string, string> = {
   "README.md": [
@@ -51,8 +47,34 @@ const UPSTREAM_FILES: Record<string, string> = {
   ].join("\n"),
 };
 
-function autoConfirm(action: string): Promise<boolean> {
-  return Promise.resolve(true);
+function git(cwd: string, cmd: string): string {
+  return execSync(cmd, { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+}
+
+function configureIdentity(cwd: string): void {
+  git(cwd, 'git config user.email "bench@example.com"');
+  git(cwd, 'git config user.name "Bench Fixture"');
+  git(cwd, "git config commit.gpgsign false");
+}
+
+function writeFiles(root: string, files: Record<string, string>): void {
+  for (const [relativePath, content] of Object.entries(files)) {
+    const fullPath = join(root, relativePath);
+    mkdirSync(dirname(fullPath), { recursive: true });
+    writeFileSync(fullPath, content, "utf-8");
+  }
+}
+
+function isAncestor(cwd: string, ancestor: string, descendant: string): boolean {
+  try {
+    execSync(`git merge-base --is-ancestor ${ancestor} ${descendant}`, {
+      cwd,
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const setup: SkillBenchSetup = {
@@ -67,45 +89,36 @@ const setup: SkillBenchSetup = {
   timeoutMs: BENCH_TIMEOUTS_MS.standard,
 
   setupProject(workDir: string): void {
-    for (const [relativePath, content] of Object.entries(SEED_FILES)) {
-      const fullPath = join(workDir, relativePath);
-      mkdirSync(dirname(fullPath), { recursive: true });
-      writeFileSync(fullPath, content, "utf-8");
+    configureIdentity(workDir);
+    appendFileSync(join(workDir, ".git", "info", "exclude"), `\n/${ORIGIN_DIR}/\n`);
+
+    // Offline bare remote + baseline history pushed to origin/main.
+    git(workDir, `git init --bare "${ORIGIN_DIR}"`);
+    git(workDir, `git remote add origin "${ORIGIN_DIR}"`);
+    writeFiles(workDir, SEED_FILES);
+    git(workDir, "git add -A");
+    git(workDir, 'git commit -m "seed: initial files"');
+    git(workDir, "git branch -M main");
+    git(workDir, "git push -u origin main");
+
+    // Advance the remote past the local branch via a throwaway clone, so the
+    // local branch is genuinely "behind origin". The clone is offline (local
+    // path) and is discarded once it has pushed.
+    const cloneRoot = mkdtempSync(join(tmpdir(), "sync-upstream-"));
+    try {
+      const originPath = join(workDir, ORIGIN_DIR);
+      git(cloneRoot, `git clone "${originPath}" upstream`);
+      const upstreamPath = join(cloneRoot, "upstream");
+      configureIdentity(upstreamPath);
+      writeFiles(upstreamPath, UPSTREAM_FILES);
+      git(upstreamPath, "git add -A");
+      git(upstreamPath, `git commit -m "${UPSTREAM_SUBJECT}"`);
+      git(upstreamPath, "git push origin HEAD:main");
+    } finally {
+      rmSync(cloneRoot, { recursive: true, force: true });
     }
 
-    execSync("git add -A && git commit -m 'seed: initial files'", {
-      cwd: workDir,
-      stdio: "pipe",
-    });
-    execSync("git push origin HEAD", { cwd: workDir, stdio: "pipe" });
-
-    const upstreamClone = mkdtempSync(join(tmpdir(), "sync-upstream-"));
-    const remoteUrl = execSync("git remote get-url origin", {
-      cwd: workDir,
-      encoding: "utf-8",
-      stdio: "pipe",
-    }).trim();
-    execSync(`git clone ${remoteUrl} upstream`, {
-      cwd: upstreamClone,
-      stdio: "pipe",
-    });
-    const upstreamPath = join(upstreamClone, "upstream");
-
-    for (const [relativePath, content] of Object.entries(UPSTREAM_FILES)) {
-      const fullPath = join(upstreamPath, relativePath);
-      mkdirSync(dirname(fullPath), { recursive: true });
-      writeFileSync(fullPath, content, "utf-8");
-    }
-
-    execSync(
-      "git add -A && git commit -m 'feat: add utils and extend index' && git push origin HEAD",
-      { cwd: upstreamPath, stdio: "pipe" },
-    );
-
-    // The upstream clone exists only to push divergent history to the remote;
-    // it is never read again, so reclaim it rather than leaking a temp dir per run.
-    rmSync(upstreamClone, { recursive: true, force: true });
-
+    // The uncommitted local change the agent must preserve while syncing.
     writeFileSync(
       join(workDir, "NOTES.md"),
       "# Local Notes\n\nUncommitted local work.\n",
@@ -113,51 +126,66 @@ const setup: SkillBenchSetup = {
     );
   },
 
-  assertResult(result: RunResult, context?: { agent: BenchAgent }): Assertion[] {
-    const assertions: Assertion[] = [];
-    const output = (result.stdout ?? "") + (result.stderr ?? "");
+  assertResult(result: RunResult, _context?: { agent: BenchAgent }): Assertion[] {
+    const workDir = result.workDir;
+    const read = (cmd: string) => git(workDir, cmd).trim();
 
-    const mentionsPull = /pull|rebase|fetch|fast-forward|up.to.date/i.test(output);
-    assertions.push({
-      name: "pull-performed",
-      passed: mentionsPull,
-      expected: "Output confirms pull/rebase/fetch was performed",
-      actual: mentionsPull
-        ? "Pull/sync operation mentioned in output"
-        : "No mention of pull/sync operation in output",
-    });
+    try {
+      const upstreamTip = read(`git --git-dir="${join(workDir, ORIGIN_DIR)}" rev-parse refs/heads/main`);
+      const localHasUpstream = isAncestor(workDir, upstreamTip, "HEAD");
+      const notesSurvived = existsSync(join(workDir, "NOTES.md"));
 
-    const mentionsBranch = /main|branch/i.test(output);
-    assertions.push({
-      name: "branch-reported",
-      passed: mentionsBranch,
-      expected: "Output reports branch name or branch status",
-      actual: mentionsBranch
-        ? "Branch information reported"
-        : "No branch information in output",
-    });
+      const scanTargets = [
+        "src/index.ts",
+        "src/utils.ts",
+        "README.md",
+        "NOTES.md",
+      ];
+      const conflicted = scanTargets.filter((rel) => {
+        const path = join(workDir, rel);
+        if (!existsSync(path)) return false;
+        return CONFLICT_MARKER.test(readFileSync(path, "utf-8"));
+      });
 
-    const mentionsStash = /stash|uncommitted|local change|unstaged/i.test(output);
-    assertions.push({
-      name: "stash-handling",
-      passed: mentionsStash,
-      expected: "Output addresses uncommitted local changes (stash/restore)",
-      actual: mentionsStash
-        ? "Stash or uncommitted change handling mentioned"
-        : "No mention of stash or uncommitted change handling",
-    });
+      const midMerge =
+        existsSync(join(workDir, ".git", "MERGE_HEAD")) ||
+        existsSync(join(workDir, ".git", "rebase-merge")) ||
+        existsSync(join(workDir, ".git", "rebase-apply"));
 
-    const mentionsSync = /sync|up.to.date|updated|pulled|merged|rebased/i.test(output);
-    assertions.push({
-      name: "sync-status-reported",
-      passed: mentionsSync,
-      expected: "Output reports sync completion status",
-      actual: mentionsSync
-        ? "Sync status reported"
-        : "No sync status in output",
-    });
-
-    return assertions;
+      return [
+        {
+          description: "Local branch now contains the upstream commits",
+          pass: localHasUpstream,
+          detail: `upstream tip ${upstreamTip.slice(0, 12)} ancestor of HEAD: ${localHasUpstream}`,
+        },
+        {
+          description: "Upstream-added file is present in the working tree",
+          pass: existsSync(join(workDir, UPSTREAM_MARKER_FILE)),
+          detail: UPSTREAM_MARKER_FILE,
+        },
+        {
+          description: "Local NOTES.md change survived the sync",
+          pass: notesSurvived,
+        },
+        {
+          description: "No unresolved merge-conflict markers on disk",
+          pass: conflicted.length === 0,
+          detail: conflicted.join(", ") || "none",
+        },
+        {
+          description: "Tree reconciled (not mid-merge/rebase)",
+          pass: !midMerge,
+        },
+      ];
+    } catch (err) {
+      return [
+        {
+          description: "git state is inspectable in the work directory",
+          pass: false,
+          detail: err instanceof Error ? err.message : String(err),
+        },
+      ];
+    }
   },
 };
 
