@@ -141,6 +141,10 @@ export interface QualityCriterion {
   description: string;
   weight: number;
   critical?: boolean;
+  // Literal strings this criterion requires the output to contain (populated by
+  // the requiredFacts-style builders). Exposed so the anti-prompt-echo lint can
+  // assert a gating criterion does not merely re-check tokens the prompt dictated.
+  requiredLiterals?: string[];
   evaluate(output: string): {
     score: number;
     notes?: string[];

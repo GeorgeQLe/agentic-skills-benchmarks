@@ -47,8 +47,16 @@ export function createSetupQualityEvaluator(rubric: QualityRubric): QualityEvalu
 export function requiredFactCoverageCriterion(options: RequiredFactsOptions): QualityCriterion {
   return {
     ...criterionOptions(options),
+    requiredLiterals: factLiterals(options.facts),
     evaluate: qualityAssertions.requiredFacts(options.facts),
   };
+}
+
+// Flattens fact requirements into the literal strings a compliant output must
+// contain (an anyOf group contributes every variant — any one is satisfiable by
+// echoing). Consumed by the no-prompt-echo lint.
+function factLiterals(facts: FactRequirement[]): string[] {
+  return facts.flatMap((fact) => (typeof fact === "string" ? [fact] : fact.anyOf));
 }
 
 export function forbiddenFabricationCriterion(options: ForbiddenFabricationOptions): QualityCriterion {
@@ -73,6 +81,23 @@ export function requiredPatternCriterion(options: RequiredPatternsOptions): Qual
   return {
     ...criterionOptions(options),
     evaluate: qualityAssertions.requiredPatterns(options.patterns),
+  };
+}
+
+// Fails (score 0) when any of the given patterns appears in the output. The
+// inverse of requiredPatternCriterion — use it to forbid a *phrasing* (e.g. a
+// proposing phrase) rather than a bare substring, so a term that legitimately
+// appears in a negation/"avoid X" context is not treated as a violation.
+export function forbiddenPatternCriterion(options: RequiredPatternsOptions): QualityCriterion {
+  return {
+    ...criterionOptions(options),
+    evaluate(output: string) {
+      const found = options.patterns.filter((pattern) => pattern.test(output));
+      return {
+        score: found.length === 0 ? 1 : 0,
+        notes: found.map((pattern) => `forbidden pattern present: ${pattern}`),
+      };
+    },
   };
 }
 

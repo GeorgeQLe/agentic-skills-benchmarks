@@ -10,23 +10,29 @@ export type { QualityRubric } from "./bench-types.js";
 export function evaluateQuality(rubric: QualityRubric, output: string): QualityEvaluationResult {
   const criteria = rubric.criteria.map((criterion) => evaluateCriterion(criterion, output));
   const totalWeight = criteria.reduce((sum, criterion) => sum + criterion.weight, 0);
-  const weightedScore = totalWeight === 0
+  // An empty rubric or one whose criteria all have zero weight cannot yield a
+  // meaningful score. Treat it as invalid (never a pass) rather than letting a
+  // degenerate 0 score slip past a minimumScore of 0.
+  const invalidRubric = criteria.length === 0 || totalWeight === 0;
+  const weightedScore = invalidRubric
     ? 0
     : criteria.reduce((sum, criterion) => sum + criterion.score * criterion.weight, 0) / totalWeight;
   const criticalFailures = criteria
     .filter((criterion) => criterion.critical && !criterion.passed)
     .map((criterion) => criterion.id);
-  const thresholdPassed = weightedScore >= rubric.minimumScore;
+  const thresholdPassed = !invalidRubric && weightedScore >= rubric.minimumScore;
   const notes = [
-    thresholdPassed
-      ? `quality threshold passed (${formatScore(weightedScore)} >= ${formatScore(rubric.minimumScore)})`
-      : `quality threshold failed (${formatScore(weightedScore)} < ${formatScore(rubric.minimumScore)})`,
+    invalidRubric
+      ? "invalid rubric: no criteria or zero total weight"
+      : thresholdPassed
+        ? `quality threshold passed (${formatScore(weightedScore)} >= ${formatScore(rubric.minimumScore)})`
+        : `quality threshold failed (${formatScore(weightedScore)} < ${formatScore(rubric.minimumScore)})`,
     ...criteria.flatMap((criterion) => criterion.notes),
   ];
 
   return {
     score: weightedScore,
-    passed: thresholdPassed && criticalFailures.length === 0,
+    passed: !invalidRubric && thresholdPassed && criticalFailures.length === 0,
     thresholdPassed,
     criticalFailures,
     criteria,
