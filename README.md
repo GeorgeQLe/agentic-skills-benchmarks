@@ -66,6 +66,8 @@ pnpm bench:dashboard --list-models   # show the model matrix
 pnpm bench:dashboard --help          # all options
 ```
 
+Fable 5 is banned from this dashboard benchmark to avoid accidental quota burn.
+
 Flags: `--models` (default: all; ids from `--list-models`), `--skills` /
 `--scenarios`, `--runs` per cell, `--concurrency`, `--budget` (hard USD ceiling —
 the matrix stops spending once reached), `--mock`, and `--no-live` (plain line

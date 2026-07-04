@@ -19,9 +19,8 @@ export interface ModelTarget {
 /**
  * Default competitor field. Model aliases (`opus`, `sonnet`, `haiku`) resolve to
  * the latest snapshot for each Claude tier; codex model ids follow the OpenAI
- * naming the `codex` CLI accepts. Override any of this with `--models` or by
- * passing a custom matrix — nothing here is load-bearing beyond being sensible
- * defaults.
+ * naming the `codex` CLI accepts. Fable 5 is intentionally banned from this
+ * benchmark because live dashboard runs can consume a large quota quickly.
  */
 export const DEFAULT_MODEL_MATRIX: ModelTarget[] = [
   { id: "claude-opus", label: "Claude Opus", cli: "claude", model: "opus" },
@@ -30,6 +29,8 @@ export const DEFAULT_MODEL_MATRIX: ModelTarget[] = [
   { id: "gpt-5-codex", label: "GPT-5 Codex", cli: "codex", model: "gpt-5-codex" },
   { id: "gpt-5", label: "GPT-5", cli: "codex", model: "gpt-5" },
 ];
+
+const BANNED_MODEL_IDS = new Set(["fable-5"]);
 
 /**
  * Resolve a comma-separated `--models` selection against the matrix. Accepts
@@ -51,6 +52,13 @@ export function selectModelTargets(
   const byId = new Map(matrix.map((target) => [target.id.toLowerCase(), target]));
   const resolved: ModelTarget[] = [];
   for (const id of wanted) {
+    if (BANNED_MODEL_IDS.has(id)) {
+      throw new Error(
+        `model target "${id}" is banned for this dashboard benchmark; choose one of: ${
+          matrix.map((t) => t.id).join(", ")
+        }`,
+      );
+    }
     const target = byId.get(id);
     if (!target) {
       const valid = matrix.map((t) => t.id).join(", ");

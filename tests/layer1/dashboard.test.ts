@@ -33,6 +33,14 @@ describe("selectModelTargets", () => {
     expect(selected.map((t) => t.id)).toEqual(["gpt-5", "claude-opus"]);
   });
 
+  it("does not include Fable 5 by default", () => {
+    expect(DEFAULT_MODEL_MATRIX.map((t) => t.id)).not.toContain("fable-5");
+  });
+
+  it("throws when Fable 5 is explicitly selected", () => {
+    expect(() => selectModelTargets("fable-5")).toThrow(/banned/);
+  });
+
   it("throws on an unknown id rather than silently dropping it", () => {
     expect(() => selectModelTargets("claude-opus,made-up")).toThrow(/made-up/);
   });

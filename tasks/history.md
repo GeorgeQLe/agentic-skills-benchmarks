@@ -65,3 +65,47 @@ Shipped the full working tree grouped by feature at the user's direction:
 dashboard, opt-in quality-rubric gating + anti-prompt-echo lint, setup/fixture
 hardening, and afps-status benchmark coverage. `.claude/` and `.codex/` left
 uncommitted as generated local skill roots.
+
+## 2026-07-04 — Ban Fable 5 from the live dashboard
+
+User goal: prevent the SkateBench-style dashboard from running Fable 5 after it
+consumed too much quota, while keeping GPT-5 targets available.
+
+Changed files:
+- `tests/harness/dashboard/model-matrix.ts` — added an explicit banned-model
+  guard for `fable-5`; retained `gpt-5` and `gpt-5-codex` in the allowed matrix.
+- `tests/layer1/dashboard.test.ts` — added regression coverage proving Fable 5
+  is rejected and GPT-5 selection remains valid.
+- `README.md` — documented the Fable 5 dashboard ban.
+- `tasks/lessons.md` — recorded the correction that model bans must not be
+  broadened by family inference.
+- `tasks/history.md` — recorded this shipping manifest.
+
+User-goal mapping: explicit selection of `--models fable-5` now fails before any
+dashboard work is dispatched; `--models gpt-5` still runs in mock mode and
+remains listed by `--list-models`.
+
+Tests run:
+- `pnpm test -- tests/layer1/dashboard.test.ts`
+- `pnpm bench:dashboard --list-models`
+- `pnpm bench:dashboard --models fable-5 --mock` (expected failure proving the
+  guard)
+- `pnpm bench:dashboard --models gpt-5 --mock --skills investigate --runs 1
+  --budget 1 --no-live`
+
+Skipped tests: full live dashboard run skipped because the change is a
+pre-dispatch model-selection guard and live runs spend quota; mock CLI coverage
+exercises the same selector without external spend.
+
+Adversarial review: checked that the first guard executes before model lookup,
+so Fable 5 fails with a ban message even though it is not in the default matrix;
+checked that GPT-5 IDs are not in the banned set and remain listed.
+
+Residual risk: only the exact dashboard target id `fable-5` is blocked. If a
+future alias is added for the same model under a different id, it must be added
+to the banned-model set with a corresponding test.
+
+Rollback note: remove `fable-5` from `BANNED_MODEL_IDS` and delete the README /
+test / lesson entries if the model is intentionally allowed again.
+
+Next command: `$ship-end`
