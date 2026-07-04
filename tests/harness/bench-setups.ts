@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { afpsStatusSetup } from "../layer4/setups/afps-status.setup.js";
 import { designSystemSetup } from "../layer4/setups/design-system.setup.js";
 import { designSystemDraftstonkSetup } from "../layer4/setups/design-system-draftstonk.setup.js";
 import commitAndPushByFeatureSetup from "../layer4/setups/git-fixture-commit-and-push.setup.js";
@@ -29,6 +30,7 @@ import { catalogSkillNames } from "./skills-catalog.js";
 export const CUSTOM_BENCH_SETUPS: Record<string, SkillBenchSetup> = {
   ...BASE_WORKFLOW_SETUPS,
   ...PACK_WORKFLOW_SETUPS,
+  "afps-status": afpsStatusSetup,
   "benchmark-test-skill": benchmarkTestSkillSetup,
   "commit-and-push-by-feature": commitAndPushByFeatureSetup,
   "design-system": designSystemSetup,

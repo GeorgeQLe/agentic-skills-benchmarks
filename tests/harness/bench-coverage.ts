@@ -265,7 +265,7 @@ const PACK_BLOCKED_SKILLS: Record<string, Pick<BenchCoverageRow, "blocked_reason
     next_command: "$targeted-skill-builder key-moments benchmark coverage",
   },
   "create-ui-experiment": {
-    blocked_reason: "Deprecated compatibility alias for build-ui-screens; benchmark coverage is tracked under the primary build-ui-screens skill, so the alias needs no separate fixture.",
+    blocked_reason: "Deprecated compatibility alias for build-ui-screens, which is itself blocked for the same prototype-execution reasons (source mutation, approved flow-tree + UI experiment branch prerequisite); the alias needs no separate fixture and would be covered whenever build-ui-screens is unblocked.",
     next_command: "$targeted-skill-builder build-ui-screens benchmark coverage",
   },
   "prototype": {
@@ -534,6 +534,12 @@ const COVERAGE_OVERRIDES: Record<string, Partial<BenchCoverageRow>> = {
     priority_tier: 2,
     agent_scope: "both",
     fixture_type: "git-disposable-repo-fixture",
+  },
+  "afps-status": {
+    coverage_status: "custom",
+    setup_path: "tests/layer4/setups/afps-status.setup.ts",
+    priority_tier: 2,
+    fixture_type: "afps-reconciliation-fixture",
   },
   "benchmark-test-skill": {
     coverage_status: "custom",
