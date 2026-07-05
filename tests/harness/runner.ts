@@ -64,7 +64,7 @@ export interface RunOptions {
   model?: string;
 }
 
-export const CODEX_EXEC_STDIO = ["ignore", "pipe", "pipe"] as const;
+export const CODEX_EXEC_STDIO: ["ignore", "pipe", "pipe"] = ["ignore", "pipe", "pipe"];
 
 export async function runClaude(opts: RunOptions): Promise<RunResult> {
   const { prompt, workDir, maxBudgetUsd = 0.5, timeoutMs = 120_000, model } = opts;

@@ -9,6 +9,7 @@ import {
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import type {
+  BenchmarkCatalogMetadata,
   SessionManifest,
   SingleRunResult,
   BenchConfig,
@@ -30,7 +31,10 @@ function writeAtomic(path: string, data: string): void {
   renameSync(tmp, path);
 }
 
-export function createSession(config: BenchConfig): SessionManifest {
+export function createSession(
+  config: BenchConfig,
+  metadata: BenchmarkCatalogMetadata,
+): SessionManifest {
   const sessionId = randomUUID().slice(0, 8);
   const dir = sessionDir(sessionPrefix(config), sessionId);
   mkdirSync(dir, { recursive: true });
@@ -38,6 +42,7 @@ export function createSession(config: BenchConfig): SessionManifest {
   const manifest: SessionManifest = {
     skill: config.skill,
     sessionId,
+    ...metadata,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     status: "running",

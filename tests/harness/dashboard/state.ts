@@ -1,4 +1,4 @@
-import type { SingleRunResult, SkillBenchSetup } from "../bench-types.js";
+import type { BenchmarkCatalogMetadata, SingleRunResult, SkillBenchSetup } from "../bench-types.js";
 import type { ModelTarget } from "./model-matrix.js";
 
 /** A bench target (skill or scenario) resolved to its runnable setup. */
@@ -57,6 +57,7 @@ export interface DashboardState {
   haltedByBudget: boolean;
   finished: boolean;
   mock: boolean;
+  catalogMetadata: BenchmarkCatalogMetadata;
 }
 
 export function cellKey(modelId: string, targetName: string): string {

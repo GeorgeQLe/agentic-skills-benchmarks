@@ -2,7 +2,7 @@ import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { createTempProject, runClaude, runCodex } from "./runner.js";
 import type { RunOptions } from "./runner.js";
-import type { BenchAgent, SkillBenchSetup, SingleRunResult, SessionManifest, BenchConfig } from "./bench-types.js";
+import type { BenchAgent, SkillBenchSetup, SingleRunResult, SessionManifest, BenchConfig, BenchmarkCatalogMetadata } from "./bench-types.js";
 import type { RunResult } from "./types.js";
 import {
   createSession,
@@ -214,10 +214,11 @@ function qualityOutputPaths(setup: SkillBenchSetup): string[] | undefined {
 export function startOrResumeSession(
   setup: SkillBenchSetup,
   config: BenchConfig,
+  metadata: BenchmarkCatalogMetadata,
   resume = false,
 ): SessionManifest {
   if (!resume) {
-    return createSession(config);
+    return createSession(config, metadata);
   }
 
   const existing = findResumeableSession(config.skill, config.agent);
@@ -225,7 +226,7 @@ export function startOrResumeSession(
     updateManifestStatus(existing, "running");
     return existing;
   }
-  return createSession(config);
+  return createSession(config, metadata);
 }
 
 export function canResumeSession(

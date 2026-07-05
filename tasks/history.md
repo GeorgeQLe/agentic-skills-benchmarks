@@ -109,3 +109,73 @@ Rollback note: remove `fable-5` from `BANNED_MODEL_IDS` and delete the README /
 test / lesson entries if the model is intentionally allowed again.
 
 Next command: `$ship-end`
+
+## 2026-07-05 — SkillBench CLI, budget, catalog metadata, and pack discriminator completion
+
+User goal: wrap and ship the current benchmark harness session.
+
+Changed files:
+- `README.md` — documented the CLI-based benchmark invocation and shared suite
+  budget behavior.
+- `package.json`, `tests/skillbench.ts`, `tests/harness/cli/*` — added the
+  unified `pnpm skillbench` command surface, list/run/dashboard/verify/stress
+  subcommands, shared argument parsing, and deterministic fake-data stress
+  checks.
+- `tests/harness/bench-budget.ts`, `tests/harness/cli/bench-command.ts`,
+  `tests/bench.ts`, `tests/layer1/bench-budget.test.ts`,
+  `tests/layer1/skillbench-cli.test.ts` — added top-level budget reservation for
+  broad benchmark runs and ensured worker invocations receive only the reserved
+  run count.
+- `tests/harness/skills-catalog.ts`, `tests/harness/bench-types.ts`,
+  `tests/harness/bench-persistence.ts`, `tests/harness/bench-report.ts`,
+  `tests/layer4/bench.test.ts`, `tests/layer1/bench-coverage.test.ts`,
+  `tests/layer1/bench-persistence-report.test.ts` — persisted imported catalog
+  ref/version/source commit/release channel in manifests, reports, and
+  benchmark worker config.
+- `tests/dashboard.ts`, `tests/harness/cli/dashboard-command.ts`,
+  `tests/harness/dashboard/*`, `tests/layer1/dashboard.test.ts` — routed the
+  dashboard through the shared CLI module and persisted catalog metadata in
+  dashboard summaries.
+- `tests/layer4/setups/packs/pack-workflows.setup.ts`,
+  `tests/layer1/pack-discriminator-ratchet.test.ts` — completed fixture-derived
+  required-output discriminators for pack workflow setups and emptied the leaky
+  pack allowlist ratchet.
+- `tests/harness/runner.ts`,
+  `tests/layer4/setups/tier23-base-workflows.setup.ts` — fixed TypeScript
+  typing issues surfaced by the pre-ship `tsc --noEmit` gate.
+- `.gitignore` — ignored generated local skill roots, pack docs, and benchmark
+  runtime output.
+
+User-goal mapping: the session boundary now ships the pending CLI, budget,
+metadata, dashboard summary, and discriminator-ratchet work with docs and
+verification.
+
+Tests run:
+- `pnpm test` — 67 layer1 tests passed.
+- `pnpm bench --verify` — catalog freshness, 208-skill benchmark coverage, and
+  67 layer1 tests passed.
+- `pnpm skillbench stress --json` — deterministic stress suite passed, including
+  expected-failure guards for insufficient budget, malformed flags, live-run
+  opt-in, and banned Fable 5 selection.
+- `pnpm exec tsc --noEmit` — passed after type-only harness fixes.
+
+Skipped tests: live agent benchmark runs were skipped because this ship covers
+offline command routing, metadata persistence, fixture discrimination, and
+budget pre-dispatch behavior; live runs would spend agent quota and are still
+guarded by `LIVE_AGENT_TESTS=1`.
+
+Adversarial review: checked the budget path for partial reservations and fixed
+the worker environment to pass `BENCH_RUNS` / `BENCH_CHUNK_SIZE` equal to the
+reserved count rather than relying on lower-layer budget abortion. Confirmed
+generated `.agents/skillpacks`, `.claude/skills`, `.codex/skills`, and
+`tests/benchmarks` outputs are ignored and not committed.
+
+Residual risk: the pack discriminator updates are regex-heavy; offline ratchet
+coverage proves every pack definition has a discriminator and blocks simple
+transcriber output, but only live agent runs can measure real pass-rate impact.
+
+Rollback note: revert this session commit to restore the previous direct
+`bench.ts` / `dashboard.ts` entrypoints, remove `skillbench` scripts, and return
+the pack discriminator allowlist to its previous backlog.
+
+Next command: `$exec`

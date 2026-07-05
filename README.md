@@ -33,12 +33,19 @@ pnpm catalog:check
 pnpm bench:coverage
 pnpm test
 pnpm bench:list
-BENCH_SKILL=design-system BENCH_AGENT=codex BENCH_RUNS=1 BENCH_CHUNK_SIZE=1 pnpm bench
+pnpm bench --skill design-system --agent codex --runs 1 --chunk-size 1 --budget 1
+pnpm bench --skills design-system,ship --agent both --runs 1 --budget 4
 # Opt-in: also gate pass/fail on each suite's quality rubric (default: assertions only)
-BENCH_GATE_ON_QUALITY=1 BENCH_SKILL=design-system BENCH_AGENT=codex BENCH_RUNS=1 pnpm bench
+BENCH_GATE_ON_QUALITY=1 pnpm bench --skill design-system --agent codex --runs 1 --budget 1
 ```
 
 Benchmark run output stays under `tests/benchmarks/runs/`.
+
+`pnpm bench` has a shared hard budget for each invocation. Pass `--budget <usd>`
+or set `BENCH_BUDGET_USD`; the default is `$5`. The runner reserves whole
+per-run budget slots before launching each target/agent child process, so broad
+`--skills` / `--scenarios` runs stop once the remaining budget cannot pay for
+another run.
 
 `BENCH_GATE_ON_QUALITY=1` makes a run additionally require its `qualityEvaluator`
 rubric to pass (critical criteria + minimum score). Unset (the default), pass/fail

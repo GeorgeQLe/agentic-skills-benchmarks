@@ -3,7 +3,8 @@ import { createTempProject, runClaude, runCodex } from "../runner.js";
 import type { RunOptions } from "../runner.js";
 import { buildRunResult } from "../bench-runner.js";
 import type { RunResult } from "../types.js";
-import type { SingleRunResult } from "../bench-types.js";
+import type { BenchmarkCatalogMetadata, SingleRunResult } from "../bench-types.js";
+import { UNKNOWN_BENCHMARK_CATALOG_METADATA } from "../skills-catalog.js";
 import type { ModelTarget } from "./model-matrix.js";
 import {
   cellKey,
@@ -19,6 +20,7 @@ export interface OrchestratorOptions {
   concurrency: number;
   budgetUsd: number;
   mock: boolean;
+  catalogMetadata?: BenchmarkCatalogMetadata;
   /** Fired after every state mutation so a renderer can repaint. */
   onUpdate?: (state: DashboardState) => void;
 }
@@ -148,6 +150,7 @@ function initState(opts: OrchestratorOptions): DashboardState {
     haltedByBudget: false,
     finished: false,
     mock: opts.mock,
+    catalogMetadata: opts.catalogMetadata ?? UNKNOWN_BENCHMARK_CATALOG_METADATA,
   };
 }
 

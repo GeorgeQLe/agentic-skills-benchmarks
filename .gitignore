@@ -1,3 +1,7 @@
 node_modules/
 coverage/
 .vitest/
+.agents/skillpacks/
+.claude/skills/
+.codex/skills/
+tests/benchmarks/

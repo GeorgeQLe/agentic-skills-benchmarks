@@ -4,6 +4,7 @@ import type { BenchReport, SingleRunResult } from "./bench-types.js";
 import { computeConsistency } from "./bench-similarity.js";
 import { loadSessionRuns, getSessionDir } from "./bench-persistence.js";
 import type { SessionManifest } from "./bench-types.js";
+import { catalogMetadataFromManifest } from "./skills-catalog.js";
 
 function wilsonCI(
   successes: number,
@@ -33,6 +34,7 @@ function percentile(sorted: number[], p: number): number {
 
 export function generateReport(manifest: SessionManifest): BenchReport {
   const runs = loadSessionRuns(manifest);
+  const metadata = catalogMetadataFromManifest(manifest);
   const evaluatedRuns = runs.filter((r) => !r.infrastructureBlocked);
   const passedRuns = evaluatedRuns.filter((r) => r.passed);
   const { lower, upper } = wilsonCI(passedRuns.length, evaluatedRuns.length);
@@ -44,6 +46,7 @@ export function generateReport(manifest: SessionManifest): BenchReport {
     sessionId: manifest.sessionId,
     skill: manifest.skill,
     agent: manifest.config.agent,
+    ...metadata,
     totalRuns: runs.length,
     evaluatedRuns: evaluatedRuns.length,
     blockedRuns: runs
@@ -177,6 +180,10 @@ ${r.qualitySummary.lowestScoringCriteria.length === 0
 **Agent**: ${r.agent}
 **Session**: ${r.sessionId}
 **Generated**: ${r.generatedAt}
+**Skills catalog ref**: ${r.skillsCatalogRef}
+**Skills catalog version**: ${r.skillsCatalogVersion}
+**Source commit**: ${r.sourceCommit}
+**Release channel**: ${r.releaseChannel}
 
 ## Pass Rate
 

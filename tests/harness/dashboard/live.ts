@@ -10,6 +10,30 @@ export interface LiveOptions extends Omit<OrchestratorOptions, "onUpdate"> {
   color?: boolean;
 }
 
+export interface LiveDashboardRuntime {
+  stdout: {
+    isTTY?: boolean;
+    columns?: number;
+    write(chunk: string): unknown;
+  };
+  setInterval(handler: () => void, ms: number): unknown;
+  clearInterval(handle: unknown): void;
+  onSignal(signal: NodeJS.Signals, handler: () => void): void;
+  offSignal(signal: NodeJS.Signals, handler: () => void): void;
+  exit(code: number): never;
+  runDashboard(opts: OrchestratorOptions): Promise<DashboardState>;
+}
+
+const processRuntime: LiveDashboardRuntime = {
+  stdout: process.stdout,
+  setInterval: (handler, ms) => setInterval(handler, ms),
+  clearInterval: (handle) => clearInterval(handle as NodeJS.Timeout),
+  onSignal: (signal, handler) => process.on(signal, handler),
+  offSignal: (signal, handler) => process.off(signal, handler),
+  exit: (code) => process.exit(code),
+  runDashboard,
+};
+
 /**
  * Wire the orchestrator to the renderer. On a TTY this repaints in place at a
  * fixed cadence (so the spinner/elapsed clock animate between events); off a
@@ -17,11 +41,18 @@ export interface LiveOptions extends Omit<OrchestratorOptions, "onUpdate"> {
  * what CI logs and `| tee` capture want.
  */
 export async function runLiveDashboard(opts: LiveOptions): Promise<DashboardState> {
-  const isTty = Boolean(process.stdout.isTTY);
+  return runLiveDashboardWithRuntime(opts, processRuntime);
+}
+
+export async function runLiveDashboardWithRuntime(
+  opts: LiveOptions,
+  runtime: LiveDashboardRuntime,
+): Promise<DashboardState> {
+  const isTty = Boolean(runtime.stdout.isTTY);
   const live = opts.live ?? isTty;
   const color = opts.color ?? isTty;
-  const width = process.stdout.columns ?? 100;
-  const out = process.stdout;
+  const width = runtime.stdout.columns ?? 100;
+  const out = runtime.stdout;
 
   let lastActivityLen = 0;
 
@@ -57,19 +88,25 @@ export async function runLiveDashboard(opts: LiveOptions): Promise<DashboardStat
   };
   const onSignal = () => {
     restore();
-    process.exit(130);
+    runtime.exit(130);
   };
-  process.on("SIGINT", onSignal);
-  process.on("SIGTERM", onSignal);
+  runtime.onSignal("SIGINT", onSignal);
+  runtime.onSignal("SIGTERM", onSignal);
 
-  let ticker: NodeJS.Timeout | undefined;
+  let ticker: unknown | undefined;
   let latest: DashboardState | undefined;
+  const clearTicker = () => {
+    if (ticker !== undefined) {
+      runtime.clearInterval(ticker);
+      ticker = undefined;
+    }
+  };
   if (live) {
-    ticker = setInterval(() => latest && paint(latest), 120);
+    ticker = runtime.setInterval(() => latest && paint(latest), 120);
   }
 
   try {
-    const finalState = await runDashboard({
+    const finalState = await runtime.runDashboard({
       ...opts,
       onUpdate: (state) => {
         latest = state;
@@ -77,15 +114,15 @@ export async function runLiveDashboard(opts: LiveOptions): Promise<DashboardStat
         logLine(state);
       },
     });
-    if (ticker) clearInterval(ticker);
+    clearTicker();
     paint(finalState);
     if (!live) out.write("\n" + renderFrame(finalState, { color, width }) + "\n");
     return finalState;
   } finally {
-    if (ticker) clearInterval(ticker);
+    clearTicker();
     restore();
-    process.off("SIGINT", onSignal);
-    process.off("SIGTERM", onSignal);
+    runtime.offSignal("SIGINT", onSignal);
+    runtime.offSignal("SIGTERM", onSignal);
   }
 }
 

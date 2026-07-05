@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { BenchConfig } from "../harness/bench-types.js";
 import { startOrResumeSession, runChunk } from "../harness/bench-runner.js";
 import { writeReport } from "../harness/bench-report.js";
+import { loadBenchmarkCatalogMetadata, parseReleaseChannel } from "../harness/skills-catalog.js";
 import {
   resolveBenchScenarioSetup,
   resolveBenchSetup,
@@ -14,6 +15,9 @@ const skill = scenario ?? process.env.BENCH_SKILL ?? "design-system";
 const agent = process.env.BENCH_AGENT === "codex" ? "codex" : "claude";
 const runs = parseInt(process.env.BENCH_RUNS ?? "5", 10);
 const chunkSize = parseInt(process.env.BENCH_CHUNK_SIZE ?? "5", 10);
+const maxBudgetUsd = process.env.BENCH_MAX_BUDGET_USD
+  ? Number(process.env.BENCH_MAX_BUDGET_USD)
+  : undefined;
 
 describe(`bench: ${skill}`, () => {
   it(`runs ${runs} iterations and generates a report`, async () => {
@@ -21,6 +25,9 @@ describe(`bench: ${skill}`, () => {
     const supported = scenario ? supportedBenchScenarios() : supportedBenchSkills();
     const label = scenario ? "scenario" : "skill";
     expect(setup, `Unknown ${label}: ${skill}. Supported ${label}s: ${supported.join(", ")}`).toBeDefined();
+    if (!setup) {
+      throw new Error(`Unknown ${label}: ${skill}`);
+    }
 
     const config: BenchConfig = {
       skill,
@@ -28,12 +35,15 @@ describe(`bench: ${skill}`, () => {
       runs,
       chunkSize,
       pauseSeconds: 0,
-      maxBudgetUsd: runs * setup.perRunBudgetUsd,
+      maxBudgetUsd: maxBudgetUsd ?? runs * setup.perRunBudgetUsd,
       perRunBudgetUsd: setup.perRunBudgetUsd,
       timeoutMs: setup.timeoutMs,
     };
+    const catalogMetadata = loadBenchmarkCatalogMetadata(
+      parseReleaseChannel(process.env.SKILLBENCH_RELEASE_CHANNEL, "SKILLBENCH_RELEASE_CHANNEL"),
+    );
 
-    const manifest = startOrResumeSession(setup, config);
+    const manifest = startOrResumeSession(setup, config, catalogMetadata);
     const startIndex = manifest.completedRuns;
 
     const { manifest: updated, haltedByBudget } = await runChunk(

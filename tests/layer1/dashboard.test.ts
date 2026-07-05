@@ -1,3 +1,4 @@
+import { readFileSync, rmSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import {
   DEFAULT_MODEL_MATRIX,
@@ -6,6 +7,8 @@ import {
 import { runDashboard } from "../harness/dashboard/orchestrator.js";
 import { passRate, type BenchTargetSpec } from "../harness/dashboard/state.js";
 import type { SkillBenchSetup } from "../harness/bench-types.js";
+import { persistDashboardSummary } from "../harness/cli/dashboard-command.js";
+import { loadBenchmarkCatalogMetadata } from "../harness/skills-catalog.js";
 
 // Mock mode never invokes the setup, so a bare stub is sufficient.
 function stubTarget(name: string): BenchTargetSpec {
@@ -115,5 +118,32 @@ describe("runDashboard (mock)", () => {
     expect(state.haltedByBudget).toBe(true);
     expect(state.totalCostUsd).toBeLessThanOrEqual(state.budgetUsd);
     expect(state.completedTasks).toBe(2);
+  });
+
+  it("persists catalog metadata in the dashboard summary", async () => {
+    const metadata = loadBenchmarkCatalogMetadata("canary");
+    const state = await runDashboard({
+      models: selectModelTargets("gpt-5"),
+      targets: [stubTarget("a")],
+      runsPerCell: 1,
+      concurrency: 1,
+      budgetUsd: 1,
+      mock: true,
+      catalogMetadata: metadata,
+    });
+    const path = persistDashboardSummary(state, {
+      stdout: { write: () => true },
+      stderr: { write: () => true },
+    });
+
+    try {
+      const summary = JSON.parse(readFileSync(path, "utf8"));
+      expect(summary.skillsCatalogRef).toBe(metadata.skillsCatalogRef);
+      expect(summary.skillsCatalogVersion).toBe(metadata.skillsCatalogVersion);
+      expect(summary.sourceCommit).toBe(metadata.sourceCommit);
+      expect(summary.releaseChannel).toBe("canary");
+    } finally {
+      rmSync(path, { force: true });
+    }
   });
 });

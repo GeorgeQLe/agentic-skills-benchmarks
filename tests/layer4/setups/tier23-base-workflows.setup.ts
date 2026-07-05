@@ -52,6 +52,12 @@ type ExpectedEvidence = {
   | { predicate: (content: string) => boolean; pattern?: never }
 );
 
+function hasExpectedEvidencePattern(
+  expected: ExpectedEvidence,
+): expected is ExpectedEvidence & { pattern: RegExp } {
+  return expected.pattern instanceof RegExp;
+}
+
 const ICON_SOURCE_SVG = [
   '<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">',
   '<rect width="512" height="512" rx="96" fill="#111827"/>',
@@ -112,7 +118,7 @@ function createBaseWorkflowSetup(definition: BaseWorkflowDefinition): SkillBench
 
       for (const expected of definition.expectedEvidence ?? []) {
         assertions.push(
-          "pattern" in expected
+          hasExpectedEvidencePattern(expected)
             ? assertContentMatches(content, expected.pattern, expected.description)
             : { description: expected.description, pass: expected.predicate(content) },
         );
@@ -173,7 +179,7 @@ function createBaseWorkflowQualityEvaluator(definition: BaseWorkflowDefinition) 
         facts: definition.expectedIncludes,
       }),
       ...((definition.expectedEvidence ?? []).map((expected): QualityCriterion => (
-        "pattern" in expected
+        hasExpectedEvidencePattern(expected)
           ? requiredPatternCriterion({
             id: `workflow-${slugifyCriterionId(expected.description)}`,
             description: expected.description,

@@ -10,6 +10,8 @@
     "bench:list": "tsx tests/bench.ts --list-skills",
     "bench:dashboard": "tsx tests/dashboard.ts",
     "bench": "tsx tests/bench.ts",
+    "skillbench": "tsx tests/skillbench.ts",
+    "skillbench:stress": "tsx tests/skillbench.ts stress",
     "verify": "tsx tests/bench.ts --verify",
     "test": "vitest run tests/layer1"
   },

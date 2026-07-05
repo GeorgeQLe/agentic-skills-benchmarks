@@ -1,6 +1,14 @@
 import type { RunResult, Assertion } from "./types.js";
 
 export type BenchAgent = "claude" | "codex";
+export type ReleaseChannel = "release" | "canary";
+
+export interface BenchmarkCatalogMetadata {
+  skillsCatalogRef: string;
+  skillsCatalogVersion: string;
+  sourceCommit: string;
+  releaseChannel: ReleaseChannel | "unknown";
+}
 
 export interface BenchConfig {
   skill: string;
@@ -46,6 +54,10 @@ export interface ChunkRecord {
 export interface SessionManifest {
   skill: string;
   sessionId: string;
+  skillsCatalogRef: string;
+  skillsCatalogVersion: string;
+  sourceCommit: string;
+  releaseChannel: ReleaseChannel | "unknown";
   createdAt: string;
   updatedAt: string;
   status: "running" | "paused" | "completed" | "aborted";
@@ -64,6 +76,10 @@ export interface BenchReport {
   sessionId: string;
   skill: string;
   agent: BenchAgent;
+  skillsCatalogRef: string;
+  skillsCatalogVersion: string;
+  sourceCommit: string;
+  releaseChannel: ReleaseChannel | "unknown";
   totalRuns: number;
   evaluatedRuns: number;
   blockedRuns: {
