@@ -10,7 +10,14 @@ import {
   readGeneratedFile,
 } from "../setup-helpers/artifacts.js";
 import { BENCH_BUDGETS_USD, BENCH_TIMEOUTS_MS } from "../setup-helpers/budgets.js";
-import { assertNextCommand, assertRecommendedRoute } from "../setup-helpers/routing.js";
+import {
+  alternateSkillCommand,
+  assertNextCommand,
+  assertRecommendedRoute,
+  recommendedRoutesFor,
+  resolveRecommendedRoute,
+  runnerRouteVariants,
+} from "../setup-helpers/routing.js";
 import {
   concreteCommandReferenceCriterion,
   concreteFileReferenceCriterion,
@@ -49,10 +56,7 @@ function extractFinalHandoff(text: string): string {
 }
 
 function expectedRoute(definition: Tier1WorkflowDefinition, agent?: BenchAgent): string | undefined {
-  if (agent && definition.recommendedRoutes?.[agent]) {
-    return definition.recommendedRoutes[agent];
-  }
-  return definition.recommendedRoute;
+  return resolveRecommendedRoute(definition.recommendedRoutes, agent, definition.recommendedRoute);
 }
 
 function workflowQualityEvaluator(options: {
@@ -355,13 +359,15 @@ function createTier1WorkflowSetup(definition: Tier1WorkflowDefinition): SkillBen
       if (route) {
         assertions.push(assertRecommendedRoute(content, route));
         if (definition.skill === "ship-end") {
-          const alternateRoute = route === "/exec" ? "$exec" : "/exec";
-          const finalHandoff = extractFinalHandoff(content);
-          assertions.push({
-            description: "Output uses single active-runner final route",
-            pass: !new RegExp(`(?:^|[\\s\`'"(:-])${alternateRoute.replace("$", "\\$")}(?:[\\s\`'".,)]|$)`, "im").test(finalHandoff),
-            detail: `Expected final handoff to avoid alternate runner route ${alternateRoute}`,
-          });
+          const alternateRoute = alternateSkillCommand(route);
+          if (alternateRoute) {
+            const finalHandoff = extractFinalHandoff(content);
+            assertions.push({
+              description: "Output uses single active-runner final route",
+              pass: !new RegExp(`(?:^|[\\s\`'"(:-])${alternateRoute.replace("$", "\\$")}(?:[\\s\`'".,)]|$)`, "im").test(finalHandoff),
+              detail: `Expected final handoff to avoid alternate runner route ${alternateRoute}`,
+            });
+          }
         }
       }
 
@@ -432,15 +438,12 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
         }),
       ],
     }),
-    recommendedRoutes: {
-      claude: "/ship",
-      codex: "$ship",
-    },
+    recommendedRoutes: recommendedRoutesFor("ship"),
   },
   {
     skill: "ship",
     outputPath: "ship-manifest.md",
-    prompt: "You have the ship skill installed. Read the fixture task and diff summary, then write ship-manifest.md with User goal, Changed files, Tests run, Deploy status, Rollback note, and Next command. Use your runner's command convention for Next command: Claude uses `/exec`; Codex uses `$exec`. Do not run git.",
+    prompt: "You have the ship skill installed. Read the fixture task and diff summary, then write ship-manifest.md with User goal, Changed files, Tests run, Deploy status, Rollback note, and Next command. Use your runner's command convention for Next command: Claude and Grok use `/exec`; Codex uses `$exec`. Do not run git.",
     fixtureFiles: {
       "tasks/todo.md": "# Active Phase\n\n## Review\n\nValidation passed for the completed fixture step.\n",
       "diff-summary.txt": "M tests/example.test.ts\nM tasks/todo.md\n",
@@ -450,7 +453,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["tests/example.test.ts", "tasks/todo.md"],
       specificMarkers: ["User goal", "Changed files", "Rollback note"],
-      nextRoutes: ["/exec", "$exec"],
+      nextRoutes: runnerRouteVariants("/exec"),
       coreTraitId: "shipping-manifest-completeness",
       coreTraitDescription: "Includes the required shipping manifest fields",
       coreTraits: ["User goal", "Changed files", "Tests run", "Deploy status", "Rollback note"],
@@ -467,15 +470,12 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
         }),
       ],
     }),
-    recommendedRoutes: {
-      claude: "/exec",
-      codex: "$exec",
-    },
+    recommendedRoutes: recommendedRoutesFor("exec"),
   },
   {
     skill: "ship-end",
     outputPath: "session-handoff.md",
-    prompt: "You have the ship-end skill installed. Write session-handoff.md summarizing completed work, validation evidence, remaining risks, next work, and Next command. Use the fixture task files as the source of truth, not the benchmark session's lack of git activity, and name both `tasks/todo.md` and `tasks/history.md` in the handoff. The final Next command must contain exactly one command for the active runner: `/exec` when running as Claude, or `$exec` when running as Codex. Do not list alternate runner routes in the final handoff. Do not run git.",
+    prompt: "You have the ship-end skill installed. Write session-handoff.md summarizing completed work, validation evidence, remaining risks, next work, and Next command. Use the fixture task files as the source of truth, not the benchmark session's lack of git activity, and name both `tasks/todo.md` and `tasks/history.md` in the handoff. The final Next command must contain exactly one command for the active runner: `/exec` when running as Claude or Grok, or `$exec` when running as Codex. Do not list alternate runner routes in the final handoff. Do not run git.",
     fixtureFiles: {
       "tasks/todo.md": "# Active Phase\n\n- [x] Step 1.1 complete\n- [ ] Step 1.2 next\n",
       "tasks/history.md": "# History\n\n- Completed Step 1.1 with tests.\n",
@@ -484,7 +484,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["Step 1.1", "Step 1.2", "Completed Step 1.1 with tests"],
       specificMarkers: ["completed work", "remaining risks", "Step 1.2"],
-      nextRoutes: ["/exec", "$exec"],
+      nextRoutes: runnerRouteVariants("/exec"),
       coreTraitId: "handoff-continuity",
       coreTraitDescription: "Connects completed work to the next project task",
       coreTraits: ["completed work", "validation", "remaining risks", "next work"],
@@ -492,10 +492,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       concreteFiles: ["tasks/todo.md", "tasks/history.md"],
       extraCriteria: [singleActiveRunnerFinalRouteCriterion],
     }),
-    recommendedRoutes: {
-      claude: "/exec",
-      codex: "$exec",
-    },
+    recommendedRoutes: recommendedRoutesFor("exec"),
   },
   {
     skill: "roadmap",
@@ -577,7 +574,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       evidenceFacts: ["custom", "generic", "blocked"],
       evidenceCriterion: featureInterviewEvidenceCriterion,
       specificMarkers: ["Assumptions", "evidence", "decision", "risks"],
-      nextRoutes: ["/roadmap", "$roadmap"],
+      nextRoutes: runnerRouteVariants("/roadmap"),
       coreTraitId: "interview-decision-quality",
       coreTraitDescription: "Frames the product idea with evidence, decision, and risk",
       coreTraits: ["Assumptions", "evidence", "decision", "risks"],
@@ -585,10 +582,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       concreteFiles: ["feature-idea.md", "specs/benchmark-reporting-feature-interview.md"],
       extraCriteria: [],
     }),
-    recommendedRoutes: {
-      claude: "/roadmap",
-      codex: "$roadmap",
-    },
+    recommendedRoutes: recommendedRoutesFor("roadmap"),
   },
   {
     skill: "skill-interview",
@@ -603,7 +597,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
     qualityEvaluator: workflowQualityEvaluator({
       evidenceFacts: ["benchmark-audit", "bench-coverage.ts", "create-agentic-skill"],
       specificMarkers: ["Skill Contract", "Workflow", "Verification and Benchmark Coverage", "Recommended Creation Route"],
-      nextRoutes: ["/create-agentic-skill", "$create-agentic-skill"],
+      nextRoutes: runnerRouteVariants("/create-agentic-skill"),
       coreTraitId: "skill-brief-completeness",
       coreTraitDescription: "Produces an implementation-ready skill brief from the user's skill idea",
       coreTraits: ["Overview", "Goals", "Non-Goals", "Skill Contract", "Workflow", "Verification and Benchmark Coverage"],
@@ -614,10 +608,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
       // while a brief that claims it *configured* GitHub Actions still fails. No
       // per-suite override needed (see tests/layer1/forbidden-negation.test.ts).
     }),
-    recommendedRoutes: {
-      claude: "/create-agentic-skill",
-      codex: "$create-agentic-skill",
-    },
+    recommendedRoutes: recommendedRoutesFor("create-agentic-skill"),
   },
   {
     skill: "spec-interview",
@@ -746,7 +737,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "benchmark-test-skill",
     outputPath: "benchmark/test-run-2026-05-11.md",
-    prompt: "You have the benchmark-test-skill skill installed. Use only bench-output.txt and verify-output.txt; do not search the repository, read extra skill files, or run pnpm. Write benchmark/test-run-2026-05-11.md as a structured benchmark report with `## Verify`, `## Benchmark Metrics`, `## Raw Evidence`, and `## Next Route` sections. Use Markdown tables for the verify and benchmark metrics sections. In the `## Benchmark Metrics` section, create one row each for pass rate, p50 latency, total cost, and raw session path. The pass-rate row must contain `passRate=1.0` or `100%`; the p50 row must contain `p50=1200`; the total-cost row must contain `totalCost=0.42`; the raw-session row must contain `run-agent-abc`. Include exact evidence from the fixture: `layer1 PASS`, `layer2 SKIPPED`, `passRate=1.0` or `100%`, `p50=1200`, `totalCost=0.42`, raw session path `run-agent-abc`, source file names, literal report path `benchmark/test-run-2026-05-11.md`, and a literal `Recommended next command:` line. Use your runner's command convention for the route, regardless of fixture file names or raw session path text: Claude `/ship`, Codex `$ship`.",
+    prompt: "You have the benchmark-test-skill skill installed. Use only bench-output.txt and verify-output.txt; do not search the repository, read extra skill files, or run pnpm. Write benchmark/test-run-2026-05-11.md as a structured benchmark report with `## Verify`, `## Benchmark Metrics`, `## Raw Evidence`, and `## Next Route` sections. Use Markdown tables for the verify and benchmark metrics sections. In the `## Benchmark Metrics` section, create one row each for pass rate, p50 latency, total cost, and raw session path. The pass-rate row must contain `passRate=1.0` or `100%`; the p50 row must contain `p50=1200`; the total-cost row must contain `totalCost=0.42`; the raw-session row must contain `run-agent-abc`. Include exact evidence from the fixture: `layer1 PASS`, `layer2 SKIPPED`, `passRate=1.0` or `100%`, `p50=1200`, `totalCost=0.42`, raw session path `run-agent-abc`, source file names, literal report path `benchmark/test-run-2026-05-11.md`, and a literal `Recommended next command:` line. Use your runner's command convention for the route, regardless of fixture file names or raw session path text: Claude `/ship`, Grok `/ship`, Codex `$ship`.",
     fixtureFiles: {
       "verify-output.txt": "layer1 PASS in 7.1s\nlayer2 SKIPPED no tests matched run\n",
       "bench-output.txt": "Benchmark coverage for run: custom\npassRate=1.0 p50=1200 totalCost=0.42 raw=tests/benchmarks/runs/run-agent-abc/report.json\n",
@@ -814,7 +805,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
           id: "actionable-next-route",
           description: "Includes an explicit next command handoff",
           weight: 1,
-          route: ["/ship", "$ship"],
+          route: runnerRouteVariants("/ship"),
         }),
         forbiddenFabricationCriterion({
           id: "no-fabricated-facts",
@@ -825,10 +816,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
         }),
       ],
     }),
-    recommendedRoutes: {
-      claude: "/ship",
-      codex: "$ship",
-    },
+    recommendedRoutes: recommendedRoutesFor("ship"),
   },
 ];
 

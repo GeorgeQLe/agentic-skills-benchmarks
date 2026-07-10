@@ -1,9 +1,9 @@
 import { rmSync } from "node:fs";
-import { createTempProject, runClaude, runCodex } from "../runner.js";
+import { createTempProject, runClaude, runCodex, runGrok } from "../runner.js";
 import type { RunOptions } from "../runner.js";
 import { buildRunResult } from "../bench-runner.js";
 import type { RunResult } from "../types.js";
-import type { BenchmarkCatalogMetadata, SingleRunResult } from "../bench-types.js";
+import type { BenchAgent, BenchmarkCatalogMetadata, SingleRunResult } from "../bench-types.js";
 import { UNKNOWN_BENCHMARK_CATALOG_METADATA } from "../skills-catalog.js";
 import type { ModelTarget } from "./model-matrix.js";
 import {
@@ -31,6 +31,12 @@ interface Task {
   runIndex: number;
 }
 
+function runDashboardAgent(cli: BenchAgent, opts: RunOptions): Promise<RunResult> {
+  if (cli === "claude") return runClaude(opts);
+  if (cli === "codex") return runCodex(opts);
+  return runGrok(opts);
+}
+
 /** Drive an agent run for one task, real or simulated, into a SingleRunResult. */
 async function executeTask(task: Task, mock: boolean): Promise<SingleRunResult> {
   const { model, target, runIndex } = task;
@@ -51,8 +57,7 @@ async function executeTask(task: Task, mock: boolean): Promise<SingleRunResult> 
       timeoutMs: target.setup.timeoutMs,
       model: model.model,
     };
-    const result: RunResult =
-      model.cli === "claude" ? await runClaude(opts) : await runCodex(opts);
+    const result = await runDashboardAgent(model.cli, opts);
     return buildRunResult(target.setup, model.cli, result, {
       index: runIndex,
       startedAt,

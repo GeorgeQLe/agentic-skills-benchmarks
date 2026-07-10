@@ -32,7 +32,7 @@ function writeLine(stream: Pick<NodeJS.WriteStream, "write">, text = ""): void {
 
 export function dashboardHelpText(command = "pnpm bench:dashboard"): string {
   return helpText(
-    "SkillBench dashboard - run the benchmark suite across GPT & Claude models.",
+    "SkillBench dashboard - run the benchmark suite across GPT, Claude & Grok models.",
     `  ${command} [options]`,
     [
       "  --models <ids>       Comma-separated model ids (default: all). See --list-models.",
@@ -163,7 +163,7 @@ export async function runDashboardCommand(
       writeLine(
         io.stderr,
         "Live agent runs are disabled. Set LIVE_AGENT_TESTS=1 to spend on real\n" +
-          "claude/codex runs, or pass --mock to preview the dashboard.",
+          "claude/codex/grok runs, or pass --mock to preview the dashboard.",
       );
       return 1;
     }

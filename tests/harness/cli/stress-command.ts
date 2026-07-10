@@ -2,6 +2,7 @@ import { runBenchCommand } from "./bench-command.js";
 import type { CommandIo } from "./bench-command.js";
 import { runDashboardCommand } from "./dashboard-command.js";
 import { listCommand } from "./list-command.js";
+import { runLiveDashboardWithRuntime } from "../dashboard/live.js";
 import { renderFrame } from "../dashboard/render.js";
 import { cellKey, type BenchTargetSpec, type CellStatus, type DashboardState } from "../dashboard/state.js";
 import type { ModelTarget } from "../dashboard/model-matrix.js";
@@ -223,6 +224,49 @@ function denseDashboardState(): DashboardState {
   };
 }
 
+async function captureLiveDashboardSmoke(state: DashboardState): Promise<string> {
+  let output = "";
+  const intervals: (() => void)[] = [];
+  await runLiveDashboardWithRuntime(
+    {
+      models: state.models,
+      targets: state.targets,
+      runsPerCell: state.runsPerCell,
+      concurrency: 1,
+      budgetUsd: state.budgetUsd,
+      mock: state.mock,
+      live: true,
+      color: false,
+    },
+    {
+      stdout: {
+        isTTY: true,
+        columns: 80,
+        write: (chunk) => {
+          output += chunk;
+          return true;
+        },
+      },
+      setInterval: (handler) => {
+        intervals.push(handler);
+        return handler;
+      },
+      clearInterval: () => {},
+      onSignal: () => {},
+      offSignal: () => {},
+      exit: (code) => {
+        throw new Error(`unexpected exit ${code}`);
+      },
+      runDashboard: async (opts) => {
+        opts.onUpdate?.(state);
+        intervals.forEach((handler) => handler());
+        return { ...state, finished: true };
+      },
+    },
+  );
+  return output;
+}
+
 function expectCode(name: string, code: number, expected: number, output: string, note?: string): StressCaseResult {
   return {
     ok: code === expected,
@@ -368,6 +412,22 @@ export async function stressCommand(rawArgs: string[] = [], io: CommandIo = { st
             frame.includes("running") &&
             frame.includes("infra-blocked"),
           detail: `lines=${frame.split("\n").length}; chars=${frame.length}`,
+        };
+      },
+    },
+    {
+      name: "dashboard live TUI repaint capture passes",
+      run: async () => {
+        const output = await captureLiveDashboardSmoke(denseDashboardState());
+        return {
+          ok:
+            output.includes("\x1b[?25l") &&
+            output.includes("\x1b[2J\x1b[H") &&
+            output.includes("\x1b[HSkillBench") &&
+            output.includes("\x1b[K\x1b[0J") &&
+            output.endsWith("\x1b[?25h") &&
+            !output.includes("[  "),
+          detail: `chars=${output.length}; ansi=${output.includes("\x1b[")}`,
         };
       },
     },

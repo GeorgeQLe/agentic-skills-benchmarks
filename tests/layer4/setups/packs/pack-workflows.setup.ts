@@ -17,7 +17,12 @@ import {
   requiredFactCoverageCriterion,
   specificityCriterion,
 } from "../../setup-helpers/quality.js";
-import { assertNextCommand, assertRecommendedNextRoute } from "../../setup-helpers/routing.js";
+import {
+  assertNextCommand,
+  assertRecommendedNextRoute,
+  recommendedRoutesFor,
+  resolveRecommendedRoute,
+} from "../../setup-helpers/routing.js";
 import type { QualityCriterion } from "../../../harness/bench-types.js";
 
 interface PackWorkflowDefinition {
@@ -134,16 +139,13 @@ const packFamilyContexts: Record<string, { id: string; facts: string[]; traits: 
 };
 
 function expectedRoute(definition: PackWorkflowDefinition, agent?: BenchAgent): string | undefined {
-  if (agent && definition.nextRoutes?.[agent]) {
-    return definition.nextRoutes[agent];
-  }
-  return definition.nextRoute;
+  return resolveRecommendedRoute(definition.nextRoutes, agent, definition.nextRoute);
 }
 
 function qualityRoutes(definition: PackWorkflowDefinition): string | string[] | undefined {
   const routes = Object.values(definition.nextRoutes ?? {});
   if (routes.length > 0) {
-    return routes;
+    return [...new Set(routes)];
   }
   return definition.nextRoute;
 }
@@ -718,7 +720,7 @@ function makeFrameworkSubskillDefinition(spec: FrameworkSubskillSpec): PackWorkf
       ...spec.requiredOutputPatterns,
     ],
     forbiddenOutputPatterns: subskillForbiddenOutputPatterns(spec.parent),
-    nextRoutes: { claude: `/${spec.parent}`, codex: `$${spec.parent}` },
+    nextRoutes: recommendedRoutesFor(spec.parent),
     forbidden: subskillForbidden(spec.parent),
   };
 }
@@ -1029,7 +1031,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
       { description: "Output keeps audit mode non-mutating", pattern: /dry-run|audit|no mutation|without mutating/i },
       { description: "Output names archive-before-replace behavior", pattern: /archive|docs\/history\/archive/i },
     ],
-    nextRoutes: { claude: "/compile-central-alignment", codex: "$compile-central-alignment" },
+    nextRoutes: recommendedRoutesFor("compile-central-alignment"),
   },
   {
     skill: "upgrade-interrogation-pages",
@@ -1045,7 +1047,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
       { description: "Output keeps audit mode non-mutating", pattern: /dry-run|audit|no mutation|without mutating/i },
       { description: "Output names archive-before-replace behavior", pattern: /archive|docs\/history\/archive/i },
     ],
-    nextRoutes: { claude: "node scripts/audit-interrogation-pages.mjs", codex: "node scripts/audit-interrogation-pages.mjs" },
+    nextRoutes: recommendedRoutesFor("node scripts/audit-interrogation-pages.mjs"),
   },
   {
     skill: "benchmark-agent-review",
@@ -1102,10 +1104,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
         pattern: /(owner target|owner file|owner surface|owner|target)[\s\S]*(validation check|validation command|contract-lint|layer1|fixture|assertion)/i,
       },
     ],
-    nextRoutes: {
-      claude: "/targeted-skill-builder benchmark-agent-review residual-risk-awareness output-quality gap",
-      codex: "$targeted-skill-builder benchmark-agent-review residual-risk-awareness output-quality gap",
-    },
+    nextRoutes: recommendedRoutesFor("targeted-skill-builder benchmark-agent-review residual-risk-awareness output-quality gap"),
     forbidden: ["google analytics", "stripe dashboard", "salesforce", "hubspot", "api dashboard", "industry-leading", "best-in-class", "proprietary data"],
   },
   {
@@ -1247,10 +1246,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
         pattern: /[$/]competitive-analysis\/frameworks\//,
       },
     ],
-    nextRoutes: {
-      claude: "/competitive-analysis",
-      codex: "$competitive-analysis",
-    },
+    nextRoutes: recommendedRoutesFor("competitive-analysis"),
     forbidden: [
       "status audit",
       "$exec",
@@ -1337,10 +1333,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
         pattern: /[$/]eval-ideas\//,
       },
     ],
-    nextRoutes: {
-      claude: "/eval-ideas",
-      codex: "$eval-ideas",
-    },
+    nextRoutes: recommendedRoutesFor("eval-ideas"),
     forbidden: [
       "status audit",
       "$exec",
@@ -1388,7 +1381,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
       { description: "Output covers next series candidates", pattern: /series candidate|next series/i },
     ],
     expectedPattern: /programming|pillar|format|measurement|series/i,
-    nextRoutes: { claude: "/series-spec", codex: "$series-spec" },
+    nextRoutes: recommendedRoutesFor("series-spec"),
   },
   {
     skill: "creator-evidence-schema",
@@ -2412,7 +2405,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
       { description: "Output keeps default mode report-only", pattern: /report-only|audit|dry-run/i },
       { description: "Output mentions explicit apply before writes", pattern: /--apply|explicit apply/i },
     ],
-    nextRoutes: { claude: "/skills", codex: "$skills" },
+    nextRoutes: recommendedRoutesFor("skills"),
   },
   {
     skill: "project-fleet",
@@ -2444,7 +2437,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
       { description: "Output keeps inventory report-only", pattern: /report-only|without mutating|no downstream.*modified/i },
       { description: "Output names the durable report path", pattern: /tasks\/skill-inventory\.md/i },
     ],
-    nextRoutes: { claude: "/project-fleet --status", codex: "$project-fleet --status" },
+    nextRoutes: recommendedRoutesFor("project-fleet --status"),
   },
   {
     skill: "quality-sweep",
@@ -2699,7 +2692,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
       { description: "Output cites the specific seeded UAT journey (Signup smoke test)", pattern: /Signup smoke test/i },
       { description: "Output names the seeded target user (Trial evaluator)", pattern: /Trial evaluator/i },
     ],
-    nextRoutes: { claude: "/uat-guide next", codex: "$uat-guide next" },
+    nextRoutes: recommendedRoutesFor("uat-guide next"),
   },
   {
     skill: "user-flow-map",
@@ -2716,7 +2709,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
       { description: "Output covers state and recovery coverage", pattern: /state|failure|recovery/i },
       { description: "Output covers low-fidelity wireframe notes", pattern: /wireframe|low-fidelity|low-fi/i },
     ],
-    nextRoutes: { claude: "/ui-interview --requirements-only", codex: "$ui-interview --requirements-only" },
+    nextRoutes: recommendedRoutesFor("ui-interview --requirements-only"),
   },
   {
     skill: "value-prop-canvas",
@@ -2953,7 +2946,7 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
       { description: "Output includes publish sequence", pattern: /publish sequence|companion clip first|checkpoint review/i },
       { description: "Output measures beyond views", pattern: /subscribers gained|subs gained|retention|long-form spillover|source-video traffic|Shorts views alone/i },
     ],
-    nextRoutes: { claude: "/youtube-title-thumbnail-audit", codex: "$youtube-title-thumbnail-audit" },
+    nextRoutes: recommendedRoutesFor("youtube-title-thumbnail-audit"),
   },
   {
     skill: "youtube-description-optimizer",

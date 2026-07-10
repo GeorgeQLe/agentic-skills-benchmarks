@@ -8,7 +8,11 @@ import {
   readGeneratedFile,
 } from "../setup-helpers/artifacts.js";
 import { BENCH_BUDGETS_USD, BENCH_TIMEOUTS_MS } from "../setup-helpers/budgets.js";
-import { assertNextCommand, assertRecommendedRoute } from "../setup-helpers/routing.js";
+import {
+  assertNextCommand,
+  assertRecommendedRoute,
+  skillCommandForAgent,
+} from "../setup-helpers/routing.js";
 import {
   createSetupQualityEvaluator,
   forbiddenFabricationCriterion,
@@ -131,7 +135,8 @@ export const afpsStatusSetup: SkillBenchSetup = {
     assertions.push(assertContentIncludes(content, "Step 1.1", "Report cites the concrete pending task"));
     assertions.push(assertNextCommand(content));
 
-    const route = context?.agent === "claude" ? "/exec" : "$exec";
+    // Grok shares Claude's slash convention (`/exec`); only Codex uses `$exec`.
+    const route = skillCommandForAgent(context?.agent ?? "claude", "/exec");
     assertions.push(assertRecommendedRoute(content, route));
 
     return assertions;
