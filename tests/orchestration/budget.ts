@@ -8,7 +8,9 @@ import type {
   ReservationRequest,
   UsageEstimate,
   UsageSnapshot,
+  PitwallSourceLock,
 } from "./types.js";
+import { PITWALL_PROVIDER_WINDOWS, PITWALL_SOURCE_KIND } from "./types.js";
 
 export interface AllowanceEpoch {
   id: string;
@@ -33,9 +35,7 @@ interface LegacyAllowanceState {
 
 export function readUsageSnapshot(path: string, now = Date.now()): UsageSnapshot {
   const snapshot = JSON.parse(readFileSync(path, "utf8")) as UsageSnapshot;
-  if (snapshot.schemaVersion !== 1 || snapshot.providers?.openai?.source !== "manual-provider-dashboard" || snapshot.providers?.anthropic?.source !== "manual-provider-dashboard") {
-    throw new Error("usage snapshot must contain manual-provider-dashboard OpenAI and Anthropic allowances");
-  }
+  readUsageSnapshotObject(snapshot);
   const captured = Date.parse(snapshot.capturedAt);
   if (!Number.isFinite(captured) || captured > now + 60_000) throw new Error("usage snapshot has an invalid capture time");
   for (const [provider, allowance] of Object.entries(snapshot.providers)) validateAllowance(provider, allowance);
@@ -60,16 +60,36 @@ export function allowanceFieldKind(allowance: ProviderAllowance): "remainingUnit
   return fields[0];
 }
 
-export function validatePercentageSnapshot(snapshot: UsageSnapshot, options: { now?: number; maxAgeMs?: number; minimumResetLeadMs?: number } = {}): void {
+export function validatePercentageSnapshot(snapshot: UsageSnapshot, options: { now?: number; maxAgeMs?: number; minimumResetLeadMs?: number; requirePitwall?: boolean } = {}): void {
   const now = options.now ?? Date.now();
+  const captured = Date.parse(snapshot.capturedAt);
+  if (!Number.isFinite(captured) || captured > now) throw new Error("allowance snapshot capture time is invalid or in the future");
   if (allowanceFieldKind(snapshot.providers.openai) !== "remainingPercent" || allowanceFieldKind(snapshot.providers.anthropic) !== "remainingPercent") {
     throw new Error("calibration snapshots require exactly remainingPercent for both providers");
   }
-  if (options.maxAgeMs !== undefined && snapshotStalenessMs(snapshot, now) > options.maxAgeMs) throw new Error("pre-calibration snapshot is more than five minutes old");
+  if (options.maxAgeMs !== undefined && snapshotStalenessMs(snapshot, now) > options.maxAgeMs) throw new Error("allowance snapshot is more than five minutes old");
   for (const [provider, allowance] of Object.entries(snapshot.providers)) {
+    if (options.requirePitwall) validatePitwallAllowance(provider as "openai" | "anthropic", allowance);
+    if (options.maxAgeMs !== undefined) {
+      const observed = Date.parse(allowance.observedAt ?? "");
+      if (!Number.isFinite(observed) || observed > now || observed > captured || now - observed > options.maxAgeMs) throw new Error(`${provider} allowance observation is stale or in the future`);
+    }
     const reset = Date.parse(allowance.resetAt ?? "");
     if (!Number.isFinite(reset)) throw new Error(`${provider} snapshot requires a valid resetAt`);
+    if (options.requirePitwall && reset <= now) throw new Error(`${provider} allowance reset is not in the future`);
     if (options.minimumResetLeadMs !== undefined && reset - now < options.minimumResetLeadMs) throw new Error(`${provider} reset is less than two hours away`);
+  }
+}
+
+function validatePitwallAllowance(provider: "openai" | "anthropic", allowance: ProviderAllowance): void {
+  if (allowance.source !== PITWALL_SOURCE_KIND) throw new Error(`${provider} allowance source must be Pitwall Local`);
+  if (!Number.isFinite(allowance.usedPercent) || allowance.usedPercent! < 0 || allowance.usedPercent! > 100) throw new Error(`${provider} usedPercent is invalid`);
+  if (!Number.isFinite(Date.parse(allowance.observedAt ?? ""))) throw new Error(`${provider} observedAt is invalid`);
+  if (Math.abs((allowance.remainingPercent ?? Number.NaN) - (100 - allowance.usedPercent!)) > 0.000_001) throw new Error(`${provider} used and remaining percentages disagree`);
+  if (provider === "openai") {
+    if (allowance.window !== PITWALL_PROVIDER_WINDOWS.openai.window || allowance.durationSeconds !== 18_000 || allowance.confidence !== "providerSupplied" || allowance.scope !== undefined) throw new Error("OpenAI allowance must be Codex primary five-hour provider telemetry");
+  } else if (allowance.window !== PITWALL_PROVIDER_WINDOWS.anthropic.window || allowance.scope !== PITWALL_PROVIDER_WINDOWS.anthropic.scope || allowance.confidence !== "exact") {
+    throw new Error("Anthropic allowance must be Claude seven-day All Models exact telemetry");
   }
 }
 
@@ -102,9 +122,9 @@ export class AllowanceLedger {
     if (existsSync(path)) {
       const loaded = JSON.parse(readFileSync(path, "utf8")) as AllowanceState | LegacyAllowanceState;
       this.state = loaded.schemaVersion === 1 ? this.migrate(loaded) : loaded;
-      this.persist();
+      if (loaded.schemaVersion === 1) this.persist();
     } else {
-      if (!snapshot) throw new Error("a manual usage snapshot is required to initialize the allowance ledger");
+      if (!snapshot) throw new Error("an allowance snapshot is required to initialize the allowance ledger");
       const epoch = this.epoch(snapshot);
       this.state = { schemaVersion: 2, epochs: [epoch], currentEpochId: epoch.id, reservations: [] };
       this.persist();
@@ -179,12 +199,68 @@ export class AllowanceLedger {
   }
 
   openEpoch(snapshot: UsageSnapshot): AllowanceEpoch {
-    readUsageSnapshotObject(snapshot);
     if (this.state.reservations.some((entry) => entry.state === "reserved")) throw new Error("cannot open an allowance epoch with unreconciled reservations");
+    const epoch = this.validatedEpoch(snapshot);
+    this.state.epochs.push(epoch);
+    this.state.currentEpochId = epoch.id;
+    this.persist();
+    return epoch;
+  }
+
+  reconcileAndOpenEpoch(
+    snapshot: UsageSnapshot,
+    completedRunIds: Set<string>,
+    recoveredUsage: Map<string, { openai: number; anthropic: number }> = new Map(),
+  ): AllowanceEpoch {
+    const epoch = this.validatedEpoch(snapshot);
+    const next = structuredClone(this.state);
+    for (const reservation of next.reservations) {
+      if (reservation.state !== "reserved") continue;
+      const usage = recoveredUsage.get(reservation.runId);
+      if (usage) {
+        if (usage.openai < 0 || usage.anthropic < 0) throw new Error("recovered usage must be non-negative");
+        reservation.state = "settled";
+        reservation.actualOpenaiUnits = usage.openai;
+        reservation.actualAnthropicUnits = usage.anthropic;
+      } else if (!completedRunIds.has(reservation.runId)) {
+        reservation.state = "released";
+      }
+    }
+    if (next.reservations.some((entry) => entry.state === "reserved")) {
+      throw new Error("cannot open an allowance epoch with unreconciled reservations");
+    }
+    next.epochs.push(epoch);
+    next.currentEpochId = epoch.id;
+    this.state = next;
+    this.persist();
+    return epoch;
+  }
+
+  settleRecovered(recoveredUsage: Map<string, { openai: number; anthropic: number }>): void {
+    const next = structuredClone(this.state);
+    let changed = false;
+    for (const reservation of next.reservations) {
+      const usage = recoveredUsage.get(reservation.runId);
+      if (reservation.state !== "reserved" || !usage) continue;
+      if (usage.openai < 0 || usage.anthropic < 0) throw new Error("recovered usage must be non-negative");
+      reservation.state = "settled";
+      reservation.actualOpenaiUnits = usage.openai;
+      reservation.actualAnthropicUnits = usage.anthropic;
+      changed = true;
+    }
+    if (changed) {
+      this.state = next;
+      this.persist();
+    }
+  }
+
+  private validatedEpoch(snapshot: UsageSnapshot): AllowanceEpoch {
+    readUsageSnapshotObject(snapshot);
     const previous = this.currentEpoch().snapshot;
     if (Date.parse(snapshot.capturedAt) <= Date.parse(previous.capturedAt)) throw new Error("fresh allowance snapshot must be newer than the current epoch");
     for (const provider of ["openai", "anthropic"] as const) {
       if (allowanceFieldKind(previous.providers[provider]) !== allowanceFieldKind(snapshot.providers[provider])) throw new Error("allowance field kind cannot change between epochs");
+      if (previous.providers[provider].source !== snapshot.providers[provider].source || previous.providers[provider].window !== snapshot.providers[provider].window || previous.providers[provider].scope !== snapshot.providers[provider].scope) throw new Error("allowance source and provider window cannot change between epochs");
       const priorValue = availableUnits(previous.providers[provider]);
       const nextValue = availableUnits(snapshot.providers[provider]);
       const priorReset = Date.parse(previous.providers[provider].resetAt ?? "");
@@ -194,9 +270,6 @@ export class AllowanceLedger {
     }
     const epoch = this.epoch(snapshot);
     if (this.state.epochs.some((entry) => entry.id === epoch.id)) throw new Error("allowance snapshot epoch already exists");
-    this.state.epochs.push(epoch);
-    this.state.currentEpochId = epoch.id;
-    this.persist();
     return epoch;
   }
 
@@ -252,6 +325,7 @@ export interface CalibrationProfile {
   displayResolutionUpperBound?: number;
   snapshotHashes?: { before: string; after: string };
   groupUpperMargin?: number;
+  sourceLock?: PitwallSourceLock;
 }
 
 export function validateCalibration(profile: CalibrationProfile): void {
@@ -263,6 +337,7 @@ export function validateCalibration(profile: CalibrationProfile): void {
     if (profile.displayResolutionUpperBound !== 1) throw new Error("calibration display-resolution upper bound must be one percentage point");
     for (const value of [profile.rawWeights?.openai, profile.rawWeights?.anthropic, profile.accountedDrops?.openai, profile.accountedDrops?.anthropic]) if (!Number.isFinite(value) || value! <= 0) throw new Error("calibration raw weights and accounted drops must be positive");
     if (!profile.snapshotHashes?.before || !profile.snapshotHashes.after) throw new Error("calibration snapshot hashes are missing");
+    if (profile.sourceLock?.sourceKind !== PITWALL_SOURCE_KIND || JSON.stringify(profile.sourceLock.providerWindows) !== JSON.stringify(PITWALL_PROVIDER_WINDOWS)) throw new Error("calibration Pitwall source/window lock is invalid");
   }
   if (profile.candidateExecutions > 24) throw new Error("calibration exceeds the 24-candidate cap");
   if (profile.judgeCalls > 60) throw new Error("calibration exceeds the 60-judge-call cap");
@@ -275,7 +350,7 @@ export function validateCalibration(profile: CalibrationProfile): void {
 }
 
 function readUsageSnapshotObject(snapshot: UsageSnapshot): void {
-  if (snapshot.schemaVersion !== 1 || snapshot.providers?.openai?.source !== "manual-provider-dashboard" || snapshot.providers?.anthropic?.source !== "manual-provider-dashboard") throw new Error("usage snapshot must contain manual-provider-dashboard OpenAI and Anthropic allowances");
+  if (snapshot.schemaVersion !== 1 || !snapshot.providers?.openai || !snapshot.providers?.anthropic) throw new Error("usage snapshot must contain OpenAI and Anthropic allowances");
   for (const [provider, allowance] of Object.entries(snapshot.providers)) validateAllowance(provider, allowance);
 }
 

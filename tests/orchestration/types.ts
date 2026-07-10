@@ -151,7 +151,24 @@ export interface ProviderAllowance {
   remainingPercent?: number;
   credits?: number;
   resetAt?: string;
-  source: "manual-provider-dashboard";
+  usedPercent?: number;
+  observedAt?: string;
+  durationSeconds?: number;
+  window?: "primary_five_hour" | "seven_day";
+  scope?: "all_models";
+  confidence?: "providerSupplied" | "exact";
+  source: "manual-provider-dashboard" | "pitwall-local";
+}
+
+export const PITWALL_SOURCE_KIND = "pitwall-local" as const;
+export const PITWALL_PROVIDER_WINDOWS = {
+  openai: { window: "primary_five_hour" },
+  anthropic: { window: "seven_day", scope: "all_models" },
+} as const;
+
+export interface PitwallSourceLock {
+  sourceKind: typeof PITWALL_SOURCE_KIND;
+  providerWindows: typeof PITWALL_PROVIDER_WINDOWS;
 }
 
 export interface UsageEstimate {

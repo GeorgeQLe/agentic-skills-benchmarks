@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   CANDIDATE_OUTPUT_SCHEMA,
@@ -75,6 +75,12 @@ export function weightedUsageUnits(usage: ParsedUsage): number {
 
 function appendTrace(path: string, event: Record<string, unknown>): void {
   appendFileSync(path, `${JSON.stringify({ at: new Date().toISOString(), ...event })}\n`);
+}
+
+function writeAtomicJson(path: string, value: unknown): void {
+  const temporary = `${path}.${process.pid}-${Date.now()}.tmp`;
+  writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`, { flag: "wx" });
+  renameSync(temporary, path);
 }
 
 function safeCommand(spec: ProviderCommandSpec): Record<string, unknown> {
@@ -195,6 +201,7 @@ export interface RunExecutionOptions {
   workerPool: Semaphore;
   execute?: ProviderExecutor;
   soloControl?: boolean;
+  afterResultPersisted?: () => void;
 }
 
 export async function executeRun(options: RunExecutionOptions): Promise<ExecutionResult> {
@@ -203,6 +210,7 @@ export async function executeRun(options: RunExecutionOptions): Promise<Executio
   const reservation = worstCaseReservation(options.run.id, options.assignment, options.estimates);
   if (!options.allowance.reserve(reservation)) throw new AllowanceStopError("remaining local allowance estimate cannot cover a complete worst-case reservation");
   let reservationSettled = false;
+  let resultPersisted = false;
   try {
     const paths = createIsolatedRun(options.generatedRoot, options.run, options.scenario);
     installTreatments(paths.fixture, options.assignment);
@@ -273,8 +281,6 @@ export async function executeRun(options: RunExecutionOptions): Promise<Executio
     const resolution = resolveJudges(options.run.id, [judgeScores[0], judgeScores[1]], judgeScores[2]);
     const openaiUnits = Number((weightedUsageUnits(usage.openai) * (options.conversionFactors?.openai ?? 1)).toFixed(6));
     const anthropicUnits = Number((weightedUsageUnits(usage.anthropic) * (options.conversionFactors?.anthropic ?? 1)).toFixed(6));
-    options.allowance.settle(options.run.id, openaiUnits, anthropicUnits);
-    reservationSettled = true;
     const result: ExecutionResult = {
       schemaVersion: 1,
       run: options.run,
@@ -295,11 +301,15 @@ export async function executeRun(options: RunExecutionOptions): Promise<Executio
       finalAnswer,
       attemptRoot: `runs/${options.run.id}/attempts/${attemptRoot.split("/").at(-1)}`,
     };
-    writeFileSync(resolve(paths.runRoot, "result.json"), `${JSON.stringify(result, null, 2)}\n`, { flag: "wx" });
+    writeAtomicJson(resolve(paths.runRoot, "result.json"), result);
+    resultPersisted = true;
+    options.afterResultPersisted?.();
+    options.allowance.settle(options.run.id, openaiUnits, anthropicUnits);
+    reservationSettled = true;
     appendTrace(paths.trace, { type: "run-complete", passed: result.passed, score: result.score });
     return result;
   } catch (error) {
-    if (!reservationSettled) options.allowance.release(options.run.id);
+    if (!reservationSettled && !resultPersisted) options.allowance.release(options.run.id);
     throw error;
   }
 }

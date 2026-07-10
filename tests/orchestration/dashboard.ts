@@ -41,7 +41,7 @@ export function renderOrchestrationDashboard(
   try { publisher = JSON.parse(readFileSync(resolve(campaignRoot(state.id), "publisher", "state.json"), "utf8")) as PublisherState; }
   catch { publisher = undefined; }
   const remaining = allowance
-    ? `Reserved OpenAI ${allowance.reservations.filter((entry) => entry.state === "reserved" && entry.epochId === allowance.currentEpochId).reduce((sum, entry) => sum + entry.openaiUnits, 0).toFixed(2)} / Anthropic ${allowance.reservations.filter((entry) => entry.state === "reserved" && entry.epochId === allowance.currentEpochId).reduce((sum, entry) => sum + entry.anthropicUnits, 0).toFixed(2)} normalized dashboard units`
+    ? `Reserved OpenAI ${allowance.reservations.filter((entry) => entry.state === "reserved" && entry.epochId === allowance.currentEpochId).reduce((sum, entry) => sum + entry.openaiUnits, 0).toFixed(2)} / Anthropic ${allowance.reservations.filter((entry) => entry.state === "reserved" && entry.epochId === allowance.currentEpochId).reduce((sum, entry) => sum + entry.anthropicUnits, 0).toFixed(2)} normalized Pitwall allowance units`
     : "Allowance ledger not initialized";
   return [
     `SOL ORCHESTRATION BENCHMARK  ${state.id}  ${report.completedRuns}/${report.expectedRuns}`,
@@ -63,7 +63,7 @@ export function renderOrchestrationDashboard(
     "SUBSCRIPTION CONSUMPTION & RESERVATIONS",
     snapshotDisplay(allowance?.epochs.find((entry) => entry.id === allowance.currentEpochId)?.snapshot ?? state.snapshot),
     remaining,
-    `Estimated subscription allowance consumed ${report.totals.allowanceUnits.toFixed(3)} normalized dashboard units. Not API spend or exact USD cost.`,
+    `Estimated subscription allowance consumed ${report.totals.allowanceUnits.toFixed(3)} normalized Pitwall allowance units. Not API spend or exact USD cost.`,
     line,
     "QUALITY, LATENCY & TOKEN EFFICIENCY",
     `input ${report.totals.inputTokens} cached ${report.totals.cachedInputTokens} output ${report.totals.outputTokens} reasoning ${report.totals.reasoningTokens} wall ${duration(report.totals.latencyMs)}`,

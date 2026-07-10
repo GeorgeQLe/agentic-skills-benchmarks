@@ -1,5 +1,42 @@
 # Session History
 
+## 2026-07-10 — Pitwall-backed automatic allowance snapshots
+
+Replaced live manual dashboard files with authenticated Pitwall Local telemetry.
+The new client discovers the owner-only token automatically, validates Codex
+primary five-hour and Claude `seven_day` All Models mappings, and redacts all
+authentication/response failures. Calibration now fetches fresh pre/post
+snapshots around the unchanged 3-candidate/12-worker/6-judge matrix; pilot,
+full, and resume fetch automatically; settled scheduler waves open conservative
+epochs after five minutes or quota warnings. Profiles and campaigns lock the
+Pitwall source and exact provider windows.
+
+Validation: `npm test` passed 134 tests; `npx tsc --noEmit` passed;
+`npm run bench:orchestration -- verify --campaign-ready` passed. The no-model
+live smoke failed closed before HTTP because the installed/running Pitwall app
+has not created `~/Library/Application Support/Pitwall/local-api-token` yet.
+
+Ship manifest: User goal: replace manual snapshots with mandatory fresh Pitwall
+telemetry while preserving calibration/campaign safety. Changed files: README
+and task docs document the operator contract; orchestration types/client/budget/
+calibration/campaign/CLI/dashboard/scheduler implement source locks, strict
+loopback URL and timestamp validation, transactional epochs, and settled-wave
+refresh; runner/result-artifact/publisher implement atomic crash recovery with
+shared artifact validation; layer-1 tests pin the security and state-machine
+boundaries. Tests run: full 134-test layer-1 suite, TypeScript compile, and
+campaign-readiness verification. Skipped tests: no live provider/model calls
+were made because this change is a control-plane and no-model snapshot boundary;
+the installed app smoke requires local API enablement. Adversarial review:
+fixed bearer-token SSRF, future/misaligned timestamps, pre-validation campaign
+and ledger mutations, orphan-release partial commits, weak recovered-result
+validation, settle-before-result ordering, and missing final-wave coverage.
+Privacy review: errors redact authentication and response bodies; persisted
+snapshots contain only percentages/window metadata, never the bearer token.
+Residual risk: live installed-app smoke awaits API enablement. Rollback: revert
+the Pitwall integration commit to restore the prior manual live inputs. Next
+command: enable Pitwall Local's localhost API, then run the documented no-model
+`PitwallClient().snapshot()` smoke.
+
 ## 2026-07-10 — Grok skill-command convention (`/skill` like Claude)
 
 Decided and encoded runner route conventions so Grok does not false-fail on

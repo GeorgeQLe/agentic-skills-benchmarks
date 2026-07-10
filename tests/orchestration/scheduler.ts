@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { AllowanceLedger, type CalibrationProfile, validateCalibration } from "./budget.js";
+import { AllowanceLedger, type CalibrationProfile, validateCalibration, validatePercentageSnapshot } from "./budget.js";
 import { hashFile } from "./canonical.js";
 import { CampaignStore, type CampaignState } from "./campaign.js";
 import { EXPERIMENT_ROOT } from "./paths.js";
@@ -10,6 +10,8 @@ import { executeRun, AllowanceStopError, InfrastructureError, QuotaStopError, ty
 import { Semaphore } from "./semaphore.js";
 import type { Assignment, ChunkDefinition, PilotAssignment, RunIdentity, TaskScenario } from "./types.js";
 import type { UsageSnapshot } from "./types.js";
+import type { AllowanceSnapshotProvider } from "./pitwall.js";
+import { readValidResultArtifact } from "./result-artifact.js";
 
 function readJsonLines<T>(path: string): T[] {
   return readFileSync(path, "utf8").trimEnd().split("\n").filter(Boolean).map((line) => JSON.parse(line) as T);
@@ -86,6 +88,9 @@ export interface SchedulerOptions {
   onUpdate?: (state: CampaignState, result?: ExecutionResult) => void;
   freshSnapshot?: UsageSnapshot;
   calibrationPath?: string;
+  snapshotProvider?: AllowanceSnapshotProvider;
+  now?: () => number;
+  refreshIntervalMs?: number;
 }
 
 export async function runSchedule(options: SchedulerOptions): Promise<CampaignState> {
@@ -93,46 +98,54 @@ export async function runSchedule(options: SchedulerOptions): Promise<CampaignSt
   const { store, state } = options;
   if (state.calibrationSha256 && (!options.calibrationPath || hashFile(options.calibrationPath) !== state.calibrationSha256)) throw new Error("campaign calibration profile hash does not match");
   if (state.allowanceKinds && (options.calibration.allowanceKinds?.openai !== state.allowanceKinds.openai || options.calibration.allowanceKinds?.anthropic !== state.allowanceKinds.anthropic)) throw new Error("campaign allowance field kinds do not match calibration");
-  store.registerRuns(state, options.scheduled.map((entry) => entry.run));
+  if (JSON.stringify(state.sourceLock) !== JSON.stringify(options.calibration.sourceLock)) throw new Error("campaign Pitwall source/window lock does not match calibration");
+  if (state.sourceLock && !options.snapshotProvider) throw new Error("live Pitwall campaign scheduling requires an allowance snapshot provider");
   const allowance = new AllowanceLedger(resolve(store.root, "allowance-ledger.json"), state.snapshot);
   // A process may have crashed after atomically writing result.json but before
   // updating campaign.json. Recover that immutable result instead of launching
   // a duplicate candidate execution or reusing any session.
-  let recovered = false;
+  const recoveredResults = new Map<string, ExecutionResult>();
+  const recoveredUsage = new Map<string, { openai: number; anthropic: number }>();
   for (const scheduled of options.scheduled) {
     const resultPath = resolve(store.root, "runs", scheduled.run.id, "result.json");
     if (!existsSync(resultPath)) continue;
-    const result = JSON.parse(readFileSync(resultPath, "utf8")) as ExecutionResult;
-    if (result.run.id !== scheduled.run.id) throw new Error(`recovered result ownership mismatch for ${scheduled.run.id}`);
     const entry = state.runs[scheduled.run.id];
-    allowance.settleIfReserved(
-      scheduled.run.id,
-      result.usage?.openaiUnits ?? 0,
-      result.usage?.anthropicUnits ?? 0,
-    );
+    if (!entry) throw new Error(`cannot recover unregistered result ${scheduled.run.id}`);
+    const result = readValidResultArtifact(resultPath, scheduled.run);
+    recoveredResults.set(scheduled.run.id, result);
+    recoveredUsage.set(scheduled.run.id, { openai: result.usage.openaiUnits, anthropic: result.usage.anthropicUnits });
+  }
+  if (options.freshSnapshot) {
+    validatePercentageSnapshot(options.freshSnapshot, { now: options.now?.() ?? Date.now(), maxAgeMs: 5 * 60_000, requirePitwall: true });
+    const completed = new Set([
+      ...Object.values(state.runs).filter((entry) => entry.status === "judged").map((entry) => entry.run.id),
+      ...recoveredResults.keys(),
+    ]);
+    allowance.reconcileAndOpenEpoch(options.freshSnapshot, completed, recoveredUsage);
+  } else {
+    allowance.settleRecovered(recoveredUsage);
+  }
+  for (const [runId] of recoveredResults) {
+    const entry = state.runs[runId];
     if (entry.status !== "judged") {
       entry.status = "judged";
       entry.updatedAt = new Date().toISOString();
-      recovered = true;
     }
   }
-  if (recovered) store.save(state);
-  if (options.freshSnapshot) {
-    const completed = new Set(Object.values(state.runs).filter((entry) => entry.status === "judged").map((entry) => entry.run.id));
-    allowance.releaseOrphans(completed);
-    allowance.openEpoch(options.freshSnapshot);
-  }
+  if (options.freshSnapshot) state.haltedReason = undefined;
+  store.registerRuns(state, options.scheduled.map((entry) => entry.run));
   const scheduledMap = new Map(options.scheduled.map((entry) => [entry.run.id, entry]));
   const queue = store.incompleteRuns(state)
     .filter((entry) => scheduledMap.has(entry.run.id))
     .slice(0, options.maxRuns ?? Number.POSITIVE_INFINITY);
   const workerPool = new Semaphore(state.workerConcurrency);
-  let cursor = 0;
   let stop = false;
+  let quotaWarning = false;
+  const now = options.now ?? Date.now;
+  const refreshIntervalMs = options.refreshIntervalMs ?? 5 * 60_000;
 
-  const worker = async () => {
-    while (!stop && cursor < queue.length) {
-      const runState = queue[cursor++];
+  const executeQueuedRun = async (runState: (typeof queue)[number]) => {
+      if (stop) return;
       const scheduled = scheduledMap.get(runState.run.id)!;
       if (runState.status === "blocked" || runState.status === "reserved" || runState.status === "running" || runState.status === "candidate-complete") {
         allowance.releaseIfReserved(runState.run.id);
@@ -162,8 +175,9 @@ export async function runSchedule(options: SchedulerOptions): Promise<CampaignSt
           store.transition(state, runState.run.id, "pending", reason);
           state.haltedReason = reason;
           store.save(state);
+          quotaWarning ||= error instanceof QuotaStopError;
           stop = true;
-          break;
+          return;
         }
         if (runState.attempts >= 3) store.transition(state, runState.run.id, "blocked", reason);
         else store.transition(state, runState.run.id, "pending", reason);
@@ -172,13 +186,30 @@ export async function runSchedule(options: SchedulerOptions): Promise<CampaignSt
           state.haltedReason = `harness failure: ${reason}`;
           store.save(state);
           stop = true;
-          break;
+          return;
         }
       }
-    }
   };
-  const poolSize = Math.max(1, Math.min(state.concurrency, queue.length || 1));
-  await Promise.all(Array.from({ length: poolSize }, () => worker()));
+
+  for (let offset = 0; offset < queue.length && !stop; offset += Math.max(1, state.concurrency)) {
+    const wave = queue.slice(offset, offset + Math.max(1, state.concurrency));
+    await Promise.all(wave.map(executeQueuedRun));
+    const allowanceState = allowance.snapshot();
+    const current = allowanceState.epochs.find((entry) => entry.id === allowanceState.currentEpochId)!;
+    const due = now() - Date.parse(current.snapshot.capturedAt) >= refreshIntervalMs;
+    if ((quotaWarning || due) && options.snapshotProvider) {
+      try {
+        if (allowance.snapshot().reservations.some((entry) => entry.state === "reserved")) throw new Error("active allowance reservations remain at wave boundary");
+        const fresh = await options.snapshotProvider.snapshot();
+        validatePercentageSnapshot(fresh, { now: now(), maxAgeMs: 5 * 60_000, requirePitwall: true });
+        allowance.openEpoch(fresh);
+      } catch (error) {
+        state.haltedReason = `Pitwall allowance refresh failed: ${(error as Error).message}`;
+        store.save(state);
+        stop = true;
+      }
+    }
+  }
   return state;
 }
 

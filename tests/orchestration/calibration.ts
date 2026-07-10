@@ -7,6 +7,8 @@ import { materializeFixture } from "./corpus.js";
 import { loadScenarios, MODEL_PINS } from "./design.js";
 import { EXPERIMENT_ROOT } from "./paths.js";
 import { executeProvider, hasQuotaWarning, type ParsedUsage, type ProviderExecution } from "./process.js";
+import type { AllowanceSnapshotProvider } from "./pitwall.js";
+import { PITWALL_PROVIDER_WINDOWS, PITWALL_SOURCE_KIND } from "./types.js";
 import type { Effort, UsageEstimate } from "./types.js";
 
 export interface CalibrationSample {
@@ -72,13 +74,11 @@ export async function collectCalibration(input: {
   checkpointPath: string;
   workRoot: string;
   outputPath: string;
+  snapshotProvider: AllowanceSnapshotProvider;
   execute?: CalibrationExecutor;
   now?: () => number;
-  waitForPost?: (path: string) => Promise<void>;
 }): Promise<CalibrationProfile> {
   const now = input.now ?? Date.now;
-  const before = readUsageSnapshot(input.beforePath, now());
-  validatePercentageSnapshot(before, { now: now(), maxAgeMs: 5 * 60_000, minimumResetLeadMs: 2 * 60 * 60_000 });
   if (existsSync(input.checkpointPath)) {
     const prior = JSON.parse(readFileSync(input.checkpointPath, "utf8")) as CollectionCheckpoint;
     if (prior.status === "collecting" || (prior.status === "complete" && !existsSync(input.outputPath))) {
@@ -89,6 +89,9 @@ export async function collectCalibration(input: {
     }
     throw new Error("calibration checkpoint already exists; use a new attempt path so allowance windows cannot be mixed");
   }
+  const before = await input.snapshotProvider.snapshot();
+  validatePercentageSnapshot(before, { now: now(), maxAgeMs: 5 * 60_000, minimumResetLeadMs: 2 * 60 * 60_000, requirePitwall: true });
+  atomicJson(input.beforePath, before);
   const checkpoint: CollectionCheckpoint = { schemaVersion: 1, status: "collecting", beforeSnapshotHash: hashFile(input.beforePath), startedAt: new Date(now()).toISOString(), updatedAt: new Date(now()).toISOString(), samples: [] };
   atomicJson(input.checkpointPath, checkpoint);
   const execute = input.execute ?? executeProvider;
@@ -140,9 +143,10 @@ export async function collectCalibration(input: {
     atomicJson(input.checkpointPath, checkpoint);
     const observations: CalibrationObservations = { schemaVersion: 2, candidateExecutions: 3, workerCalls: 12, judgeCalls: 6, samples: checkpoint.samples };
     atomicJson(input.observationsPath, observations);
-    if (input.waitForPost) await input.waitForPost(input.afterPath);
-    else while (!existsSync(input.afterPath)) await new Promise((done) => setTimeout(done, 1_000));
-    const profile = buildCalibrationProfile({ beforePath: input.beforePath, afterPath: input.afterPath, observationsPath: input.observationsPath });
+    const after = await input.snapshotProvider.snapshot();
+    validatePercentageSnapshot(after, { now: now(), maxAgeMs: 5 * 60_000, requirePitwall: true });
+    atomicJson(input.afterPath, after);
+    const profile = buildCalibrationProfile({ beforePath: input.beforePath, afterPath: input.afterPath, observationsPath: input.observationsPath, now: now() });
     atomicJson(input.outputPath, profile);
     return profile;
   } catch (error) {
@@ -154,11 +158,12 @@ export async function collectCalibration(input: {
   }
 }
 
-export function buildCalibrationProfile(input: { beforePath: string; afterPath: string; observationsPath: string }): CalibrationProfile {
-  const before = readUsageSnapshot(input.beforePath);
-  const after = readUsageSnapshot(input.afterPath);
-  validatePercentageSnapshot(before);
-  validatePercentageSnapshot(after);
+export function buildCalibrationProfile(input: { beforePath: string; afterPath: string; observationsPath: string; now?: number }): CalibrationProfile {
+  const validationNow = input.now ?? Date.now();
+  const before = readUsageSnapshot(input.beforePath, validationNow);
+  const after = readUsageSnapshot(input.afterPath, validationNow);
+  validatePercentageSnapshot(before, { now: validationNow, requirePitwall: true });
+  validatePercentageSnapshot(after, { now: validationNow, requirePitwall: true });
   if (Date.parse(after.capturedAt) <= Date.parse(before.capturedAt)) throw new Error("post-calibration snapshot must be newer than the pre-calibration snapshot");
   for (const provider of ["openai", "anthropic"] as const) {
     const reset = Date.parse(before.providers[provider].resetAt!);
@@ -208,10 +213,5 @@ export function buildCalibrationProfile(input: { beforePath: string; afterPath: 
     const mean = units.reduce((sum, value) => sum + value, 0) / units.length;
     return { provider: first.provider, model: first.model, effort: first.effort, role: first.role, taskClass: first.taskClass, meanUnits: Number(mean.toFixed(6)), upperUnits: Number((units.at(-1)! * 1.2).toFixed(6)), sampleSize: units.length, confidence: censored[first.provider] ? 0.5 : units.length >= 3 ? 0.95 : 0.7 };
   });
-  return { schemaVersion: 2, createdAt: new Date().toISOString(), beforeSnapshot: input.beforePath, afterSnapshot: input.afterPath, candidateExecutions: 3, judgeCalls: 6, estimates, allowanceKinds: { openai: "remainingPercent", anthropic: "remainingPercent" }, conversionFactors: factors, rawWeights: raw, observedDrops: actualDrops, accountedDrops: drops, censored, displayResolutionUpperBound: 1, snapshotHashes: { before: hashFile(input.beforePath), after: hashFile(input.afterPath) }, groupUpperMargin: 0.2 };
-}
-
-export function writeSnapshotTemplate(path: string): void {
-  const template = { schemaVersion: 1, capturedAt: new Date().toISOString(), providers: { openai: { remainingPercent: 0, resetAt: "", source: "manual-provider-dashboard" }, anthropic: { remainingPercent: 0, resetAt: "", source: "manual-provider-dashboard" } }, notes: "OpenAI five-hour and Anthropic All Models remaining percentages. Record credits only here as informational text." };
-  writeFileSync(path, `${JSON.stringify(template, null, 2)}\n`, { flag: "wx" });
+  return { schemaVersion: 2, createdAt: new Date().toISOString(), beforeSnapshot: input.beforePath, afterSnapshot: input.afterPath, candidateExecutions: 3, judgeCalls: 6, estimates, allowanceKinds: { openai: "remainingPercent", anthropic: "remainingPercent" }, conversionFactors: factors, rawWeights: raw, observedDrops: actualDrops, accountedDrops: drops, censored, displayResolutionUpperBound: 1, snapshotHashes: { before: hashFile(input.beforePath), after: hashFile(input.afterPath) }, groupUpperMargin: 0.2, sourceLock: { sourceKind: PITWALL_SOURCE_KIND, providerWindows: PITWALL_PROVIDER_WINDOWS } };
 }

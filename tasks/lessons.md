@@ -10,3 +10,8 @@ remain valid benchmark targets.
 Correction enforcement: `tests/layer1/dashboard.test.ts` now proves
 `selectModelTargets("fable-5")` fails with a ban message while existing GPT-5
 selection coverage remains valid.
+
+## 2026-07-10 — Reuse authoritative provider telemetry
+
+- Reuse authoritative provider telemetry already normalized by the owning app;
+  do not manually transcribe dashboard percentages into automation inputs.

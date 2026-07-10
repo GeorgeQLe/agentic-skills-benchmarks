@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { assertPublishingPrerequisites, retrieveArchivedRun } from "./archive.js";
-import { buildCalibrationProfile, collectCalibration, writeSnapshotTemplate } from "./calibration.js";
+import { collectCalibration } from "./calibration.js";
 import { CampaignStore, listCampaigns, newCampaign } from "./campaign.js";
 import { capabilityProbes, assertScenarioPairs, qualifyAllFixtures } from "./corpus.js";
 import { renderOrchestrationDashboard, loadAllowanceState } from "./dashboard.js";
@@ -9,16 +9,20 @@ import { writeGeneratedArtifacts, verifyGeneratedArtifacts } from "./design.js";
 import { EXPERIMENT_ROOT, GENERATED_RESULTS_ROOT, REPO_ROOT } from "./paths.js";
 import { buildCampaignReport, loadExecutionResults, persistCompactResults, writeCampaignReport } from "./report.js";
 import { loadAssignments, loadCalibration, loadChunks, loadPilotRows, runSchedule, scheduleFullChunk, schedulePilot } from "./scheduler.js";
-import { readUsageSnapshot, validatePercentageSnapshot } from "./budget.js";
 import { evaluatePlanFirst, writeV2Manifest, type PairedPlanObservation } from "./plan-first.js";
 import { evaluatePilotGate, readPassingPilotGate } from "./pilot-gates.js";
 import { GitHubPublisherTransport } from "./github-publisher-transport.js";
 import { PublisherCoordinator } from "./publisher.js";
 import { hashFile } from "./canonical.js";
+import { PitwallClient, validatePitwallBaseUrl, type AllowanceSnapshotProvider } from "./pitwall.js";
 
 export interface CommandIo {
   stdout: Pick<NodeJS.WriteStream, "write">;
   stderr: Pick<NodeJS.WriteStream, "write">;
+}
+
+export interface CommandDependencies {
+  createPitwallClient?: (url?: string) => AllowanceSnapshotProvider;
 }
 
 function defaultIo(): CommandIo {
@@ -51,7 +55,7 @@ export function orchestrationHelpText(): string {
     "Commands:",
     "  generate   deterministically write and lock v1 design files",
     "  verify     regenerate byte-for-byte, validate pairs, and qualify fixtures",
-    "  calibrate  build capped allowance estimates from two manual snapshots",
+    "  calibrate  collect capped allowance estimates around fresh Pitwall snapshots",
     "  pilot      plan or execute the replicated 30-row OFAT pilot plus plan-first",
     "  run        plan or execute the full campaign in immutable eight-configuration chunks",
     "  resume     continue only incomplete immutable run IDs in a campaign",
@@ -60,16 +64,15 @@ export function orchestrationHelpText(): string {
     "  archive    ask the standalone publisher state machine to publish one chunk",
     "  cleanup    ask the publisher state machine to clean one verified chunk",
     "",
-    "Live execution requires --execute --ack-subscription, a fresh --snapshot,",
-    "and a --calibration profile. Start bench:orchestration:publish separately; raw archives are uploaded as",
+    "Live execution requires --execute --ack-subscription, a running authenticated Pitwall Local API,",
+    "and a --calibration profile. Use --pitwall-url only for test/development overrides. Start bench:orchestration:publish separately; raw archives are uploaded as",
     "bounded multipart GitHub release assets, never committed as Git blobs. API-key variables",
     "are never passed to candidate, worker, or judge processes.",
     "",
     "Examples:",
     "  pnpm bench:orchestration generate",
     "  pnpm bench:orchestration verify",
-    "  pnpm bench:orchestration calibrate --template usage-snapshot.json",
-    "  pnpm bench:orchestration calibrate --collect --execute --ack-subscription --before pre.json --after post.json",
+    "  pnpm bench:orchestration calibrate --collect --execute --ack-subscription",
     "  pnpm bench:orchestration run --chunk 0",
     "  pnpm bench:orchestration report --campaign <id>",
   ].join("\n");
@@ -102,32 +105,31 @@ async function verifyCommand(args: string[], io: CommandIo): Promise<number> {
   return ok ? 0 : 1;
 }
 
-async function calibrateCommand(args: string[], io: CommandIo): Promise<number> {
-  const template = valueFor(args, "--template");
-  if (template) {
-    writeSnapshotTemplate(resolve(template));
-    line(io.stdout, `manual usage snapshot template written to ${resolve(template)}`);
-    return 0;
+function pitwallClient(args: string[], dependencies: CommandDependencies): AllowanceSnapshotProvider {
+  const rawUrl = valueFor(args, "--pitwall-url");
+  if (args.includes("--pitwall-url") && rawUrl === undefined) throw new Error("--pitwall-url requires a value");
+  const url = rawUrl === undefined ? undefined : validatePitwallBaseUrl(rawUrl);
+  return dependencies.createPitwallClient?.(url) ?? new PitwallClient({ baseUrl: url });
+}
+
+function rejectManualSnapshotFlags(args: string[]): void {
+  for (const flag of ["--before", "--after", "--snapshot", "--template"]) {
+    if (args.includes(flag)) throw new Error(`${flag} is no longer supported; live allowance telemetry comes only from Pitwall Local`);
   }
-  const before = valueFor(args, "--before");
-  const after = valueFor(args, "--after");
+}
+
+async function calibrateCommand(args: string[], io: CommandIo, dependencies: CommandDependencies): Promise<number> {
+  rejectManualSnapshotFlags(args);
   const observations = valueFor(args, "--observations") ?? "calibration-observations.json";
   const output = resolve(valueFor(args, "--output") ?? "calibration-profile.json");
-  if (args.includes("--collect")) {
-    if (!args.includes("--execute") || !args.includes("--ack-subscription")) throw new Error("calibration collection requires --collect --execute --ack-subscription");
-    liveGate(args);
-    if (!before || !after) throw new Error("calibration collection requires --before and --after");
-    const checkpoint = resolve(valueFor(args, "--checkpoint") ?? "calibration-checkpoint.json");
-    const workRoot = resolve(valueFor(args, "--work-root") ?? "generated-results/sol-orchestration/calibration-live");
-    line(io.stdout, "starting exactly 21 isolated calibration calls; create the post-snapshot file when collection completes");
-    const profile = await collectCalibration({ beforePath: resolve(before), afterPath: resolve(after), observationsPath: resolve(observations), checkpointPath: checkpoint, workRoot, outputPath: output });
-    line(io.stdout, `calibration profile written to ${output}: ${profile.candidateExecutions} candidates, ${profile.judgeCalls} judge calls`);
-    return 0;
-  }
-  if (!before || !after || !observations) throw new Error("calibrate requires --before, --after, and --observations (or --template)");
-  const profile = buildCalibrationProfile({ beforePath: resolve(before), afterPath: resolve(after), observationsPath: resolve(observations) });
-  writeFileSync(output, `${JSON.stringify(profile, null, 2)}\n`, { flag: "wx" });
-  line(io.stdout, `calibration profile written to ${output}: ${profile.candidateExecutions}/24 candidates, ${profile.judgeCalls}/60 judge calls`);
+  if (!args.includes("--collect") || !args.includes("--execute") || !args.includes("--ack-subscription")) throw new Error("live calibration requires calibrate --collect --execute --ack-subscription");
+  liveGate(args);
+  const checkpoint = resolve(valueFor(args, "--checkpoint") ?? "calibration-checkpoint.json");
+  const workRoot = resolve(valueFor(args, "--work-root") ?? "generated-results/sol-orchestration/calibration-live");
+  const evidenceRoot = dirname(checkpoint);
+  line(io.stdout, "requesting fresh Pitwall pre-snapshot before exactly 21 isolated calibration calls");
+  const profile = await collectCalibration({ beforePath: resolve(evidenceRoot, "calibration-before.json"), afterPath: resolve(evidenceRoot, "calibration-after.json"), observationsPath: resolve(observations), checkpointPath: checkpoint, workRoot, outputPath: output, snapshotProvider: pitwallClient(args, dependencies) });
+  line(io.stdout, `calibration profile written to ${output}: ${profile.candidateExecutions} candidates, ${profile.judgeCalls} judge calls`);
   return 0;
 }
 
@@ -140,7 +142,7 @@ function liveGate(args: string[]): void {
   assertScenarioPairs();
 }
 
-async function executeCampaign(args: string[], kind: "pilot" | "full", io: CommandIo): Promise<number> {
+async function executeCampaign(args: string[], kind: "pilot" | "full", io: CommandIo, dependencies: CommandDependencies): Promise<number> {
   const requestedChunk = valueFor(args, "--chunk");
   const chunkOrdinal = integerFor(args, "--chunk", 0);
   if (!args.includes("--execute")) {
@@ -151,22 +153,22 @@ async function executeCampaign(args: string[], kind: "pilot" | "full", io: Comma
     } else {
       line(io.stdout, "full plan: 414720 fresh candidate executions in 1440 deterministic eight-configuration chunks");
     }
-    line(io.stdout, "No model calls launched. Add --execute --ack-subscription --snapshot <file> --calibration <file>.");
+    line(io.stdout, "No model calls launched. Add --execute --ack-subscription --calibration <file> with Pitwall Local running.");
     return 0;
   }
+  rejectManualSnapshotFlags(args);
   liveGate(args);
-  const snapshotPath = valueFor(args, "--snapshot");
   const calibrationPath = valueFor(args, "--calibration");
-  if (!snapshotPath || !calibrationPath) throw new Error("live execution requires --snapshot and --calibration");
+  if (!calibrationPath) throw new Error("live execution requires --calibration; Pitwall snapshots are automatic");
   if (kind === "full") {
     const pilotGate = valueFor(args, "--pilot-gate");
     if (!pilotGate) throw new Error("full execution requires --pilot-gate from a completed passing pilot");
     readPassingPilotGate(resolve(pilotGate));
   }
-  const snapshot = readUsageSnapshot(resolve(snapshotPath));
-  validatePercentageSnapshot(snapshot, { maxAgeMs: 5 * 60_000 });
   const calibration = loadCalibration(resolve(calibrationPath));
   if (calibration.schemaVersion !== 2) throw new Error("live execution requires a schema-v2 percentage calibration profile");
+  const snapshots = pitwallClient(args, dependencies);
+  const snapshot = await snapshots.snapshot();
   const state = newCampaign({
     kind,
     snapshot,
@@ -174,6 +176,7 @@ async function executeCampaign(args: string[], kind: "pilot" | "full", io: Comma
     workerConcurrency: integerFor(args, "--worker-concurrency", 8),
     calibrationSha256: hashFile(resolve(calibrationPath)),
     allowanceKinds: calibration.allowanceKinds,
+    sourceLock: calibration.sourceLock,
   });
   const store = new CampaignStore(state.id);
   store.create(state);
@@ -184,7 +187,7 @@ async function executeCampaign(args: string[], kind: "pilot" | "full", io: Comma
   };
   if (kind === "pilot") {
     const scheduled = schedulePilot();
-    await runSchedule({ store, state, scheduled, calibration, calibrationPath: resolve(calibrationPath), maxRuns: integerFor(args, "--max-runs", scheduled.length), onUpdate: update });
+    await runSchedule({ store, state, scheduled, calibration, calibrationPath: resolve(calibrationPath), snapshotProvider: snapshots, maxRuns: integerFor(args, "--max-runs", scheduled.length), onUpdate: update });
   } else {
     const chunks = loadChunks();
     const ordinals = requestedChunk !== undefined
@@ -199,7 +202,7 @@ async function executeCampaign(args: string[], kind: "pilot" | "full", io: Comma
       store.save(state);
       const scheduled = scheduleFullChunk(ordinal);
       const maxRuns = Math.min(remainingRuns, scheduled.length);
-      await runSchedule({ store, state, scheduled, calibration, calibrationPath: resolve(calibrationPath), maxRuns, onUpdate: update });
+      await runSchedule({ store, state, scheduled, calibration, calibrationPath: resolve(calibrationPath), snapshotProvider: snapshots, maxRuns, onUpdate: update });
       remainingRuns -= maxRuns;
       const completed = scheduled.filter((entry) => state.runs[entry.run.id]?.status === "judged").length;
       state.chunks[chunk.id].completedRuns = completed;
@@ -226,24 +229,25 @@ async function executeCampaign(args: string[], kind: "pilot" | "full", io: Comma
   return state.haltedReason ? 2 : 0;
 }
 
-async function resumeCommand(args: string[], io: CommandIo): Promise<number> {
+async function resumeCommand(args: string[], io: CommandIo, dependencies: CommandDependencies): Promise<number> {
   if (!args.includes("--execute")) throw new Error("resume requires --execute and never reuses provider sessions");
   liveGate(args);
+  rejectManualSnapshotFlags(args);
   const id = valueFor(args, "--campaign");
   const calibration = valueFor(args, "--calibration");
-  const snapshotPath = valueFor(args, "--snapshot");
-  if (!id || !calibration || !snapshotPath) throw new Error("resume requires --campaign, --calibration, and a fresh --snapshot");
+  if (!id || !calibration) throw new Error("resume requires --campaign and --calibration; Pitwall snapshots are automatic");
   const store = new CampaignStore(id);
   const state = store.load();
-  state.haltedReason = undefined;
   const scheduled = state.kind === "pilot"
     ? schedulePilot()
     : [...new Set(Object.values(state.chunks).map((chunk) => chunk.ordinal))].flatMap(scheduleFullChunk);
   const loadedCalibration = loadCalibration(resolve(calibration));
   if (loadedCalibration.schemaVersion !== 2) throw new Error("resume requires the original schema-v2 percentage calibration profile");
-  const freshSnapshot = readUsageSnapshot(resolve(snapshotPath));
-  validatePercentageSnapshot(freshSnapshot, { maxAgeMs: 5 * 60_000 });
-  await runSchedule({ store, state, scheduled, calibration: loadedCalibration, calibrationPath: resolve(calibration), freshSnapshot, maxRuns: integerFor(args, "--max-runs", scheduled.length) });
+  if (state.calibrationSha256 && hashFile(resolve(calibration)) !== state.calibrationSha256) throw new Error("campaign calibration profile hash does not match");
+  if (JSON.stringify(state.sourceLock) !== JSON.stringify(loadedCalibration.sourceLock)) throw new Error("campaign Pitwall source/window lock does not match calibration");
+  const snapshots = pitwallClient(args, dependencies);
+  const freshSnapshot = await snapshots.snapshot();
+  await runSchedule({ store, state, scheduled, calibration: loadedCalibration, calibrationPath: resolve(calibration), freshSnapshot, snapshotProvider: snapshots, maxRuns: integerFor(args, "--max-runs", scheduled.length) });
   const results = loadExecutionResults(store.root);
   persistCompactResults(store.root, results);
   if (state.kind === "full") {
@@ -380,7 +384,7 @@ async function cleanupCommand(args: string[], io: CommandIo): Promise<number> {
   return result.failed > 0 ? 2 : 0;
 }
 
-export async function runOrchestrationCommand(args: string[], io: CommandIo = defaultIo()): Promise<number> {
+export async function runOrchestrationCommand(args: string[], io: CommandIo = defaultIo(), dependencies: CommandDependencies = {}): Promise<number> {
   const [command, ...rest] = args;
   try {
     if (!command || command === "help" || command === "--help" || command === "-h") {
@@ -389,10 +393,10 @@ export async function runOrchestrationCommand(args: string[], io: CommandIo = de
     }
     if (command === "generate") return await generateCommand(io);
     if (command === "verify") return await verifyCommand(rest, io);
-    if (command === "calibrate") return await calibrateCommand(rest, io);
-    if (command === "pilot") return await executeCampaign(rest, "pilot", io);
-    if (command === "run") return await executeCampaign(rest, "full", io);
-    if (command === "resume") return await resumeCommand(rest, io);
+    if (command === "calibrate") return await calibrateCommand(rest, io, dependencies);
+    if (command === "pilot") return await executeCampaign(rest, "pilot", io, dependencies);
+    if (command === "run") return await executeCampaign(rest, "full", io, dependencies);
+    if (command === "resume") return await resumeCommand(rest, io, dependencies);
     if (command === "judge") return await judgeCommand(rest, io);
     if (command === "report") return await reportCommand(rest, io);
     if (command === "archive") return await archiveCommand(rest, io);

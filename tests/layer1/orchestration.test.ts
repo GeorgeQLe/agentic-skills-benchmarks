@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
@@ -10,6 +10,7 @@ import {
   codexCandidateSpec,
   codexWorkerSpec,
   createDenyShimDirectory,
+  type ProviderCommandSpec,
 } from "../orchestration/adapters.js";
 import { AllowanceLedger, validatePercentageSnapshot, worstCaseReservation, type CalibrationProfile } from "../orchestration/budget.js";
 import { buildCalibrationProfile, collectCalibration, type CalibrationObservations } from "../orchestration/calibration.js";
@@ -35,6 +36,8 @@ import { renderOrchestrationDashboard } from "../orchestration/dashboard.js";
 import type { Assignment, JudgeScore, UsageEstimate, UsageSnapshot } from "../orchestration/types.js";
 import { prohibitedModelDescendants } from "../orchestration/process.js";
 import type { ProviderExecution } from "../orchestration/process.js";
+import { executeRun } from "../orchestration/runner.js";
+import { Semaphore } from "../orchestration/semaphore.js";
 
 function temp(prefix: string): string {
   return mkdtempSync(resolve(tmpdir(), prefix));
@@ -53,9 +56,22 @@ function snapshot(units = 100): UsageSnapshot {
 
 function percentageSnapshot(capturedAt: string, resetAt: string, openai = 100, anthropic = 100): UsageSnapshot {
   return { schemaVersion: 1, capturedAt, providers: {
-    openai: { remainingPercent: openai, resetAt, source: "manual-provider-dashboard" },
-    anthropic: { remainingPercent: anthropic, resetAt, source: "manual-provider-dashboard" },
+    openai: { remainingPercent: openai, usedPercent: 100 - openai, resetAt, observedAt: capturedAt, source: "pitwall-local", window: "primary_five_hour", durationSeconds: 18_000, confidence: "providerSupplied" },
+    anthropic: { remainingPercent: anthropic, usedPercent: 100 - anthropic, resetAt, observedAt: capturedAt, source: "pitwall-local", window: "seven_day", scope: "all_models", confidence: "exact" },
   } };
+}
+
+async function successfulProviderExecution(spec: ProviderCommandSpec): Promise<ProviderExecution> {
+  const value = spec.role === "judge"
+    ? { requirements: 30, codeQuality: 25, directionFollowing: 20, intentAndPushback: 25, criticalFailure: false, pass: true, evidence: ["verified"] }
+    : spec.role === "candidate"
+      ? { summary: [], verification: [], pushback: [], workerEvidenceUsed: [] }
+      : { evidence: [] };
+  if (spec.provider === "openai") {
+    const outputIndex = spec.args.indexOf("--output-last-message");
+    if (outputIndex >= 0) writeFileSync(spec.args[outputIndex + 1], JSON.stringify(value));
+  }
+  return { exitCode: 0, signal: null, stdout: spec.provider === "anthropic" ? JSON.stringify({ structured_output: value }) : "", stderr: "", durationMs: 1, timedOut: false, outputLimited: false, usage: { inputTokens: 100, cachedInputTokens: 0, outputTokens: 100, reasoningTokens: 0, calls: 1 } };
 }
 
 const estimates: UsageEstimate[] = [
@@ -233,8 +249,8 @@ describe("budget, judges, and plan-first", () => {
       const beforePath = resolve(root, "before.json");
       const afterPath = resolve(root, "after.json");
       const resetAt = new Date(base + 3 * 60 * 60_000).toISOString();
-      writeFileSync(beforePath, JSON.stringify(percentageSnapshot(new Date(base).toISOString(), resetAt)));
-      writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 98, 99)));
+      const snapshotQueue = [percentageSnapshot(new Date(base).toISOString(), resetAt), percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 98, 99)];
+      let currentTime = base;
       const calls: Array<{ provider: string; role: string; model: string; effort: string }> = [];
       const execute = async (spec: Parameters<NonNullable<Parameters<typeof collectCalibration>[0]["execute"]>>[0]): Promise<ProviderExecution> => {
         const effortArg = spec.command === "codex" ? spec.args.find((arg) => arg.startsWith("model_reasoning_effort=")) : spec.args[spec.args.indexOf("--effort") + 1];
@@ -243,7 +259,7 @@ describe("budget, judges, and plan-first", () => {
         if (outputIndex >= 0) writeFileSync(spec.args[outputIndex + 1], JSON.stringify({ summary: [], verification: [], pushback: [], workerEvidenceUsed: [0, 1, 2, 3] }));
         return { exitCode: 0, signal: null, stdout: spec.provider === "anthropic" ? JSON.stringify({ structured_output: { evidence: [] } }) : "", stderr: "", durationMs: 1, timedOut: false, outputLimited: false, usage: { inputTokens: 100, cachedInputTokens: 0, outputTokens: 100, reasoningTokens: 0, calls: 1 } };
       };
-      const profile = await collectCalibration({ beforePath, afterPath, observationsPath: resolve(root, "observations.json"), checkpointPath: resolve(root, "checkpoint.json"), workRoot: resolve(root, "work"), outputPath: resolve(root, "profile.json"), execute, now: () => base, waitForPost: async () => {} });
+      const profile = await collectCalibration({ beforePath, afterPath, observationsPath: resolve(root, "observations.json"), checkpointPath: resolve(root, "checkpoint.json"), workRoot: resolve(root, "work"), outputPath: resolve(root, "profile.json"), snapshotProvider: { snapshot: async () => { const next = snapshotQueue.shift()!; currentTime = Date.parse(next.capturedAt); return next; } }, execute, now: () => currentTime });
       expect(calls).toHaveLength(21);
       expect(calls.filter((call) => call.role === "worker")).toHaveLength(12);
       expect(calls.filter((call) => call.role === "candidate")).toHaveLength(3);
@@ -278,12 +294,12 @@ describe("budget, judges, and plan-first", () => {
       ] as CalibrationObservations["samples"])) };
       const beforePath = resolve(root, "before.json"); const afterPath = resolve(root, "after.json"); const observationsPath = resolve(root, "observations.json");
       writeFileSync(beforePath, JSON.stringify(before)); writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 50, 50))); writeFileSync(observationsPath, JSON.stringify(observations));
-      expect(buildCalibrationProfile({ beforePath, afterPath, observationsPath })).toMatchObject({ censored: { openai: true, anthropic: true }, observedDrops: { openai: 0, anthropic: 0 }, accountedDrops: { openai: 1, anthropic: 1 }, displayResolutionUpperBound: 1 });
+      expect(buildCalibrationProfile({ beforePath, afterPath, observationsPath, now: base + 60_000 })).toMatchObject({ censored: { openai: true, anthropic: true }, observedDrops: { openai: 0, anthropic: 0 }, accountedDrops: { openai: 1, anthropic: 1 }, displayResolutionUpperBound: 1 });
       writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 44, 50)));
-      expect(() => buildCalibrationProfile({ beforePath, afterPath, observationsPath })).toThrow("more than 10%");
+      expect(() => buildCalibrationProfile({ beforePath, afterPath, observationsPath, now: base + 60_000 })).toThrow("more than 10%");
       writeFileSync(beforePath, JSON.stringify(percentageSnapshot(new Date(base - 60_000).toISOString(), new Date(base - 30_000).toISOString(), 50, 50)));
       writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base).toISOString(), new Date(base + 5 * 60 * 60_000).toISOString(), 100, 100)));
-      expect(() => buildCalibrationProfile({ beforePath, afterPath, observationsPath })).toThrow("cross");
+      expect(() => buildCalibrationProfile({ beforePath, afterPath, observationsPath, now: base + 60_000 })).toThrow("reset is not in the future");
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 
@@ -296,14 +312,43 @@ describe("budget, judges, and plan-first", () => {
         const beforePath = resolve(root, "before.json");
         const afterPath = resolve(root, "after.json");
         const checkpointPath = resolve(root, "checkpoint.json");
-        writeFileSync(beforePath, JSON.stringify(percentageSnapshot(new Date(base).toISOString(), resetAt)));
-        writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base + 1).toISOString(), resetAt, 99, 99)));
+        const preSnapshot = percentageSnapshot(new Date(base).toISOString(), resetAt);
         const execute = async (): Promise<ProviderExecution> => ({ exitCode: 0, signal: null, stdout: "", stderr: mode === "quota" ? "usage limit reached" : "", durationMs: 1, timedOut: false, outputLimited: false, usage: { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, calls: mode === "malformed" ? 0 : 1 } });
-        await expect(collectCalibration({ beforePath, afterPath, observationsPath: resolve(root, "observations.json"), checkpointPath, workRoot: resolve(root, "work"), outputPath: resolve(root, "profile.json"), execute, now: () => base, waitForPost: async () => {} })).rejects.toThrow();
+        await expect(collectCalibration({ beforePath, afterPath, observationsPath: resolve(root, "observations.json"), checkpointPath, workRoot: resolve(root, "work"), outputPath: resolve(root, "profile.json"), snapshotProvider: { snapshot: async () => preSnapshot }, execute, now: () => base })).rejects.toThrow();
         expect(JSON.parse(readFileSync(checkpointPath, "utf8"))).toMatchObject({ status: "invalid" });
-        await expect(collectCalibration({ beforePath, afterPath, observationsPath: resolve(root, "observations.json"), checkpointPath, workRoot: resolve(root, "work-2"), outputPath: resolve(root, "profile.json"), execute, now: () => base, waitForPost: async () => {} })).rejects.toThrow("cannot be mixed");
+        await expect(collectCalibration({ beforePath, afterPath, observationsPath: resolve(root, "observations.json"), checkpointPath, workRoot: resolve(root, "work-2"), outputPath: resolve(root, "profile.json"), snapshotProvider: { snapshot: async () => preSnapshot }, execute, now: () => base })).rejects.toThrow("cannot be mixed");
       } finally { rmSync(root, { recursive: true, force: true }); }
     }
+  });
+
+  it("fails closed before calls on Pitwall pre-snapshot errors and invalidates post-snapshot errors", async () => {
+    const preRoot = temp("sol-calibration-pre-fail-");
+    try {
+      let calls = 0;
+      const checkpointPath = resolve(preRoot, "checkpoint.json");
+      await expect(collectCalibration({
+        beforePath: resolve(preRoot, "before.json"), afterPath: resolve(preRoot, "after.json"), observationsPath: resolve(preRoot, "observations.json"), checkpointPath, workRoot: resolve(preRoot, "work"), outputPath: resolve(preRoot, "profile.json"),
+        snapshotProvider: { snapshot: async () => { throw new Error("Pitwall unavailable"); } }, execute: async (spec) => { calls += 1; return successfulProviderExecution(spec); },
+      })).rejects.toThrow("Pitwall unavailable");
+      expect(calls).toBe(0);
+      expect(existsSync(checkpointPath)).toBe(false);
+    } finally { rmSync(preRoot, { recursive: true, force: true }); }
+
+    const postRoot = temp("sol-calibration-post-fail-");
+    try {
+      const base = Date.now();
+      const pre = percentageSnapshot(new Date(base).toISOString(), new Date(base + 3 * 60 * 60_000).toISOString());
+      let snapshotCalls = 0;
+      let modelCalls = 0;
+      const checkpointPath = resolve(postRoot, "checkpoint.json");
+      await expect(collectCalibration({
+        beforePath: resolve(postRoot, "before.json"), afterPath: resolve(postRoot, "after.json"), observationsPath: resolve(postRoot, "observations.json"), checkpointPath, workRoot: resolve(postRoot, "work"), outputPath: resolve(postRoot, "profile.json"), now: () => base,
+        snapshotProvider: { snapshot: async () => { snapshotCalls += 1; if (snapshotCalls === 1) return pre; throw new Error("Pitwall post-snapshot failed"); } },
+        execute: async (spec) => { modelCalls += 1; return successfulProviderExecution(spec); },
+      })).rejects.toThrow("Pitwall post-snapshot failed");
+      expect(modelCalls).toBe(21);
+      expect(JSON.parse(readFileSync(checkpointPath, "utf8"))).toMatchObject({ status: "invalid" });
+    } finally { rmSync(postRoot, { recursive: true, force: true }); }
   });
 
   it("migrates v1 ledgers and enforces immutable allowance epoch refresh rules", () => {
@@ -419,10 +464,19 @@ describe("archive, resume, and CLI safeguards", () => {
       store.transition(state, scheduled[0].run.id, "reserved");
       store.transition(state, scheduled[0].run.id, "running");
       const interruptedLedger = new AllowanceLedger(resolve(store.root, "allowance-ledger.json"), state.snapshot);
-      expect(interruptedLedger.reserve({ runId: scheduled[0].run.id, openaiUnits: 2, anthropicUnits: 2 })).not.toBeNull();
-      const runRoot = resolve(store.root, "runs", scheduled[0].run.id);
-      mkdirSync(runRoot, { recursive: true });
-      writeFileSync(resolve(runRoot, "result.json"), JSON.stringify({ run: scheduled[0].run }));
+      await expect(executeRun({
+        generatedRoot: store.root,
+        assignment: scheduled[0].assignment,
+        scenario: scheduled[0].scenario,
+        run: scheduled[0].run,
+        allowance: interruptedLedger,
+        estimates,
+        workerPool: new Semaphore(4),
+        execute: successfulProviderExecution,
+        afterResultPersisted: () => { throw new Error("injected crash after result persistence"); },
+      })).rejects.toThrow("injected crash");
+      expect(existsSync(resolve(store.root, "runs", scheduled[0].run.id, "result.json"))).toBe(true);
+      expect(interruptedLedger.snapshot().reservations[0].state).toBe("reserved");
       let invoked = false;
       const calibration: CalibrationProfile = { schemaVersion: 1, createdAt: "now", beforeSnapshot: "a", afterSnapshot: "b", candidateExecutions: 1, judgeCalls: 2, estimates };
       await runSchedule({
@@ -434,10 +488,123 @@ describe("archive, resume, and CLI safeguards", () => {
       });
       expect(invoked).toBe(false);
       expect(state.runs[scheduled[0].run.id].status).toBe("judged");
-      expect(new AllowanceLedger(resolve(store.root, "allowance-ledger.json")).snapshot().reservations[0].state).toBe("settled");
+      expect(new AllowanceLedger(resolve(store.root, "allowance-ledger.json")).snapshot().reservations[0]).toMatchObject({ state: "settled" });
     } finally {
       rmSync(store.root, { recursive: true, force: true });
     }
+  });
+
+  it("keeps campaign and ledger byte-equivalent when a resume epoch is rejected", async () => {
+    const base = Date.now();
+    const resetAt = new Date(base + 3 * 60 * 60_000).toISOString();
+    const scheduled = scheduleFullChunk(0).slice(0, 2);
+    const state = newCampaign({ kind: "full", snapshot: percentageSnapshot(new Date(base).toISOString(), resetAt, 80, 80), now: new Date(base).toISOString() });
+    state.haltedReason = "previous quota stop";
+    const store = new CampaignStore(state.id);
+    store.create(state);
+    try {
+      store.registerRuns(state, [scheduled[0].run]);
+      const ledgerPath = resolve(store.root, "allowance-ledger.json");
+      const ledger = new AllowanceLedger(ledgerPath, state.snapshot);
+      expect(ledger.reserve({ runId: scheduled[0].run.id, openaiUnits: 2, anthropicUnits: 2 })).not.toBeNull();
+      const campaignBefore = readFileSync(store.statePath);
+      const ledgerBefore = readFileSync(ledgerPath);
+      const rejected = percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 90, 80);
+      await expect(runSchedule({
+        store, state, scheduled, freshSnapshot: rejected,
+        calibration: { schemaVersion: 1, createdAt: "now", beforeSnapshot: "a", afterSnapshot: "b", candidateExecutions: 1, judgeCalls: 2, estimates },
+        now: () => base + 60_000,
+      })).rejects.toThrow();
+      expect(readFileSync(store.statePath).equals(campaignBefore)).toBe(true);
+      expect(readFileSync(ledgerPath).equals(ledgerBefore)).toBe(true);
+      expect(state.haltedReason).toBe("previous quota stop");
+    } finally { rmSync(store.root, { recursive: true, force: true }); }
+  });
+
+  it("reconciles reservations and opens exactly one epoch before accepting resume state", async () => {
+    const base = Date.now();
+    const resetAt = new Date(base + 3 * 60 * 60_000).toISOString();
+    const scheduled = scheduleFullChunk(0).slice(0, 2);
+    const state = newCampaign({ kind: "full", snapshot: percentageSnapshot(new Date(base).toISOString(), resetAt), now: new Date(base).toISOString() });
+    state.haltedReason = "previous quota stop";
+    const store = new CampaignStore(state.id);
+    store.create(state);
+    try {
+      store.registerRuns(state, [scheduled[0].run]);
+      const ledgerPath = resolve(store.root, "allowance-ledger.json");
+      const ledger = new AllowanceLedger(ledgerPath, state.snapshot);
+      expect(ledger.reserve({ runId: scheduled[0].run.id, openaiUnits: 2, anthropicUnits: 2 })).not.toBeNull();
+      await runSchedule({
+        store, state, scheduled, maxRuns: 0,
+        freshSnapshot: percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 99, 98),
+        calibration: { schemaVersion: 1, createdAt: "now", beforeSnapshot: "a", afterSnapshot: "b", candidateExecutions: 1, judgeCalls: 2, estimates },
+        now: () => base + 60_000,
+      });
+      const accepted = new AllowanceLedger(ledgerPath).snapshot();
+      expect(accepted.epochs).toHaveLength(2);
+      expect(accepted.reservations[0].state).toBe("released");
+      expect(state.haltedReason).toBeUndefined();
+      expect(Object.keys(state.runs)).toHaveLength(2);
+    } finally { rmSync(store.root, { recursive: true, force: true }); }
+  });
+
+  it("refreshes Pitwall only at settled five-minute wave boundaries and opens a conservative epoch", async () => {
+    const base = Date.now();
+    const resetAt = new Date(base + 3 * 60 * 60_000).toISOString();
+    const scheduled = scheduleFullChunk(0).slice(0, 2);
+    const initial = percentageSnapshot(new Date(base).toISOString(), resetAt, 100, 100);
+    const state = newCampaign({ kind: "full", snapshot: initial, concurrency: 1, workerConcurrency: 4, now: new Date(base).toISOString() });
+    const store = new CampaignStore(state.id);
+    store.create(state);
+    let refreshes = 0;
+    let clock = base;
+    try {
+      await runSchedule({
+        store,
+        state,
+        scheduled,
+        calibration: { schemaVersion: 1, createdAt: "now", beforeSnapshot: "a", afterSnapshot: "b", candidateExecutions: 1, judgeCalls: 2, estimates },
+        execute: successfulProviderExecution,
+        onUpdate: (_next, result) => { if (result) clock += 6 * 60_000; },
+        now: () => clock,
+        snapshotProvider: { snapshot: async () => {
+          refreshes += 1;
+          expect(new AllowanceLedger(resolve(store.root, "allowance-ledger.json")).snapshot().reservations.some((entry) => entry.state === "reserved")).toBe(false);
+          return percentageSnapshot(new Date(clock).toISOString(), resetAt, refreshes === 1 ? 98 : 95, refreshes === 1 ? 99 : 97);
+        } },
+      });
+      expect(refreshes).toBe(2);
+      const ledger = new AllowanceLedger(resolve(store.root, "allowance-ledger.json")).snapshot();
+      expect(ledger.epochs).toHaveLength(3);
+      expect(ledger.epochs[2].snapshot.providers).toMatchObject({ openai: { remainingPercent: 95 }, anthropic: { remainingPercent: 97 } });
+      expect(ledger.reservations.some((entry) => entry.state === "reserved")).toBe(false);
+    } finally { rmSync(store.root, { recursive: true, force: true }); }
+  }, 30_000);
+
+  it("forces a settled Pitwall refresh after a quota warning even before five minutes", async () => {
+    const base = Date.now();
+    const resetAt = new Date(base + 3 * 60 * 60_000).toISOString();
+    const scheduled = scheduleFullChunk(0).slice(0, 1);
+    const state = newCampaign({ kind: "full", snapshot: percentageSnapshot(new Date(base).toISOString(), resetAt), concurrency: 1, now: new Date(base).toISOString() });
+    const store = new CampaignStore(state.id);
+    store.create(state);
+    let refreshes = 0;
+    try {
+      await runSchedule({
+        store,
+        state,
+        scheduled,
+        calibration: { schemaVersion: 1, createdAt: "now", beforeSnapshot: "a", afterSnapshot: "b", candidateExecutions: 1, judgeCalls: 2, estimates },
+        execute: async () => ({ exitCode: 0, signal: null, stdout: "", stderr: "usage limit reached", durationMs: 1, timedOut: false, outputLimited: false, usage: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, calls: 1 } }),
+        now: () => base + 60_000,
+        snapshotProvider: { snapshot: async () => { refreshes += 1; return percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 99, 100); } },
+      });
+      expect(refreshes).toBe(1);
+      expect(state.haltedReason).toContain("quota")
+      const ledger = new AllowanceLedger(resolve(store.root, "allowance-ledger.json")).snapshot();
+      expect(ledger.epochs).toHaveLength(2);
+      expect(ledger.reservations.some((entry) => entry.state === "reserved")).toBe(false);
+    } finally { rmSync(store.root, { recursive: true, force: true }); }
   });
 
   it("plans runs without live work and rejects unacknowledged execution", async () => {
@@ -451,7 +618,44 @@ describe("archive, resume, and CLI safeguards", () => {
     expect(stdout).toContain("288 fresh candidate executions");
     expect(await runOrchestrationCommand(["run", "--execute", "--chunk", "0"], io)).toBe(1);
     expect(stderr).toContain("--ack-subscription");
+    expect(await runOrchestrationCommand(["calibrate", "--collect", "--execute", "--ack-subscription", "--before", "manual.json"], io, { createPitwallClient: () => ({ snapshot: async () => { throw new Error("must not request Pitwall"); } }) })).toBe(1);
+    expect(stderr).toContain("no longer supported");
   });
+
+  it("fetches Pitwall automatically before creating a live pilot campaign", async () => {
+    const root = temp("sol-cli-pitwall-");
+    let stdout = "";
+    let stderr = "";
+    let snapshots = 0;
+    const io = {
+      stdout: { write: (chunk: string) => { stdout += chunk; return true; } },
+      stderr: { write: (chunk: string) => { stderr += chunk; return true; } },
+    };
+    const calibrationPath = resolve(root, "calibration.json");
+    writeFileSync(calibrationPath, JSON.stringify({
+      schemaVersion: 2, createdAt: new Date().toISOString(), beforeSnapshot: "before.json", afterSnapshot: "after.json", candidateExecutions: 3, judgeCalls: 6, estimates,
+      allowanceKinds: { openai: "remainingPercent", anthropic: "remainingPercent" }, conversionFactors: { openai: 1, anthropic: 1 }, rawWeights: { openai: 1, anthropic: 1 }, observedDrops: { openai: 1, anthropic: 1 }, accountedDrops: { openai: 1, anthropic: 1 }, censored: { openai: false, anthropic: false }, displayResolutionUpperBound: 1, snapshotHashes: { before: "a", after: "b" }, groupUpperMargin: 0.2,
+      sourceLock: { sourceKind: "pitwall-local", providerWindows: { openai: { window: "primary_five_hour" }, anthropic: { window: "seven_day", scope: "all_models" } } },
+    }));
+    const now = Date.now();
+    let campaignRoot: string | undefined;
+    try {
+      const result = await runOrchestrationCommand(["pilot", "--execute", "--ack-subscription", "--calibration", calibrationPath, "--max-runs", "0"], io, {
+        createPitwallClient: () => ({ snapshot: async () => { snapshots += 1; return percentageSnapshot(new Date(now).toISOString(), new Date(now + 3 * 60 * 60_000).toISOString()); } }),
+      });
+      expect(result).toBe(0);
+      expect(stderr).toBe("");
+      expect(snapshots).toBe(1);
+      const campaignId = /campaign ([a-z0-9._-]+) created/i.exec(stdout)?.[1];
+      expect(campaignId).toBeTruthy();
+      campaignRoot = new CampaignStore(campaignId!).root;
+      const state = new CampaignStore(campaignId!).load();
+      expect(state.sourceLock).toMatchObject({ sourceKind: "pitwall-local", providerWindows: { openai: { window: "primary_five_hour" }, anthropic: { window: "seven_day", scope: "all_models" } } });
+    } finally {
+      if (campaignRoot) rmSync(campaignRoot, { recursive: true, force: true });
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 30_000);
 
   it("renders every dashboard control-plane section and archived drill-down guidance", () => {
     const state = newCampaign({ kind: "full", snapshot: snapshot() });

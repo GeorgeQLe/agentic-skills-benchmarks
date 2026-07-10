@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFile
 import { dirname, resolve } from "node:path";
 import { contentId, hashFile } from "./canonical.js";
 import { EXPERIMENT_ROOT, campaignRoot } from "./paths.js";
-import type { ChunkArchiveState, RunIdentity, RunStatus, UsageSnapshot } from "./types.js";
+import type { ChunkArchiveState, PitwallSourceLock, RunIdentity, RunStatus, UsageSnapshot } from "./types.js";
 
 export type CampaignKind = "calibration" | "pilot" | "full";
 
@@ -35,6 +35,7 @@ export interface CampaignState {
   snapshot: UsageSnapshot;
   calibrationSha256?: string;
   allowanceKinds?: { openai: "remainingPercent"; anthropic: "remainingPercent" };
+  sourceLock?: PitwallSourceLock;
   concurrency: number;
   workerConcurrency: number;
   runs: Record<string, CampaignRunState>;
@@ -50,6 +51,7 @@ export function newCampaign(input: {
   now?: string;
   calibrationSha256?: string;
   allowanceKinds?: { openai: "remainingPercent"; anthropic: "remainingPercent" };
+  sourceLock?: PitwallSourceLock;
 }): CampaignState {
   const now = input.now ?? new Date().toISOString();
   const designSha256 = hashFile(resolve(EXPERIMENT_ROOT, "design.lock.json"));
@@ -66,6 +68,7 @@ export function newCampaign(input: {
     snapshot: input.snapshot,
     calibrationSha256: input.calibrationSha256,
     allowanceKinds: input.allowanceKinds,
+    sourceLock: input.sourceLock,
     concurrency: input.concurrency ?? 4,
     workerConcurrency: input.workerConcurrency ?? 8,
     runs: {},

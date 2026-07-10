@@ -120,10 +120,7 @@ Common commands:
 pnpm bench:orchestration generate
 pnpm bench:orchestration verify
 pnpm bench:orchestration verify --campaign-ready
-pnpm bench:orchestration calibrate --template usage-snapshot.json
-pnpm bench:orchestration calibrate \
-  --before usage-before.json --after usage-after.json \
-  --observations calibration-observations.json \
+pnpm bench:orchestration calibrate --collect --execute --ack-subscription \
   --output calibration-profile.json
 
 # Planning is read-only and launches no models.
@@ -131,11 +128,11 @@ pnpm bench:orchestration pilot
 pnpm bench:orchestration run
 pnpm bench:orchestration run --chunk 0
 
-# Live work requires explicit acknowledgement and manual usage evidence.
+# Live work requires explicit acknowledgement and Pitwall Local telemetry.
 pnpm bench:orchestration pilot --execute --ack-subscription \
-  --snapshot usage-before-pilot.json --calibration calibration-profile.json
+  --calibration calibration-profile.json
 pnpm bench:orchestration run --execute --ack-subscription \
-  --snapshot usage-before-campaign.json --calibration calibration-profile.json \
+  --calibration calibration-profile.json \
   --pilot-gate generated-results/sol-orchestration/campaigns/<pilot>/pilot-gate.json
 
 pnpm bench:orchestration resume --execute --ack-subscription \
@@ -163,8 +160,16 @@ Live child processes never receive `OPENAI_API_KEY`, `OPENAI_ADMIN_KEY`, or
 `ANTHROPIC_API_KEY`. Codex uses subscription auth with `--ephemeral
 --ignore-user-config`; Claude uses `--no-session-persistence`. Consumption is
 always labeled as an estimated subscription allowance measure, never API spend
-or exact USD cost. A current manual provider Usage-dashboard snapshot is required
-because the Codex CLI exposes no subscription-balance endpoint.
+or exact USD cost. Live calibration and campaigns require Pitwall Local's
+loopback API at `http://127.0.0.1:19440` by default. The client discovers the
+owner-only bearer token at `~/Library/Application Support/Pitwall/local-api-token`;
+`PITWALL_API_TOKEN_FILE` and `--pitwall-url` are test/development overrides.
+Pitwall refreshes Codex primary five-hour and Claude `seven_day` All Models
+telemetry together. Authentication, partial/stale telemetry, unknown resets, or
+wrong window/confidence mappings fail closed with no manual or cached fallback.
+At settled scheduler wave boundaries, a reading at least five minutes newer (or
+a quota warning) opens a conservative allowance epoch so unrelated account use
+is charged to the campaign.
 
 Publishing targets the private sibling repository
 `<origin-owner>/agentic-skills-benchmark-results`. Valid GitHub CLI authentication
