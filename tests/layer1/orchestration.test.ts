@@ -11,7 +11,8 @@ import {
   codexWorkerSpec,
   createDenyShimDirectory,
 } from "../orchestration/adapters.js";
-import { AllowanceLedger, worstCaseReservation, type CalibrationProfile } from "../orchestration/budget.js";
+import { AllowanceLedger, validatePercentageSnapshot, worstCaseReservation, type CalibrationProfile } from "../orchestration/budget.js";
+import { buildCalibrationProfile, collectCalibration, type CalibrationObservations } from "../orchestration/calibration.js";
 import { CampaignStore, newCampaign } from "../orchestration/campaign.js";
 import { runOrchestrationCommand } from "../orchestration/cli.js";
 import { assertScenarioPairs, qualifyAllFixtures } from "../orchestration/corpus.js";
@@ -33,6 +34,7 @@ import { buildCampaignReport } from "../orchestration/report.js";
 import { renderOrchestrationDashboard } from "../orchestration/dashboard.js";
 import type { Assignment, JudgeScore, UsageEstimate, UsageSnapshot } from "../orchestration/types.js";
 import { prohibitedModelDescendants } from "../orchestration/process.js";
+import type { ProviderExecution } from "../orchestration/process.js";
 
 function temp(prefix: string): string {
   return mkdtempSync(resolve(tmpdir(), prefix));
@@ -47,6 +49,13 @@ function snapshot(units = 100): UsageSnapshot {
       anthropic: { remainingUnits: units, source: "manual-provider-dashboard" },
     },
   };
+}
+
+function percentageSnapshot(capturedAt: string, resetAt: string, openai = 100, anthropic = 100): UsageSnapshot {
+  return { schemaVersion: 1, capturedAt, providers: {
+    openai: { remainingPercent: openai, resetAt, source: "manual-provider-dashboard" },
+    anthropic: { remainingPercent: anthropic, resetAt, source: "manual-provider-dashboard" },
+  } };
 }
 
 const estimates: UsageEstimate[] = [
@@ -217,6 +226,104 @@ describe("provider isolation and topology", () => {
 });
 
 describe("budget, judges, and plan-first", () => {
+  it("collects the exact isolated 3 candidate, 12 worker, and 6 judge calibration matrix", async () => {
+    const root = temp("sol-calibration-");
+    try {
+      const base = Date.now();
+      const beforePath = resolve(root, "before.json");
+      const afterPath = resolve(root, "after.json");
+      const resetAt = new Date(base + 3 * 60 * 60_000).toISOString();
+      writeFileSync(beforePath, JSON.stringify(percentageSnapshot(new Date(base).toISOString(), resetAt)));
+      writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 98, 99)));
+      const calls: Array<{ provider: string; role: string; model: string; effort: string }> = [];
+      const execute = async (spec: Parameters<NonNullable<Parameters<typeof collectCalibration>[0]["execute"]>>[0]): Promise<ProviderExecution> => {
+        const effortArg = spec.command === "codex" ? spec.args.find((arg) => arg.startsWith("model_reasoning_effort=")) : spec.args[spec.args.indexOf("--effort") + 1];
+        calls.push({ provider: spec.provider, role: spec.role, model: spec.model, effort: effortArg ?? "" });
+        const outputIndex = spec.args.indexOf("--output-last-message");
+        if (outputIndex >= 0) writeFileSync(spec.args[outputIndex + 1], JSON.stringify({ summary: [], verification: [], pushback: [], workerEvidenceUsed: [0, 1, 2, 3] }));
+        return { exitCode: 0, signal: null, stdout: spec.provider === "anthropic" ? JSON.stringify({ structured_output: { evidence: [] } }) : "", stderr: "", durationMs: 1, timedOut: false, outputLimited: false, usage: { inputTokens: 100, cachedInputTokens: 0, outputTokens: 100, reasoningTokens: 0, calls: 1 } };
+      };
+      const profile = await collectCalibration({ beforePath, afterPath, observationsPath: resolve(root, "observations.json"), checkpointPath: resolve(root, "checkpoint.json"), workRoot: resolve(root, "work"), outputPath: resolve(root, "profile.json"), execute, now: () => base, waitForPost: async () => {} });
+      expect(calls).toHaveLength(21);
+      expect(calls.filter((call) => call.role === "worker")).toHaveLength(12);
+      expect(calls.filter((call) => call.role === "candidate")).toHaveLength(3);
+      expect(calls.filter((call) => call.role === "judge")).toHaveLength(6);
+      expect(calls.filter((call) => call.role !== "judge").every((call) => call.effort.includes("xhigh"))).toBe(true);
+      expect(calls.filter((call) => call.role === "judge").every((call) => call.effort.includes("high"))).toBe(true);
+      expect(new Set(calls.filter((call) => call.role === "worker").map((call) => call.model))).toEqual(new Set(["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "claude-opus-4-8"]));
+      expect(profile).toMatchObject({ schemaVersion: 2, observedDrops: { openai: 2, anthropic: 1 }, censored: { openai: false, anthropic: false }, groupUpperMargin: 0.2 });
+      expect(profile.conversionFactors!.openai).toBeCloseTo(2 / (15 * 0.301));
+      expect(profile.conversionFactors!.anthropic).toBeCloseTo(1 / (6 * 0.301));
+      expect(JSON.parse(readFileSync(resolve(root, "checkpoint.json"), "utf8"))).toMatchObject({ status: "complete", samples: expect.any(Array) });
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it("validates calibration freshness, reset timing, censoring, reset crossing, and the ten-percent cap", () => {
+    const root = temp("sol-calibration-profile-");
+    try {
+      const base = Date.now();
+      const resetAt = new Date(base + 3 * 60 * 60_000).toISOString();
+      const before = percentageSnapshot(new Date(base).toISOString(), resetAt, 50, 50);
+      expect(() => validatePercentageSnapshot(before, { now: base + 6 * 60_000, maxAgeMs: 5 * 60_000, minimumResetLeadMs: 2 * 60 * 60_000 })).toThrow("five minutes");
+      expect(() => validatePercentageSnapshot(before, { now: base + 61 * 60_000, minimumResetLeadMs: 2 * 60 * 60_000 })).toThrow("two hours");
+      expect(() => validatePercentageSnapshot({ ...before, providers: { ...before.providers, openai: { remainingPercent: 50, remainingUnits: 2, resetAt, source: "manual-provider-dashboard" } } })).toThrow("exactly one");
+      const observations: CalibrationObservations = { schemaVersion: 2, candidateExecutions: 3, workerCalls: 12, judgeCalls: 6, samples: ["typescript:debugging", "python:ambiguous-intent", "go:pushback"].flatMap((taskClass) => ([
+        { provider: "openai", model: "gpt-5.6-sol", effort: "xhigh", role: "worker", taskClass, rawWeight: 1 },
+        { provider: "openai", model: "gpt-5.6-terra", effort: "xhigh", role: "worker", taskClass, rawWeight: 1 },
+        { provider: "openai", model: "gpt-5.6-luna", effort: "xhigh", role: "worker", taskClass, rawWeight: 1 },
+        { provider: "anthropic", model: "claude-opus-4-8", effort: "xhigh", role: "worker", taskClass, rawWeight: 1 },
+        { provider: "openai", model: "gpt-5.6-sol", effort: "xhigh", role: "orchestrator", taskClass, rawWeight: 1 },
+        { provider: "openai", model: "gpt-5.6-sol", effort: "high", role: "judge", taskClass, rawWeight: 1 },
+        { provider: "anthropic", model: "claude-opus-4-8", effort: "high", role: "judge", taskClass, rawWeight: 1 },
+      ] as CalibrationObservations["samples"])) };
+      const beforePath = resolve(root, "before.json"); const afterPath = resolve(root, "after.json"); const observationsPath = resolve(root, "observations.json");
+      writeFileSync(beforePath, JSON.stringify(before)); writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 50, 50))); writeFileSync(observationsPath, JSON.stringify(observations));
+      expect(buildCalibrationProfile({ beforePath, afterPath, observationsPath })).toMatchObject({ censored: { openai: true, anthropic: true }, observedDrops: { openai: 0, anthropic: 0 }, accountedDrops: { openai: 1, anthropic: 1 }, displayResolutionUpperBound: 1 });
+      writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 44, 50)));
+      expect(() => buildCalibrationProfile({ beforePath, afterPath, observationsPath })).toThrow("more than 10%");
+      writeFileSync(beforePath, JSON.stringify(percentageSnapshot(new Date(base - 60_000).toISOString(), new Date(base - 30_000).toISOString(), 50, 50)));
+      writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base).toISOString(), new Date(base + 5 * 60 * 60_000).toISOString(), 100, 100)));
+      expect(() => buildCalibrationProfile({ beforePath, afterPath, observationsPath })).toThrow("cross");
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it("atomically invalidates quota, malformed-usage, and interrupted calibration attempts", async () => {
+    for (const mode of ["quota", "malformed"] as const) {
+      const root = temp(`sol-calibration-${mode}-`);
+      try {
+        const base = Date.now();
+        const resetAt = new Date(base + 3 * 60 * 60_000).toISOString();
+        const beforePath = resolve(root, "before.json");
+        const afterPath = resolve(root, "after.json");
+        const checkpointPath = resolve(root, "checkpoint.json");
+        writeFileSync(beforePath, JSON.stringify(percentageSnapshot(new Date(base).toISOString(), resetAt)));
+        writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base + 1).toISOString(), resetAt, 99, 99)));
+        const execute = async (): Promise<ProviderExecution> => ({ exitCode: 0, signal: null, stdout: "", stderr: mode === "quota" ? "usage limit reached" : "", durationMs: 1, timedOut: false, outputLimited: false, usage: { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, calls: mode === "malformed" ? 0 : 1 } });
+        await expect(collectCalibration({ beforePath, afterPath, observationsPath: resolve(root, "observations.json"), checkpointPath, workRoot: resolve(root, "work"), outputPath: resolve(root, "profile.json"), execute, now: () => base, waitForPost: async () => {} })).rejects.toThrow();
+        expect(JSON.parse(readFileSync(checkpointPath, "utf8"))).toMatchObject({ status: "invalid" });
+        await expect(collectCalibration({ beforePath, afterPath, observationsPath: resolve(root, "observations.json"), checkpointPath, workRoot: resolve(root, "work-2"), outputPath: resolve(root, "profile.json"), execute, now: () => base, waitForPost: async () => {} })).rejects.toThrow("cannot be mixed");
+      } finally { rmSync(root, { recursive: true, force: true }); }
+    }
+  });
+
+  it("migrates v1 ledgers and enforces immutable allowance epoch refresh rules", () => {
+    const root = temp("sol-epochs-");
+    try {
+      const path = resolve(root, "ledger.json");
+      const base = Date.now(); const firstReset = new Date(base + 60_000).toISOString();
+      const first = percentageSnapshot(new Date(base).toISOString(), firstReset, 40, 40);
+      writeFileSync(path, JSON.stringify({ schemaVersion: 1, snapshot: first, reservations: [{ runId: "orphan", openaiUnits: 2, anthropicUnits: 2, reservedAt: new Date(base).toISOString(), state: "reserved" }], settledOpenaiUnits: 3, settledAnthropicUnits: 4 }));
+      const ledger = new AllowanceLedger(path);
+      expect(ledger.snapshot()).toMatchObject({ schemaVersion: 2, epochs: [{ snapshot: first }] });
+      expect(() => ledger.openEpoch(percentageSnapshot(new Date(base + 30_000).toISOString(), firstReset, 50, 50))).toThrow("unreconciled");
+      ledger.releaseOrphans(new Set());
+      expect(() => ledger.openEpoch(percentageSnapshot(new Date(base + 30_000).toISOString(), firstReset, 50, 50))).toThrow("increased before");
+      ledger.openEpoch(percentageSnapshot(new Date(base + 60_000).toISOString(), new Date(base + 6 * 60 * 60_000).toISOString(), 100, 100));
+      expect(ledger.snapshot().epochs).toHaveLength(2);
+      expect(ledger.remaining()).toMatchObject({ openai: 100, anthropic: 100 });
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
   it("atomically rejects concurrent reservations beyond remaining allowance", async () => {
     const root = temp("sol-ledger-");
     try {

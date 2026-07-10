@@ -173,6 +173,7 @@ export interface ReservationRequest {
 }
 
 export interface Reservation extends ReservationRequest {
+  epochId?: string;
   reservedAt: string;
   state: "reserved" | "settled" | "released";
   actualOpenaiUnits?: number;

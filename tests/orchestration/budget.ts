@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { contentId } from "./canonical.js";
 import type {
   Assignment,
   ProviderAllowance,
@@ -9,7 +10,20 @@ import type {
   UsageSnapshot,
 } from "./types.js";
 
+export interface AllowanceEpoch {
+  id: string;
+  snapshot: UsageSnapshot;
+  openedAt: string;
+}
+
 export interface AllowanceState {
+  schemaVersion: 2;
+  epochs: AllowanceEpoch[];
+  currentEpochId: string;
+  reservations: Reservation[];
+}
+
+interface LegacyAllowanceState {
   schemaVersion: 1;
   snapshot: UsageSnapshot;
   reservations: Reservation[];
@@ -40,6 +54,25 @@ function validateAllowance(provider: string, allowance: ProviderAllowance): void
   }
 }
 
+export function allowanceFieldKind(allowance: ProviderAllowance): "remainingUnits" | "remainingPercent" | "credits" {
+  const fields = (["remainingUnits", "remainingPercent", "credits"] as const).filter((key) => allowance[key] !== undefined);
+  if (fields.length !== 1) throw new Error("each provider snapshot must contain exactly one allowance field");
+  return fields[0];
+}
+
+export function validatePercentageSnapshot(snapshot: UsageSnapshot, options: { now?: number; maxAgeMs?: number; minimumResetLeadMs?: number } = {}): void {
+  const now = options.now ?? Date.now();
+  if (allowanceFieldKind(snapshot.providers.openai) !== "remainingPercent" || allowanceFieldKind(snapshot.providers.anthropic) !== "remainingPercent") {
+    throw new Error("calibration snapshots require exactly remainingPercent for both providers");
+  }
+  if (options.maxAgeMs !== undefined && snapshotStalenessMs(snapshot, now) > options.maxAgeMs) throw new Error("pre-calibration snapshot is more than five minutes old");
+  for (const [provider, allowance] of Object.entries(snapshot.providers)) {
+    const reset = Date.parse(allowance.resetAt ?? "");
+    if (!Number.isFinite(reset)) throw new Error(`${provider} snapshot requires a valid resetAt`);
+    if (options.minimumResetLeadMs !== undefined && reset - now < options.minimumResetLeadMs) throw new Error(`${provider} reset is less than two hours away`);
+  }
+}
+
 export function snapshotStalenessMs(snapshot: UsageSnapshot, now = Date.now()): number {
   return Math.max(0, now - Date.parse(snapshot.capturedAt));
 }
@@ -54,7 +87,7 @@ export function snapshotDisplay(snapshot: UsageSnapshot, now = Date.now()): stri
   return `OpenAI ${show(snapshot.providers.openai)} | Anthropic ${show(snapshot.providers.anthropic)} | snapshot ${ageMinutes}m old`;
 }
 
-function availableUnits(allowance: ProviderAllowance): number {
+export function availableUnits(allowance: ProviderAllowance): number {
   if (allowance.remainingUnits !== undefined) return allowance.remainingUnits;
   if (allowance.credits !== undefined) return allowance.credits;
   // Percentage-only snapshots use 100 normalized allowance units. These are
@@ -67,10 +100,13 @@ export class AllowanceLedger {
 
   constructor(private readonly path: string, snapshot?: UsageSnapshot) {
     if (existsSync(path)) {
-      this.state = JSON.parse(readFileSync(path, "utf8")) as AllowanceState;
+      const loaded = JSON.parse(readFileSync(path, "utf8")) as AllowanceState | LegacyAllowanceState;
+      this.state = loaded.schemaVersion === 1 ? this.migrate(loaded) : loaded;
+      this.persist();
     } else {
       if (!snapshot) throw new Error("a manual usage snapshot is required to initialize the allowance ledger");
-      this.state = { schemaVersion: 1, snapshot, reservations: [], settledOpenaiUnits: 0, settledAnthropicUnits: 0 };
+      const epoch = this.epoch(snapshot);
+      this.state = { schemaVersion: 2, epochs: [epoch], currentEpochId: epoch.id, reservations: [] };
       this.persist();
     }
   }
@@ -84,7 +120,7 @@ export class AllowanceLedger {
     if (remaining.openai < request.openaiUnits || remaining.anthropic < request.anthropicUnits) return null;
     // Check and mutation are synchronous with no await boundary, making this
     // atomic for every concurrent scheduler worker in the owning process.
-    const reservation: Reservation = { ...request, reservedAt: new Date().toISOString(), state: "reserved" };
+    const reservation: Reservation = { ...request, epochId: this.state.currentEpochId, reservedAt: new Date().toISOString(), state: "reserved" };
     this.state.reservations.push(reservation);
     this.persist();
     return { ...reservation };
@@ -97,8 +133,6 @@ export class AllowanceLedger {
     reservation.state = "settled";
     reservation.actualOpenaiUnits = actualOpenaiUnits;
     reservation.actualAnthropicUnits = actualAnthropicUnits;
-    this.state.settledOpenaiUnits += actualOpenaiUnits;
-    this.state.settledAnthropicUnits += actualAnthropicUnits;
     this.persist();
   }
 
@@ -125,12 +159,16 @@ export class AllowanceLedger {
   }
 
   remaining(): { openai: number; anthropic: number; reservedOpenai: number; reservedAnthropic: number } {
-    const active = this.state.reservations.filter((entry) => entry.state === "reserved");
+    const current = this.currentEpoch();
+    const inEpoch = this.state.reservations.filter((entry) => entry.epochId === current.id);
+    const active = inEpoch.filter((entry) => entry.state === "reserved");
     const reservedOpenai = active.reduce((total, entry) => total + entry.openaiUnits, 0);
     const reservedAnthropic = active.reduce((total, entry) => total + entry.anthropicUnits, 0);
+    const settledOpenai = inEpoch.filter((entry) => entry.state === "settled").reduce((total, entry) => total + (entry.actualOpenaiUnits ?? 0), 0);
+    const settledAnthropic = inEpoch.filter((entry) => entry.state === "settled").reduce((total, entry) => total + (entry.actualAnthropicUnits ?? 0), 0);
     return {
-      openai: Math.max(0, availableUnits(this.state.snapshot.providers.openai) - this.state.settledOpenaiUnits - reservedOpenai),
-      anthropic: Math.max(0, availableUnits(this.state.snapshot.providers.anthropic) - this.state.settledAnthropicUnits - reservedAnthropic),
+      openai: Math.max(0, availableUnits(current.snapshot.providers.openai) - settledOpenai - reservedOpenai),
+      anthropic: Math.max(0, availableUnits(current.snapshot.providers.anthropic) - settledAnthropic - reservedAnthropic),
       reservedOpenai,
       reservedAnthropic,
     };
@@ -138,6 +176,55 @@ export class AllowanceLedger {
 
   snapshot(): AllowanceState {
     return structuredClone(this.state);
+  }
+
+  openEpoch(snapshot: UsageSnapshot): AllowanceEpoch {
+    readUsageSnapshotObject(snapshot);
+    if (this.state.reservations.some((entry) => entry.state === "reserved")) throw new Error("cannot open an allowance epoch with unreconciled reservations");
+    const previous = this.currentEpoch().snapshot;
+    if (Date.parse(snapshot.capturedAt) <= Date.parse(previous.capturedAt)) throw new Error("fresh allowance snapshot must be newer than the current epoch");
+    for (const provider of ["openai", "anthropic"] as const) {
+      if (allowanceFieldKind(previous.providers[provider]) !== allowanceFieldKind(snapshot.providers[provider])) throw new Error("allowance field kind cannot change between epochs");
+      const priorValue = availableUnits(previous.providers[provider]);
+      const nextValue = availableUnits(snapshot.providers[provider]);
+      const priorReset = Date.parse(previous.providers[provider].resetAt ?? "");
+      if (nextValue > priorValue && (!Number.isFinite(priorReset) || Date.parse(snapshot.capturedAt) < priorReset)) {
+        throw new Error(`${provider} allowance increased before the previous reset`);
+      }
+    }
+    const epoch = this.epoch(snapshot);
+    if (this.state.epochs.some((entry) => entry.id === epoch.id)) throw new Error("allowance snapshot epoch already exists");
+    this.state.epochs.push(epoch);
+    this.state.currentEpochId = epoch.id;
+    this.persist();
+    return epoch;
+  }
+
+  releaseOrphans(completedRunIds: Set<string>): void {
+    for (const reservation of this.state.reservations) {
+      if (reservation.state === "reserved" && !completedRunIds.has(reservation.runId)) reservation.state = "released";
+    }
+    this.persist();
+  }
+
+  private currentEpoch(): AllowanceEpoch {
+    const epoch = this.state.epochs.find((entry) => entry.id === this.state.currentEpochId);
+    if (!epoch) throw new Error("allowance ledger current epoch is missing");
+    return epoch;
+  }
+
+  private epoch(snapshot: UsageSnapshot): AllowanceEpoch {
+    return { id: contentId("allowance-epoch", snapshot, 20), snapshot: structuredClone(snapshot), openedAt: new Date().toISOString() };
+  }
+
+  private migrate(legacy: LegacyAllowanceState): AllowanceState {
+    const epoch = this.epoch(legacy.snapshot);
+    const reservations = legacy.reservations.map((entry) => ({ ...entry, epochId: epoch.id }));
+    if (legacy.settledOpenaiUnits > 0 || legacy.settledAnthropicUnits > 0) reservations.push({
+      runId: "v1-migrated-settlement", epochId: epoch.id, openaiUnits: 0, anthropicUnits: 0,
+      reservedAt: epoch.openedAt, state: "settled", actualOpenaiUnits: legacy.settledOpenaiUnits, actualAnthropicUnits: legacy.settledAnthropicUnits,
+    });
+    return { schemaVersion: 2, epochs: [epoch], currentEpochId: epoch.id, reservations };
   }
 
   private persist(): void {
@@ -149,16 +236,34 @@ export class AllowanceLedger {
 }
 
 export interface CalibrationProfile {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   createdAt: string;
   beforeSnapshot: string;
   afterSnapshot: string;
   candidateExecutions: number;
   judgeCalls: number;
   estimates: UsageEstimate[];
+  allowanceKinds?: { openai: "remainingPercent"; anthropic: "remainingPercent" };
+  conversionFactors?: { openai: number; anthropic: number };
+  rawWeights?: { openai: number; anthropic: number };
+  observedDrops?: { openai: number; anthropic: number };
+  accountedDrops?: { openai: number; anthropic: number };
+  censored?: { openai: boolean; anthropic: boolean };
+  displayResolutionUpperBound?: number;
+  snapshotHashes?: { before: string; after: string };
+  groupUpperMargin?: number;
 }
 
 export function validateCalibration(profile: CalibrationProfile): void {
+  if (profile.schemaVersion === 2) {
+    if (profile.allowanceKinds?.openai !== "remainingPercent" || profile.allowanceKinds?.anthropic !== "remainingPercent") throw new Error("calibration profile allowance kinds are invalid");
+    for (const factor of [profile.conversionFactors?.openai, profile.conversionFactors?.anthropic]) if (!Number.isFinite(factor) || factor! <= 0) throw new Error("calibration conversion factors must be positive");
+    if (profile.groupUpperMargin !== 0.2) throw new Error("calibration profile must retain the 20% per-group upper margin");
+    if (profile.candidateExecutions !== 3 || profile.judgeCalls !== 6) throw new Error("schema-v2 calibration must contain exactly 3 candidates and 6 judges");
+    if (profile.displayResolutionUpperBound !== 1) throw new Error("calibration display-resolution upper bound must be one percentage point");
+    for (const value of [profile.rawWeights?.openai, profile.rawWeights?.anthropic, profile.accountedDrops?.openai, profile.accountedDrops?.anthropic]) if (!Number.isFinite(value) || value! <= 0) throw new Error("calibration raw weights and accounted drops must be positive");
+    if (!profile.snapshotHashes?.before || !profile.snapshotHashes.after) throw new Error("calibration snapshot hashes are missing");
+  }
   if (profile.candidateExecutions > 24) throw new Error("calibration exceeds the 24-candidate cap");
   if (profile.judgeCalls > 60) throw new Error("calibration exceeds the 60-judge-call cap");
   if (profile.estimates.length === 0) throw new Error("calibration contains no usage estimates");
@@ -167,6 +272,11 @@ export function validateCalibration(profile: CalibrationProfile): void {
       throw new Error(`invalid calibration estimate for ${estimate.model}/${estimate.role}`);
     }
   }
+}
+
+function readUsageSnapshotObject(snapshot: UsageSnapshot): void {
+  if (snapshot.schemaVersion !== 1 || snapshot.providers?.openai?.source !== "manual-provider-dashboard" || snapshot.providers?.anthropic?.source !== "manual-provider-dashboard") throw new Error("usage snapshot must contain manual-provider-dashboard OpenAI and Anthropic allowances");
+  for (const [provider, allowance] of Object.entries(snapshot.providers)) validateAllowance(provider, allowance);
 }
 
 function upper(

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { AllowanceLedger, type CalibrationProfile, validateCalibration } from "./budget.js";
+import { hashFile } from "./canonical.js";
 import { CampaignStore, type CampaignState } from "./campaign.js";
 import { EXPERIMENT_ROOT } from "./paths.js";
 import { planFirstIdentities, runIdentity, scheduleChunk } from "./isolation.js";
@@ -8,6 +9,7 @@ import { REFERENCE_FACTORS, loadScenarios } from "./design.js";
 import { executeRun, AllowanceStopError, InfrastructureError, QuotaStopError, type ExecutionResult, type ProviderExecutor } from "./runner.js";
 import { Semaphore } from "./semaphore.js";
 import type { Assignment, ChunkDefinition, PilotAssignment, RunIdentity, TaskScenario } from "./types.js";
+import type { UsageSnapshot } from "./types.js";
 
 function readJsonLines<T>(path: string): T[] {
   return readFileSync(path, "utf8").trimEnd().split("\n").filter(Boolean).map((line) => JSON.parse(line) as T);
@@ -82,11 +84,15 @@ export interface SchedulerOptions {
   maxRuns?: number;
   execute?: ProviderExecutor;
   onUpdate?: (state: CampaignState, result?: ExecutionResult) => void;
+  freshSnapshot?: UsageSnapshot;
+  calibrationPath?: string;
 }
 
 export async function runSchedule(options: SchedulerOptions): Promise<CampaignState> {
   validateCalibration(options.calibration);
   const { store, state } = options;
+  if (state.calibrationSha256 && (!options.calibrationPath || hashFile(options.calibrationPath) !== state.calibrationSha256)) throw new Error("campaign calibration profile hash does not match");
+  if (state.allowanceKinds && (options.calibration.allowanceKinds?.openai !== state.allowanceKinds.openai || options.calibration.allowanceKinds?.anthropic !== state.allowanceKinds.anthropic)) throw new Error("campaign allowance field kinds do not match calibration");
   store.registerRuns(state, options.scheduled.map((entry) => entry.run));
   const allowance = new AllowanceLedger(resolve(store.root, "allowance-ledger.json"), state.snapshot);
   // A process may have crashed after atomically writing result.json but before
@@ -99,18 +105,23 @@ export async function runSchedule(options: SchedulerOptions): Promise<CampaignSt
     const result = JSON.parse(readFileSync(resultPath, "utf8")) as ExecutionResult;
     if (result.run.id !== scheduled.run.id) throw new Error(`recovered result ownership mismatch for ${scheduled.run.id}`);
     const entry = state.runs[scheduled.run.id];
+    allowance.settleIfReserved(
+      scheduled.run.id,
+      result.usage?.openaiUnits ?? 0,
+      result.usage?.anthropicUnits ?? 0,
+    );
     if (entry.status !== "judged") {
-      allowance.settleIfReserved(
-        scheduled.run.id,
-        result.usage?.openaiUnits ?? 0,
-        result.usage?.anthropicUnits ?? 0,
-      );
       entry.status = "judged";
       entry.updatedAt = new Date().toISOString();
       recovered = true;
     }
   }
   if (recovered) store.save(state);
+  if (options.freshSnapshot) {
+    const completed = new Set(Object.values(state.runs).filter((entry) => entry.status === "judged").map((entry) => entry.run.id));
+    allowance.releaseOrphans(completed);
+    allowance.openEpoch(options.freshSnapshot);
+  }
   const scheduledMap = new Map(options.scheduled.map((entry) => [entry.run.id, entry]));
   const queue = store.incompleteRuns(state)
     .filter((entry) => scheduledMap.has(entry.run.id))
@@ -137,6 +148,7 @@ export async function runSchedule(options: SchedulerOptions): Promise<CampaignSt
           run: scheduled.run,
           allowance,
           estimates: options.calibration.estimates,
+          conversionFactors: options.calibration.conversionFactors,
           workerPool,
           execute: options.execute,
           soloControl: scheduled.soloControl,

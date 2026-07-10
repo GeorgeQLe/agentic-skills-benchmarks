@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { assertPublishingPrerequisites, retrieveArchivedRun } from "./archive.js";
-import { buildCalibrationProfile, writeSnapshotTemplate } from "./calibration.js";
+import { buildCalibrationProfile, collectCalibration, writeSnapshotTemplate } from "./calibration.js";
 import { CampaignStore, listCampaigns, newCampaign } from "./campaign.js";
 import { capabilityProbes, assertScenarioPairs, qualifyAllFixtures } from "./corpus.js";
 import { renderOrchestrationDashboard, loadAllowanceState } from "./dashboard.js";
@@ -9,11 +9,12 @@ import { writeGeneratedArtifacts, verifyGeneratedArtifacts } from "./design.js";
 import { EXPERIMENT_ROOT, GENERATED_RESULTS_ROOT, REPO_ROOT } from "./paths.js";
 import { buildCampaignReport, loadExecutionResults, persistCompactResults, writeCampaignReport } from "./report.js";
 import { loadAssignments, loadCalibration, loadChunks, loadPilotRows, runSchedule, scheduleFullChunk, schedulePilot } from "./scheduler.js";
-import { readUsageSnapshot } from "./budget.js";
+import { readUsageSnapshot, validatePercentageSnapshot } from "./budget.js";
 import { evaluatePlanFirst, writeV2Manifest, type PairedPlanObservation } from "./plan-first.js";
 import { evaluatePilotGate, readPassingPilotGate } from "./pilot-gates.js";
 import { GitHubPublisherTransport } from "./github-publisher-transport.js";
 import { PublisherCoordinator } from "./publisher.js";
+import { hashFile } from "./canonical.js";
 
 export interface CommandIo {
   stdout: Pick<NodeJS.WriteStream, "write">;
@@ -68,6 +69,7 @@ export function orchestrationHelpText(): string {
     "  pnpm bench:orchestration generate",
     "  pnpm bench:orchestration verify",
     "  pnpm bench:orchestration calibrate --template usage-snapshot.json",
+    "  pnpm bench:orchestration calibrate --collect --execute --ack-subscription --before pre.json --after post.json",
     "  pnpm bench:orchestration run --chunk 0",
     "  pnpm bench:orchestration report --campaign <id>",
   ].join("\n");
@@ -109,8 +111,19 @@ async function calibrateCommand(args: string[], io: CommandIo): Promise<number> 
   }
   const before = valueFor(args, "--before");
   const after = valueFor(args, "--after");
-  const observations = valueFor(args, "--observations");
+  const observations = valueFor(args, "--observations") ?? "calibration-observations.json";
   const output = resolve(valueFor(args, "--output") ?? "calibration-profile.json");
+  if (args.includes("--collect")) {
+    if (!args.includes("--execute") || !args.includes("--ack-subscription")) throw new Error("calibration collection requires --collect --execute --ack-subscription");
+    liveGate(args);
+    if (!before || !after) throw new Error("calibration collection requires --before and --after");
+    const checkpoint = resolve(valueFor(args, "--checkpoint") ?? "calibration-checkpoint.json");
+    const workRoot = resolve(valueFor(args, "--work-root") ?? "generated-results/sol-orchestration/calibration-live");
+    line(io.stdout, "starting exactly 21 isolated calibration calls; create the post-snapshot file when collection completes");
+    const profile = await collectCalibration({ beforePath: resolve(before), afterPath: resolve(after), observationsPath: resolve(observations), checkpointPath: checkpoint, workRoot, outputPath: output });
+    line(io.stdout, `calibration profile written to ${output}: ${profile.candidateExecutions} candidates, ${profile.judgeCalls} judge calls`);
+    return 0;
+  }
   if (!before || !after || !observations) throw new Error("calibrate requires --before, --after, and --observations (or --template)");
   const profile = buildCalibrationProfile({ beforePath: resolve(before), afterPath: resolve(after), observationsPath: resolve(observations) });
   writeFileSync(output, `${JSON.stringify(profile, null, 2)}\n`, { flag: "wx" });
@@ -151,23 +164,27 @@ async function executeCampaign(args: string[], kind: "pilot" | "full", io: Comma
     readPassingPilotGate(resolve(pilotGate));
   }
   const snapshot = readUsageSnapshot(resolve(snapshotPath));
+  validatePercentageSnapshot(snapshot, { maxAgeMs: 5 * 60_000 });
+  const calibration = loadCalibration(resolve(calibrationPath));
+  if (calibration.schemaVersion !== 2) throw new Error("live execution requires a schema-v2 percentage calibration profile");
   const state = newCampaign({
     kind,
     snapshot,
     concurrency: integerFor(args, "--concurrency", 4),
     workerConcurrency: integerFor(args, "--worker-concurrency", 8),
+    calibrationSha256: hashFile(resolve(calibrationPath)),
+    allowanceKinds: calibration.allowanceKinds,
   });
   const store = new CampaignStore(state.id);
   store.create(state);
   line(io.stdout, `campaign ${state.id} created`);
-  const calibration = loadCalibration(resolve(calibrationPath));
   const update = (next: typeof state, result?: Awaited<ReturnType<typeof import("./runner.js")["executeRun"]>>) => {
     if (result) line(io.stdout, `${result.passed ? "PASS" : "FAIL"} ${result.run.id} score=${result.score} ${result.durationMs}ms`);
     if (next.haltedReason) line(io.stderr, `HALT ${next.haltedReason}`);
   };
   if (kind === "pilot") {
     const scheduled = schedulePilot();
-    await runSchedule({ store, state, scheduled, calibration, maxRuns: integerFor(args, "--max-runs", scheduled.length), onUpdate: update });
+    await runSchedule({ store, state, scheduled, calibration, calibrationPath: resolve(calibrationPath), maxRuns: integerFor(args, "--max-runs", scheduled.length), onUpdate: update });
   } else {
     const chunks = loadChunks();
     const ordinals = requestedChunk !== undefined
@@ -182,7 +199,7 @@ async function executeCampaign(args: string[], kind: "pilot" | "full", io: Comma
       store.save(state);
       const scheduled = scheduleFullChunk(ordinal);
       const maxRuns = Math.min(remainingRuns, scheduled.length);
-      await runSchedule({ store, state, scheduled, calibration, maxRuns, onUpdate: update });
+      await runSchedule({ store, state, scheduled, calibration, calibrationPath: resolve(calibrationPath), maxRuns, onUpdate: update });
       remainingRuns -= maxRuns;
       const completed = scheduled.filter((entry) => state.runs[entry.run.id]?.status === "judged").length;
       state.chunks[chunk.id].completedRuns = completed;
@@ -214,14 +231,19 @@ async function resumeCommand(args: string[], io: CommandIo): Promise<number> {
   liveGate(args);
   const id = valueFor(args, "--campaign");
   const calibration = valueFor(args, "--calibration");
-  if (!id || !calibration) throw new Error("resume requires --campaign and --calibration");
+  const snapshotPath = valueFor(args, "--snapshot");
+  if (!id || !calibration || !snapshotPath) throw new Error("resume requires --campaign, --calibration, and a fresh --snapshot");
   const store = new CampaignStore(id);
   const state = store.load();
   state.haltedReason = undefined;
   const scheduled = state.kind === "pilot"
     ? schedulePilot()
     : [...new Set(Object.values(state.chunks).map((chunk) => chunk.ordinal))].flatMap(scheduleFullChunk);
-  await runSchedule({ store, state, scheduled, calibration: loadCalibration(resolve(calibration)), maxRuns: integerFor(args, "--max-runs", scheduled.length) });
+  const loadedCalibration = loadCalibration(resolve(calibration));
+  if (loadedCalibration.schemaVersion !== 2) throw new Error("resume requires the original schema-v2 percentage calibration profile");
+  const freshSnapshot = readUsageSnapshot(resolve(snapshotPath));
+  validatePercentageSnapshot(freshSnapshot, { maxAgeMs: 5 * 60_000 });
+  await runSchedule({ store, state, scheduled, calibration: loadedCalibration, calibrationPath: resolve(calibration), freshSnapshot, maxRuns: integerFor(args, "--max-runs", scheduled.length) });
   const results = loadExecutionResults(store.root);
   persistCompactResults(store.root, results);
   if (state.kind === "full") {

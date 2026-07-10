@@ -68,7 +68,7 @@ function addUsage(target: ParsedUsage, source: ParsedUsage): void {
   target.calls += Math.max(1, source.calls);
 }
 
-function allowanceUnits(usage: ParsedUsage): number {
+export function weightedUsageUnits(usage: ParsedUsage): number {
   const uncachedInput = Math.max(0, usage.inputTokens - usage.cachedInputTokens);
   return Number(((uncachedInput + usage.cachedInputTokens * 0.25 + usage.outputTokens * 2 + usage.reasoningTokens) / 1_000 + usage.calls * 0.001).toFixed(6));
 }
@@ -191,6 +191,7 @@ export interface RunExecutionOptions {
   run: RunIdentity;
   allowance: AllowanceLedger;
   estimates: UsageEstimate[];
+  conversionFactors?: { openai: number; anthropic: number };
   workerPool: Semaphore;
   execute?: ProviderExecutor;
   soloControl?: boolean;
@@ -270,8 +271,8 @@ export async function executeRun(options: RunExecutionOptions): Promise<Executio
       judgeScores.push(await runJudge(thirdJudgeFamily(options.run.id), 2));
     }
     const resolution = resolveJudges(options.run.id, [judgeScores[0], judgeScores[1]], judgeScores[2]);
-    const openaiUnits = allowanceUnits(usage.openai);
-    const anthropicUnits = allowanceUnits(usage.anthropic);
+    const openaiUnits = Number((weightedUsageUnits(usage.openai) * (options.conversionFactors?.openai ?? 1)).toFixed(6));
+    const anthropicUnits = Number((weightedUsageUnits(usage.anthropic) * (options.conversionFactors?.anthropic ?? 1)).toFixed(6));
     options.allowance.settle(options.run.id, openaiUnits, anthropicUnits);
     reservationSettled = true;
     const result: ExecutionResult = {

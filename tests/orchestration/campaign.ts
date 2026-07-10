@@ -25,7 +25,7 @@ export interface CampaignChunkState {
 }
 
 export interface CampaignState {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   id: string;
   kind: CampaignKind;
   createdAt: string;
@@ -33,6 +33,8 @@ export interface CampaignState {
   designSha256: string;
   assignmentsSha256: string;
   snapshot: UsageSnapshot;
+  calibrationSha256?: string;
+  allowanceKinds?: { openai: "remainingPercent"; anthropic: "remainingPercent" };
   concurrency: number;
   workerConcurrency: number;
   runs: Record<string, CampaignRunState>;
@@ -46,13 +48,15 @@ export function newCampaign(input: {
   concurrency?: number;
   workerConcurrency?: number;
   now?: string;
+  calibrationSha256?: string;
+  allowanceKinds?: { openai: "remainingPercent"; anthropic: "remainingPercent" };
 }): CampaignState {
   const now = input.now ?? new Date().toISOString();
   const designSha256 = hashFile(resolve(EXPERIMENT_ROOT, "design.lock.json"));
   const assignmentsSha256 = hashFile(resolve(EXPERIMENT_ROOT, "assignments.jsonl"));
   const identity = { kind: input.kind, now, designSha256, assignmentsSha256 };
   return {
-    schemaVersion: 1,
+    schemaVersion: input.calibrationSha256 ? 2 : 1,
     id: contentId(`${input.kind}-campaign`, identity, 16),
     kind: input.kind,
     createdAt: now,
@@ -60,6 +64,8 @@ export function newCampaign(input: {
     designSha256,
     assignmentsSha256,
     snapshot: input.snapshot,
+    calibrationSha256: input.calibrationSha256,
+    allowanceKinds: input.allowanceKinds,
     concurrency: input.concurrency ?? 4,
     workerConcurrency: input.workerConcurrency ?? 8,
     runs: {},
