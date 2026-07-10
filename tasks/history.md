@@ -1,5 +1,24 @@
 # Session History
 
+## 2026-07-10 — Grok skill-command convention (`/skill` like Claude)
+
+Decided and encoded runner route conventions so Grok does not false-fail on
+Claude-compat slash handoffs (e.g. `benchmark-test-skill` → `/ship`).
+
+- **Convention:** Claude + Grok use `/skill`; Codex uses `$skill`. Grok discovers
+  Claude-compat skills and exposes them as slash commands.
+- **`tests/layer4/setup-helpers/routing.ts`:** `skillCommandPrefix`,
+  `skillCommandForAgent`, `recommendedRoutesFor`, `runnerRouteVariants`,
+  `resolveRecommendedRoute` (Grok falls back to Claude's slash route),
+  `alternateSkillCommand`.
+- **Setups wired through helpers:** tier1, tier23, pack workflows, and
+  `afps-status` (was `agent === "claude" ? / : $`, which mis-graded Grok as Codex).
+- **Prompts:** runner-aware fixtures mention Grok slash alongside Claude.
+- **Layer1:** `routing-conventions.test.ts` locks the convention and proves
+  `benchmark-test-skill` hard-asserts `/ship` for Grok.
+
+Validation: `pnpm test` (layer1) after the change.
+
 ## 2026-07-10 — First-class Grok agent (runGrok + BenchAgent)
 
 Vertical-slice PR: wire Grok into the main skillbench path without expanding
@@ -208,3 +227,119 @@ Rollback note: revert this session commit to restore the previous direct
 the pack discriminator allowlist to its previous backlog.
 
 Next command: `$exec`
+
+## 2026-07-10 — Sol orchestration publisher live canary
+
+Completed the remaining live GitHub operational canary for the Sol orchestration
+publisher using clearly labeled synthetic run artifacts (no live model execution).
+
+- Campaign `full-campaign-aae00bced244df66`, chunk
+  `chunk-5a5c85d4804c425c952a`, registered 288/288 judged-shaped run identities.
+- The no-write JSON dry-run reported the chunk eligible with no reasons.
+- The real publisher created the private
+  `GeorgeQLe/agentic-skills-benchmark-results` repository, committed compact
+  indexes/reports/verified state/cleanup receipt, and created a two-part private
+  GitHub Release.
+- Fresh independent downloads matched both part hashes and the reassembled
+  71,360,968-byte archive SHA-256.
+- The persisted retry path recovered after shortening a canary-only artifact
+  filename that exceeded the deterministic ustar path limit; attempt 2 reached
+  `cleaned` with zero consecutive failures.
+- Compact local reports and 288 compact result rows remain while all owned raw
+  run directories and local archive parts were removed.
+- The campaign-scoped continuous watcher remains active under its durable PID
+  lock. A future real campaign needs its own watcher.
+
+### Ship manifest
+
+**User goal:** wrap the current repository session after proving the real private
+GitHub publisher/Release path, preserving careful feature-oriented commit scope,
+and land the completed work on the primary branch.
+
+**Changed files:** the shipping boundary includes `.agents/project.json`,
+`.gitignore`, `README.md`, `package.json`, `tasks/history.md`, `tasks/todo.md`;
+the three exact files under `docs/analysis/`; every new checksum-locked file under
+`experiments/sol-orchestration/v1/`; the two exact schemas under
+`tests/fixtures/golden/` and every new input under `tests/fixtures/inputs/`;
+`tests/orchestration.ts`, `tests/orchestration-publish.ts`, every new module under
+`tests/orchestration/`, `tests/layer1/orchestration.test.ts`, and
+`tests/layer1/publisher.test.ts`; plus the Grok/dashboard completion files
+`tests/harness/cli/dashboard-command.ts`, `tests/harness/cli/stress-command.ts`,
+`tests/harness/dashboard/model-matrix.ts`,
+`tests/harness/dashboard/orchestrator.ts`, `tests/layer1/dashboard.test.ts`,
+`tests/layer1/routing-conventions.test.ts`,
+`tests/layer4/setup-helpers/routing.ts`, and the route consumers in
+`tests/layer4/setups/afps-status.setup.ts`,
+`tests/layer4/setups/packs/pack-workflows.setup.ts`,
+`tests/layer4/setups/tier1-workflows.setup.ts`, and
+`tests/layer4/setups/tier23-base-workflows.setup.ts`. The earlier Grok runner
+commit already exists canonically on `origin/master` as `e364c2f`; the local
+same-subject feature-branch commit will not be duplicated. Generated
+`.claude/skills/**`, `.codex/skills/**`, and `generated-results/**` are excluded
+and ignored. The private results sibling repository is outside this code-repo
+boundary and is clean.
+
+**Per-file purpose:** project/package/README files expose and document the new
+control plane while ignoring runtime results; the locked experiment tree defines
+the immutable design, treatments, prompts, and fixtures; orchestration modules
+implement scheduling, provider isolation, allowance accounting, judging,
+reporting, deterministic multipart archival, private GitHub transport, durable
+publisher recovery, verification, and cleanup; layer1 tests cover those
+contracts. Dashboard/routing files finish Grok dispatch and runner-native
+handoffs while hardening live TUI repaint cleanup. Fixture files restore the
+source inputs and schemas consumed by existing benchmark setups. Analysis docs
+preserve the model comparison evidence. Project/task files record designation,
+the canary, the exact ship boundary, and the next real-campaign blocker.
+
+**User-goal mapping:** the production publisher command was exercised unchanged
+against a production-shaped 288-run chunk and a real private repository/Release;
+the implementation, offline contracts, docs, and locked corpus that enabled that
+canary are the core feature commit. Grok/dashboard and fixture changes are kept
+in separate logical commits so the pre-existing work is not mixed into the
+orchestration implementation.
+
+**Tests run:** `pnpm bench --verify` passed catalog freshness, the 208-skill
+coverage matrix, and 117/117 layer1 tests across 18 files; `pnpm exec tsc
+--noEmit` passed; `pnpm skillbench stress --json` passed all deterministic cases,
+including expected-failure guards; `pnpm bench:orchestration verify
+--campaign-ready` passed all six fixture qualifications and CLI capability
+checks. The live canary dry-run was eligible without writes; the real sweep
+created two Release parts, fresh-downloaded and reassembled them, matched both
+part hashes and the archive hash, pushed verified/cleanup records, removed only
+owned raw paths, and left the watcher lock active.
+
+**Skipped tests:** a genuine live-model pilot/full chunk was not run because the
+repository has no legitimate calibration observations/profile or passing
+1,116-run pilot gate; fabricating those scientific gates would invalidate the
+experiment. A GUI visual test is not applicable to this terminal/control-plane
+change; deterministic ANSI repaint snapshots and stress coverage exercise the
+TUI. No deploy was run because this repository has no `deploy.md` or
+`tasks/deploy.md` manual deploy contract.
+
+**Adversarial review:** performed a failure-oriented changed-file review and
+targeted scans for whitespace errors, unfinished markers, command execution,
+destructive removal, credential literals, personal paths, and accidentally
+tracked runtime output. Child commands use argument arrays rather than shell
+interpolation; publisher removals are rooted through ownership checks and are
+covered by unrelated-path retention and interruption tests. The only token-like
+literal is the deliberate fake-key archive-scan fixture. One absolute home path
+in an analysis note was normalized to `~/projects`. The live canary also proved
+retry recovery after a deliberately large artifact first exceeded the ustar path
+limit. Staged-diff checks also normalized extra EOF blank lines in new modules
+and trailing whitespace in a restored Markdown input fixture.
+
+**Residual risk:** scientific live execution remains unvalidated until fresh
+manual provider snapshots, real calibration observations, and a passing pilot
+gate exist. The active watcher is intentionally scoped to the synthetic campaign
+and will not discover a future real campaign; that campaign must launch its own
+watcher. Remote event mirrors are committed at atomic state boundaries while the
+local durable ledger may contain later terminal/watcher events; remote
+`publisher/state.json` and cleanup receipts remain the completion authority.
+
+**Rollback note:** revert the feature-oriented commits on `master` to remove the
+code/corpus/dashboard changes. Stop the watcher with SIGTERM before removing its
+ignored local campaign data. The private results repository and Release are
+external canary evidence and must only be deleted through an explicit separate
+cleanup request.
+
+**Next command:** `npx skillpacks install guided-walkthrough`
