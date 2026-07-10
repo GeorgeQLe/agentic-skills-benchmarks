@@ -67,8 +67,8 @@ const agentArg = process.argv[3];
 if (!skill) {
   fail("usage: node scripts/benchmark-regression-check.mjs <skill> [agent]");
 }
-if (agentArg && agentArg !== "claude" && agentArg !== "codex") {
-  fail(`unknown agent "${agentArg}" (expected claude or codex)`);
+if (agentArg && agentArg !== "claude" && agentArg !== "codex" && agentArg !== "grok") {
+  fail(`unknown agent "${agentArg}" (expected claude, codex, or grok)`);
 }
 
 // ---- locate the newest report.json per agent for this skill --------------

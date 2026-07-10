@@ -58,8 +58,8 @@ export interface RunOptions {
   timeoutMs?: number;
   /**
    * Optional model override passed through to the underlying CLI
-   * (`claude --model <model>` / `codex --model <model>`). When unset each
-   * CLI uses its own default model, preserving prior behaviour.
+   * (`claude --model <model>` / `codex --model <model>` / `grok -m <model>`).
+   * When unset each CLI uses its own default model, preserving prior behaviour.
    */
   model?: string;
 }
@@ -137,6 +137,56 @@ export function codexExecArgs(workDir: string, prompt: string, model?: string): 
     ...(model ? ["--model", model] : []),
     prompt,
   ];
+}
+
+/**
+ * Headless Grok Build TUI invocation for benchmark runs.
+ * Mirrors claude's unattended print mode: single prompt, auto-approve tools,
+ * bounded turns, no cross-session memory.
+ */
+export function grokExecArgs(
+  workDir: string,
+  prompt: string,
+  model?: string,
+  maxTurns = 25,
+): string[] {
+  return [
+    "-p",
+    prompt,
+    "--cwd",
+    workDir,
+    "--always-approve",
+    "--max-turns",
+    String(maxTurns),
+    "--no-memory",
+    "--no-auto-update",
+    "--output-format",
+    "plain",
+    ...(model ? ["-m", model] : []),
+  ];
+}
+
+export async function runGrok(opts: RunOptions): Promise<RunResult> {
+  const { prompt, workDir, maxBudgetUsd, timeoutMs = 120_000, model } = opts;
+
+  // Grok CLI has no USD budget flag; inject the same soft budget note as Codex.
+  const budgetNote = maxBudgetUsd != null
+    ? `\n\nIMPORTANT: Your budget limit for this task is $${maxBudgetUsd} USD. Stay within this budget.`
+    : "";
+  const args = grokExecArgs(workDir, prompt + budgetNote, model);
+
+  const result = await runSpawnedCommand("grok", args, {
+    cwd: workDir,
+    timeoutMs,
+  });
+
+  return {
+    stdout: result.stdout,
+    stderr: result.stderr,
+    exitCode: result.exitCode,
+    workDir,
+    files: listFilesRecursive(workDir),
+  };
 }
 
 async function runSpawnedCommand(

@@ -35,9 +35,16 @@ pnpm test
 pnpm bench:list
 pnpm bench --skill design-system --agent codex --runs 1 --chunk-size 1 --budget 1
 pnpm bench --skills design-system,ship --agent both --runs 1 --budget 4
+# Grok (explicit --agent; `both` stays claude+codex only)
+pnpm bench --skill design-system --agent grok --runs 1 --chunk-size 1 --budget 1
 # Opt-in: also gate pass/fail on each suite's quality rubric (default: assertions only)
 BENCH_GATE_ON_QUALITY=1 pnpm bench --skill design-system --agent codex --runs 1 --budget 1
 ```
+
+`--agent` accepts `claude`, `codex`, `grok`, or `both`. **`both` means claude+codex
+only** so existing multi-agent runs do not silently add Grok spend — pass
+`--agent grok` explicitly. Grok runs use the local `grok` CLI headless path
+(`-p` / `--always-approve` / `--cwd`).
 
 Benchmark run output stays under `tests/benchmarks/runs/`.
 

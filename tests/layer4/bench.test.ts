@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { BenchConfig } from "../harness/bench-types.js";
+import { isBenchAgent, type BenchConfig } from "../harness/bench-types.js";
 import { startOrResumeSession, runChunk } from "../harness/bench-runner.js";
 import { writeReport } from "../harness/bench-report.js";
 import { loadBenchmarkCatalogMetadata, parseReleaseChannel } from "../harness/skills-catalog.js";
@@ -12,7 +12,8 @@ import {
 
 const scenario = process.env.BENCH_SCENARIO;
 const skill = scenario ?? process.env.BENCH_SKILL ?? "design-system";
-const agent = process.env.BENCH_AGENT === "codex" ? "codex" : "claude";
+const agentEnv = process.env.BENCH_AGENT ?? "claude";
+const agent = isBenchAgent(agentEnv) ? agentEnv : "claude";
 const runs = parseInt(process.env.BENCH_RUNS ?? "5", 10);
 const chunkSize = parseInt(process.env.BENCH_CHUNK_SIZE ?? "5", 10);
 const maxBudgetUsd = process.env.BENCH_MAX_BUDGET_USD
