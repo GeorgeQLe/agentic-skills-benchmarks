@@ -1,0 +1,15 @@
+{
+  "required_fields": [
+    "Label",
+    "Blocks",
+    "Blocked by"
+  ],
+  "required_sections": [
+    "Description",
+    "Acceptance Criteria"
+  ],
+  "optional_sections": [
+    "Notes"
+  ],
+  "valid_labels": ["afk", "human-review", "pair"]
+}

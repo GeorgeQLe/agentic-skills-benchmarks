@@ -1,0 +1,13 @@
+{
+  "required_sections": [
+    "Intent",
+    "Success Criteria",
+    "Taste Notes",
+    "Out of Scope",
+    "Open Questions"
+  ],
+  "optional_sections": [
+    "Technical Leanings",
+    "Constraints"
+  ]
+}
