@@ -5,3 +5,4 @@ coverage/
 .claude/skills/
 .codex/skills/
 tests/benchmarks/
+generated-results/

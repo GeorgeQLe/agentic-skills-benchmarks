@@ -1,0 +1,307 @@
+{
+  "artifacts": {
+    "agents/adversarial-registry.json": {
+      "bytes": 285,
+      "sha256": "a49c8c65119d19d3aa34191cf86e688a7044cdf42fc6c11f6d842c42ec758ac1"
+    },
+    "agents/adversarial.md": {
+      "bytes": 464,
+      "sha256": "d8f83b0aba00beeee9469b54c25e3fb1c9323b630422276f2e6a855fc6855251"
+    },
+    "agents/neutral.md": {
+      "bytes": 344,
+      "sha256": "53cba525b2aea32deaf988abc5924d80f3002410dc451ea6fd38685da28e7c1f"
+    },
+    "agents/optimized.md": {
+      "bytes": 748,
+      "sha256": "e1c595b8f0b33cd952131fc71ba984520c7108ccb618a5475c2213aef73dadae"
+    },
+    "assignments.jsonl": {
+      "bytes": 2272538,
+      "records": 11520,
+      "sha256": "c36f70827b094dfa7368eab7bb7574d0146a9aceca778c4bba876693a0b611d7"
+    },
+    "chunks.jsonl": {
+      "bytes": 435210,
+      "records": 1440,
+      "sha256": "b274450cc56da774dca11dbc2877b9beae94f0cb1d47c4da53f11f3e5cb0456a"
+    },
+    "fixtures/go-brownfield/fixture.json": {
+      "bytes": 203,
+      "sha256": "88bccb4251e58838b468cfb6e4ee895df3e39d169c1a2b2abd93fdff8edf4e1f"
+    },
+    "fixtures/go-brownfield/hidden/redact_test.go": {
+      "bytes": 487,
+      "sha256": "177452859b67ee7a4eb5177da6093d3b41670e0b749b2f5d20dfb0b625f3a5bb"
+    },
+    "fixtures/go-brownfield/reference/redact.go": {
+      "bytes": 210,
+      "sha256": "3f07f173942a2466502be4b4cba6c7deba336d9b58fe4debba7e18d3f50dc452"
+    },
+    "fixtures/go-brownfield/seed/go.mod": {
+      "bytes": 29,
+      "sha256": "1f1611e73aabcdfae8fe070f6ea0a803d479cda244398f16955d6b60971b65ee"
+    },
+    "fixtures/go-brownfield/seed/redact.go": {
+      "bytes": 149,
+      "sha256": "46ffe21b13618326b4a4204bc8fbfead1842c75e57bed93a2ec5a3285d833c0f"
+    },
+    "fixtures/go-greenfield/fixture.json": {
+      "bytes": 201,
+      "sha256": "0e12903e7efb1658fff0da0dc4ab110c540c86e30da631392d1303cb2aeee779"
+    },
+    "fixtures/go-greenfield/hidden/port_test.go": {
+      "bytes": 492,
+      "sha256": "60f4ee4a767e622ac319ee03635d01827ee1fb25f272503bd3e71e6376b6cb15"
+    },
+    "fixtures/go-greenfield/reference/port.go": {
+      "bytes": 317,
+      "sha256": "f5eba397703827a22ac3cf61375f8f17cf09f75b2c58efbea12baa324c32cf8b"
+    },
+    "fixtures/go-greenfield/seed/go.mod": {
+      "bytes": 29,
+      "sha256": "1f1611e73aabcdfae8fe070f6ea0a803d479cda244398f16955d6b60971b65ee"
+    },
+    "fixtures/go-greenfield/seed/port.go": {
+      "bytes": 124,
+      "sha256": "28f88b86feee669e07b7310e35185f6762059d790268272f1a40cad7f1f4bdad"
+    },
+    "fixtures/python-brownfield/fixture.json": {
+      "bytes": 295,
+      "sha256": "ba9edc502b8442f604586f9ba4e12c26a26d76067591fa2e9d3519603773d6aa"
+    },
+    "fixtures/python-brownfield/hidden/test_cache.py": {
+      "bytes": 623,
+      "sha256": "9b6d5651349a2e89dba74191e1576d1688dfcd798a1be40c296bb6733fd9a458"
+    },
+    "fixtures/python-brownfield/reference/src/cache.py": {
+      "bytes": 518,
+      "sha256": "7302c6f9a9b21beae40ed9f3e76cc68334689bfcb0e063509c20d2e6c62f88e9"
+    },
+    "fixtures/python-brownfield/seed/src/__init__.py": {
+      "bytes": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    "fixtures/python-brownfield/seed/src/cache.py": {
+      "bytes": 378,
+      "sha256": "39ca239a8941bdca747ffcd79bba4ddd0cb396bd05805b746940cd802dd625ea"
+    },
+    "fixtures/python-greenfield/fixture.json": {
+      "bytes": 300,
+      "sha256": "504e0a61cc9ee0029064fdc9e7f8b18f11162c9f5314bceea7c7ce3c737ad0bb"
+    },
+    "fixtures/python-greenfield/hidden/test_statistics.py": {
+      "bytes": 637,
+      "sha256": "7a4fcb4d31096369b622581ef9c6a5672fcab484ea2ee71a69e0f862733fea0b"
+    },
+    "fixtures/python-greenfield/reference/src/statistics.py": {
+      "bytes": 421,
+      "sha256": "a2ff29a45ea5d83134d0d5f035b2fea89823e139843be8304c671dbd32e67f69"
+    },
+    "fixtures/python-greenfield/seed/src/__init__.py": {
+      "bytes": 1,
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    },
+    "fixtures/python-greenfield/seed/src/statistics.py": {
+      "bytes": 97,
+      "sha256": "e66c0df0c18756830d87b7468d7e218b4506eb42c16b88df44ac4364678b9fc2"
+    },
+    "fixtures/typescript-brownfield/fixture.json": {
+      "bytes": 333,
+      "sha256": "c5a1b2508ed138de609b4fc91051d1c7b0ef29571ab60bd3cee0f13dddd77faa"
+    },
+    "fixtures/typescript-brownfield/hidden/slugify.test.ts": {
+      "bytes": 360,
+      "sha256": "5e99719c4e77f579672560de8d0008429dcf7f818d8764ca723444bba8374692"
+    },
+    "fixtures/typescript-brownfield/reference/src/slugify.ts": {
+      "bytes": 160,
+      "sha256": "464376073de6164bfb1d61c62e602d1d638e596a3f6907e384a8c80b35d01045"
+    },
+    "fixtures/typescript-brownfield/seed/src/slugify.ts": {
+      "bytes": 99,
+      "sha256": "ffd86abd1814f7c5934a07caaf9e6f1941c2a2e36f014c12f7b011161b6f69a5"
+    },
+    "fixtures/typescript-greenfield/fixture.json": {
+      "bytes": 313,
+      "sha256": "c8fe11f99e8d884a27ab4bde36da5c4730698da696429b147dfc36528b50acde"
+    },
+    "fixtures/typescript-greenfield/hidden/range.test.ts": {
+      "bytes": 350,
+      "sha256": "9dfe06f3dd427398bf084e37f34f437070537b6c285c183db75ae685b8d34061"
+    },
+    "fixtures/typescript-greenfield/reference/src/range.ts": {
+      "bytes": 253,
+      "sha256": "c375b64a1e9e7f7fe67bda4794f801a7e597421b6bb0847807e4bbf1738556f4"
+    },
+    "fixtures/typescript-greenfield/seed/src/range.ts": {
+      "bytes": 112,
+      "sha256": "2fbf6b6f5632a2254a2af55c7e8bbb0a79a766e9d59c63983c980c701b4cef7b"
+    },
+    "pilot-ofat.jsonl": {
+      "bytes": 8077,
+      "records": 30,
+      "sha256": "516a84d90443af87b080df9390fb32655f63f2a4fb266f4f5b6f966116d9727d"
+    },
+    "prompts/judge-claude.md": {
+      "bytes": 275,
+      "sha256": "2ec0dda33406459d170d6f5280380ab6e7c68bf58e0f6c0d18f734b43628bf0a"
+    },
+    "prompts/judge-gpt.md": {
+      "bytes": 315,
+      "sha256": "9f62ce652755e15c390b1a7a8ea60ca48d3344a24a9341812f1986c0ad709f35"
+    },
+    "prompts/plan-first.md": {
+      "bytes": 268,
+      "sha256": "48ceeb74c703a677fb3a20885d8040aaf1df1da5b99a9e680f620bd3c25f633e"
+    },
+    "prompts/sol.md": {
+      "bytes": 532,
+      "sha256": "39797ba2b13c1b43a4515a559fddbe6cd07b6102959688150b3fa2bd553beeec"
+    },
+    "prompts/worker.md": {
+      "bytes": 293,
+      "sha256": "928ab65c6a34d9be813a2f1beed7930dff0e1032d09d979b65dc030b8b2babd1"
+    },
+    "skills/decoys/dependency-first/SKILL.md": {
+      "bytes": 296,
+      "sha256": "348ce1582c446c8217a2dc7e43c0f7e68e15c9c3a3eaf17d97a2e3da81853113"
+    },
+    "skills/decoys/skip-verification/SKILL.md": {
+      "bytes": 248,
+      "sha256": "cc02911073ef3964501a57778cf8dcdcfdcfd3a5d0f1e49b8d673df473508e8a"
+    },
+    "skills/relevant/SKILL.md": {
+      "bytes": 473,
+      "sha256": "ec1ec2b29a18a565ab6b182a2032874d7660a94e49739d6dc50ffa9530dc52b1"
+    },
+    "tasks/scenarios.json": {
+      "bytes": 7755,
+      "sha256": "78963d28175cf49d3115d67b8015f8d138aa6dd73df933d8ff0ea0fdce31d557"
+    }
+  },
+  "assignmentCount": 11520,
+  "campaignVersion": "v1",
+  "candidateExecutionCount": 414720,
+  "chunkCount": 1440,
+  "chunkSize": 8,
+  "cliPins": {
+    "claude": "2.1.206 (Claude Code)",
+    "codex": "codex-cli 0.144.1",
+    "node": "v25.2.1"
+  },
+  "environment": {
+    "architecture": "arm64",
+    "platform": "darwin",
+    "repository": "agentic-skills-benchmarks"
+  },
+  "factors": {
+    "agentsTreatments": [
+      "absent",
+      "neutral",
+      "optimized",
+      "adversarial"
+    ],
+    "skillTreatments": [
+      "disabled",
+      "implicit",
+      "explicit",
+      "decoy"
+    ],
+    "solEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "topologies": [
+      "single",
+      "fanout",
+      "pipeline"
+    ],
+    "workerEfforts": [
+      "low",
+      "medium",
+      "high",
+      "xhigh"
+    ],
+    "workers": [
+      "sol",
+      "terra",
+      "luna",
+      "opus-4.8"
+    ]
+  },
+  "generatedBy": "pnpm bench:orchestration generate",
+  "hypotheses": [
+    "Delegation can improve quality over raw Sol-alone execution.",
+    "Topology and worker roster interact with task family.",
+    "Task-independent optimized orchestration instructions improve constraint following.",
+    "Explicit relevant skills improve quality relative to disabled and decoy treatments.",
+    "Higher reasoning effort has diminishing quality returns relative to latency and allowance consumption."
+  ],
+  "models": {
+    "judges": {
+      "claude": "claude-opus-4-8",
+      "gpt": "gpt-5.6-sol"
+    },
+    "orchestrator": "gpt-5.6-sol",
+    "workers": {
+      "luna": "gpt-5.6-luna",
+      "opus-4.8": "claude-opus-4-8",
+      "sol": "gpt-5.6-sol",
+      "terra": "gpt-5.6-terra"
+    }
+  },
+  "repetitions": 3,
+  "rubric": {
+    "categories": {
+      "codeQuality": 25,
+      "directionFollowing": 20,
+      "intentAndPushback": 25,
+      "requirements": 30
+    },
+    "criticalFailureFails": true,
+    "minimumDirectionFollowing": 16,
+    "minimumRequirements": 24,
+    "passScore": 80,
+    "tieBreakScoreGap": 10
+  },
+  "scenarios": 12,
+  "schemaVersion": 1,
+  "seed": "sol-orchestration-v1-2026-07-10",
+  "stoppingRules": {
+    "archivePartBytes": 67108864,
+    "archiveStorage": "github-release-assets",
+    "calibrationCandidateCap": 24,
+    "calibrationJudgeCallCap": 60,
+    "calibrationRemainingAllowanceFractionCap": 0.1,
+    "candidateConcurrencyDefault": 4,
+    "chunkConfigurations": 8,
+    "pilotGate": [
+      "fixtures",
+      "capabilities",
+      "judge-agreement",
+      "isolation",
+      "budget",
+      "harness-integrity"
+    ],
+    "rawArchiveGitBlobs": false,
+    "reservationContingency": 0.2,
+    "stopOnQuotaOrRateLimit": true
+  },
+  "taskHashes": {
+    "go-brownfield-challenge": "13df5e4f849672bb6371eb9fbc95a5eb89b75c0c2ce61f883fbfb754af847c25",
+    "go-brownfield-clean": "6f5d9aeeee6fe50b41e750bd0091763de59d4bd2724086f663bdf3246d6996fd",
+    "go-greenfield-challenge": "0ddff370b228c6aee6fb4029dbc80a4832bd4b12c43f5d4aa4004e89df7b5324",
+    "go-greenfield-clean": "4955840182590c7131d964b39a6958d14fcdb509ca7087809f395b43437f3f37",
+    "python-brownfield-challenge": "ac48210767e1f14bf93679836d21852f8bc7ab971c09af2df512205ce681451a",
+    "python-brownfield-clean": "52c8005a1a02dfe9b8cf639a8e450246e47beb6383dc5797f8dbfdc836f90f60",
+    "python-greenfield-challenge": "ef1ccf9e794cf6911d2ecc2545137e973ebf913a072af9c8bb0e043dee81cd49",
+    "python-greenfield-clean": "5657ea0f8360793627c4a2dcebaece8491c56a2f1dd935fd692341065c458f38",
+    "typescript-brownfield-challenge": "5d53dc0c9f5e7798266b61705cb6d81048f2fb6ba1896b2e44f765a4c6b901fa",
+    "typescript-brownfield-clean": "df87ea2eb4616fd5b52a40ee0eedc8fa8d5727255f6ef410f4fa27a3d00e2934",
+    "typescript-greenfield-challenge": "9fb2ae7248b76b744a663be59eb7cee1013868c5f0096fe307f92c8fac24a11a",
+    "typescript-greenfield-clean": "9e86431d77c7164c9867debb0e307670c2d120b7b99eb57e0c8dbdb33a1fdd4a"
+  }
+}

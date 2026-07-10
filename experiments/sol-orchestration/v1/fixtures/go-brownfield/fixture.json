@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "go-brownfield",
+  "language": "go",
+  "mode": "brownfield",
+  "verification": ["go", "test", "./..."],
+  "requiredFiles": ["redact.go"],
+  "forbiddenFiles": ["go.sum"]
+}

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "go-greenfield",
+  "language": "go",
+  "mode": "greenfield",
+  "verification": ["go", "test", "./..."],
+  "requiredFiles": ["port.go"],
+  "forbiddenFiles": ["go.sum"]
+}

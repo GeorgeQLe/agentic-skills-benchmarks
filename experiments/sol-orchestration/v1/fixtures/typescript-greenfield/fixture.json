@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "typescript-greenfield",
+  "language": "typescript",
+  "mode": "greenfield",
+  "verification": ["node", "--experimental-strip-types", "--test", "hidden/range.test.ts"],
+  "requiredFiles": ["src/range.ts"],
+  "forbiddenFiles": ["package-lock.json", "pnpm-lock.yaml", "yarn.lock"]
+}

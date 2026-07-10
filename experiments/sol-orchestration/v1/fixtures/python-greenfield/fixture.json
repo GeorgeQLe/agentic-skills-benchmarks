@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "python-greenfield",
+  "language": "python",
+  "mode": "greenfield",
+  "verification": ["python3", "-m", "unittest", "discover", "-s", "hidden", "-p", "test_*.py"],
+  "requiredFiles": ["src/statistics.py"],
+  "forbiddenFiles": ["requirements.txt", "pyproject.toml"]
+}

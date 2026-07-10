@@ -9,6 +9,8 @@
     "bench:coverage": "tsx tests/harness/bench-coverage.ts",
     "bench:list": "tsx tests/bench.ts --list-skills",
     "bench:dashboard": "tsx tests/dashboard.ts",
+    "bench:orchestration": "tsx tests/orchestration.ts",
+    "bench:orchestration:publish": "tsx tests/orchestration-publish.ts",
     "bench": "tsx tests/bench.ts",
     "skillbench": "tsx tests/skillbench.ts",
     "skillbench:stress": "tsx tests/skillbench.ts stress",

@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "typescript-brownfield",
+  "language": "typescript",
+  "mode": "brownfield",
+  "verification": ["node", "--experimental-strip-types", "--test", "hidden/slugify.test.ts"],
+  "requiredFiles": ["src/slugify.ts"],
+  "forbiddenFiles": ["package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"]
+}

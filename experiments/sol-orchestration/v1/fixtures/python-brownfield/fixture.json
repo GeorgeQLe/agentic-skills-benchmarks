@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "python-brownfield",
+  "language": "python",
+  "mode": "brownfield",
+  "verification": ["python3", "-m", "unittest", "discover", "-s", "hidden", "-p", "test_*.py"],
+  "requiredFiles": ["src/cache.py"],
+  "forbiddenFiles": ["requirements.txt", "pyproject.toml"]
+}
