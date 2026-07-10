@@ -1,5 +1,34 @@
 # Session History
 
+## 2026-07-10 — First-class Grok agent (runGrok + BenchAgent)
+
+Vertical-slice PR: wire Grok into the main skillbench path without expanding
+the dashboard matrix or `both`.
+
+- **`runGrok` / `grokExecArgs`** in `tests/harness/runner.ts` — headless
+  `grok -p … --cwd … --always-approve --max-turns 25 --no-memory
+  --no-auto-update`, optional `-m` model override, soft budget note (no CLI
+  USD flag).
+- **`BenchAgent` includes `"grok"`** with shared `isBenchAgent` / `BENCH_AGENTS`
+  helpers; dispatch in `runBenchAgent`, CLI `--agent`, `BENCH_AGENT` worker
+  env, interactive prompt, and regression-check argv.
+- **`both` stays claude+codex only** so broad existing invocations do not
+  silently double spend. Select Grok with `--agent grok`.
+- **End-to-end path:** any custom/generic setup works; smoke with
+  `design-system` or `session-triage`:
+  `pnpm bench --skill design-system --agent grok --runs 1 --budget 1`.
+- **Out of scope for this PR:** dashboard model-matrix entry, `live-agent.ts`
+  JSON-schema path, agent-specific route conventions for Grok, catalog skill
+  install into temp fixtures.
+
+Validation:
+- Offline: layer1 `runner-grok.test.ts` (args + CLI accept/reject + `both`
+  non-expansion); full `pnpm test` green.
+- Live: `pnpm bench --skill session-triage --agent grok --runs 1 --budget 1`
+  → 100% pass (1/1 evaluated, p50 ~63s). `design-system` blocked in this
+  checkout by missing `tests/fixtures/inputs/ui-final-dashboard.md` (pre-existing
+  fixture gap, not Grok-specific).
+
 ## 2026-07-03 — Fix three systemic benchmark false-negative defect classes
 
 Implemented the audited May 2026 defect classes in the post-split harness.

@@ -18,7 +18,7 @@
 //   node scripts/benchmark-regression-check.mjs <skill> [agent]
 //
 //   <skill>  required — repository skill name (e.g. design-system)
-//   [agent]  optional — claude | codex. When omitted, every agent found in
+//   [agent]  optional — claude | codex | grok. When omitted, every agent found in
 //            the newest reports for <skill> is compared.
 //
 // Inputs:
@@ -67,8 +67,8 @@ const agentArg = process.argv[3];
 if (!skill) {
   fail("usage: node scripts/benchmark-regression-check.mjs <skill> [agent]");
 }
-if (agentArg && agentArg !== "claude" && agentArg !== "codex") {
-  fail(`unknown agent "${agentArg}" (expected claude or codex)`);
+if (agentArg && agentArg !== "claude" && agentArg !== "codex" && agentArg !== "grok") {
+  fail(`unknown agent "${agentArg}" (expected claude, codex, or grok)`);
 }
 
 // ---- locate the newest report.json per agent for this skill --------------
@@ -102,7 +102,7 @@ const newest = new Map(); // agent -> { report, dirName, ts }
 for (const entry of readdirSync(runsDir, { withFileTypes: true })) {
   if (!entry.isDirectory()) continue;
   // Directory naming: <skill>-<agent>-<sessionId>
-  const m = entry.name.match(/^(.+)-(claude|codex)-[^-]+$/);
+  const m = entry.name.match(/^(.+)-(claude|codex|grok)-[^-]+$/);
   if (!m) continue;
   const [, dirSkill, dirAgent] = m;
   if (dirSkill !== skill) continue;

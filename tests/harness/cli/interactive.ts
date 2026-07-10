@@ -37,7 +37,7 @@ async function promptArgs(kind: "run" | "dashboard"): Promise<string[]> {
   if (kind === "run") {
     const targetKind = await question("Target type: skill or scenario", "skill");
     const target = await question("Target name", "investigate");
-    const agent = await question("Agent: claude, codex, or both", "both");
+    const agent = await question("Agent: claude, codex, grok, or both", "both");
     const runs = await question("Runs", "1");
     const chunkSize = await question("Chunk size", runs);
     const budget = await question("Budget USD", "1");
