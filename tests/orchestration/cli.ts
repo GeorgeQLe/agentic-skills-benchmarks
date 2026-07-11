@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { assertPublishingPrerequisites, retrieveArchivedRun } from "./archive.js";
-import { collectCalibration } from "./calibration.js";
+import { collectCalibration, diagnoseCalibrationCandidate } from "./calibration.js";
 import { CampaignStore, listCampaigns, newCampaign } from "./campaign.js";
 import { capabilityProbes, assertScenarioPairs, qualifyAllFixtures } from "./corpus.js";
 import { renderOrchestrationDashboard, loadAllowanceState } from "./dashboard.js";
@@ -26,6 +26,7 @@ export interface CommandDependencies {
   createPitwallClient?: (url?: string) => AllowanceSnapshotProvider;
   createPitwallApiSetup?: () => PitwallApiSetup;
   collectCalibration?: typeof collectCalibration;
+  diagnoseCalibrationCandidate?: typeof diagnoseCalibrationCandidate;
   environment?: NodeJS.ProcessEnv;
 }
 
@@ -59,7 +60,7 @@ export function orchestrationHelpText(): string {
     "Commands:",
     "  generate   deterministically write and lock v1 design files",
     "  verify     regenerate byte-for-byte, validate pairs, and qualify fixtures",
-    "  calibrate  collect capped allowance estimates around fresh Pitwall snapshots; --enable-pitwall-api may enable/restart the installed macOS app before all model calls",
+    "  calibrate  collect capped allowance estimates, or run one isolated candidate with --candidate-only",
     "  pilot      plan or execute the replicated 30-row OFAT pilot plus plan-first",
     "  run        plan or execute the full campaign in immutable eight-configuration chunks",
     "  resume     continue only incomplete immutable run IDs in a campaign",
@@ -124,6 +125,16 @@ function rejectManualSnapshotFlags(args: string[]): void {
 
 async function calibrateCommand(args: string[], io: CommandIo, dependencies: CommandDependencies): Promise<number> {
   rejectManualSnapshotFlags(args);
+  if (args.includes("--candidate-only")) {
+    if (args.includes("--collect")) throw new Error("--candidate-only cannot be combined with --collect");
+    if (!args.includes("--execute") || !args.includes("--ack-subscription")) throw new Error("candidate diagnostic requires --execute --ack-subscription");
+    liveGate(args);
+    const workRoot = resolve(valueFor(args, "--work-root") ?? "generated-results/sol-orchestration/candidate-diagnostic");
+    const reportPath = resolve(valueFor(args, "--diagnostic-report") ?? resolve(workRoot, "candidate-diagnostic.json"));
+    const result = await (dependencies.diagnoseCalibrationCandidate ?? diagnoseCalibrationCandidate)({ workRoot, reportPath });
+    line(io.stdout, `candidate diagnostic ${result.status}: ${reportPath}`);
+    return 0;
+  }
   const observations = valueFor(args, "--observations") ?? "calibration-observations.json";
   const output = resolve(valueFor(args, "--output") ?? "calibration-profile.json");
   if (!args.includes("--collect") || !args.includes("--execute") || !args.includes("--ack-subscription")) throw new Error("live calibration requires calibrate --collect --execute --ack-subscription");

@@ -13,7 +13,7 @@ import {
   type ProviderCommandSpec,
 } from "../orchestration/adapters.js";
 import { AllowanceLedger, validatePercentageSnapshot, worstCaseReservation, type CalibrationProfile } from "../orchestration/budget.js";
-import { buildCalibrationProfile, collectCalibration, type CalibrationObservations } from "../orchestration/calibration.js";
+import { buildCalibrationProfile, classifyExecutionFailure, collectCalibration, diagnoseCalibrationCandidate, sanitizeDiagnosticText, type CalibrationObservations } from "../orchestration/calibration.js";
 import { CampaignStore, newCampaign } from "../orchestration/campaign.js";
 import { runOrchestrationCommand } from "../orchestration/cli.js";
 import { assertScenarioPairs, qualifyAllFixtures } from "../orchestration/corpus.js";
@@ -240,9 +240,62 @@ describe("provider isolation and topology", () => {
     ].join("\n");
     expect(prohibitedModelDescendants(ps, 100)).toEqual([102]);
   });
+
+  it("allows ordinary descendants and handles exited roots and command variants", () => {
+    const ps = [
+      "201 200 /bin/zsh",
+      "202 201 /Applications/Codex.app/Contents/MacOS/codex-sandbox",
+      "203 202 /usr/bin/git",
+      "204 201 C:\\tools\\claude.exe",
+      "205 999 /usr/local/bin/codex",
+    ].join("\n");
+    expect(prohibitedModelDescendants(ps, 200)).toEqual([204]);
+    expect(prohibitedModelDescendants(ps, 999)).toEqual([205]);
+    expect(prohibitedModelDescendants(ps, 777)).toEqual([]);
+  });
+
+  it("allows only the provider launcher's direct native runtime", () => {
+    const ps = [
+      "301 300 /opt/openai/codex",
+      "302 301 /bin/zsh",
+      "303 302 /opt/openai/codex",
+      "304 301 /opt/anthropic/claude",
+    ].join("\n");
+    expect(prohibitedModelDescendants(ps, 300, "codex")).toEqual([303, 304]);
+  });
 });
 
 describe("budget, judges, and plan-first", () => {
+  it("classifies execution failures and redacts bounded diagnostics", () => {
+    const root = temp("sol-classification-");
+    try {
+      const spec = codexCandidateSpec({ cwd: root, prompt: "task", effort: "xhigh", schemaPath: resolve(root, "schema"), outputPath: resolve(root, "out"), denyShimDir: root });
+      const base: ProviderExecution = { exitCode: 0, signal: null, stdout: "", stderr: "", durationMs: 7, timedOut: false, outputLimited: false, usage: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 1, reasoningTokens: 0, calls: 1 } };
+      expect(classifyExecutionFailure(spec, { ...base, exitCode: 2 })?.kind).toBe("nonzero_exit");
+      expect(classifyExecutionFailure(spec, { ...base, signal: "SIGTERM" })?.kind).toBe("signal");
+      expect(classifyExecutionFailure(spec, { ...base, timedOut: true })?.kind).toBe("timeout");
+      expect(classifyExecutionFailure(spec, { ...base, outputLimited: true })?.kind).toBe("output_limit");
+      expect(classifyExecutionFailure(spec, { ...base, directModelViolation: true })?.kind).toBe("direct_model_violation");
+      expect(classifyExecutionFailure(spec, { ...base, stderr: "quota reached" })?.kind).toBe("quota_warning");
+      const sanitized = sanitizeDiagnosticText(`Authorization: Bearer secret-token\napi_key=sk-abcdefghijklmnop\n${"x".repeat(5000)}`, 200);
+      expect(sanitized).not.toContain("secret-token");
+      expect(sanitized).not.toContain("sk-abcdefghijklmnop");
+      expect(sanitized.length).toBeLessThanOrEqual(200);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it("persists candidate diagnostics and Anthropic structured worker evidence", async () => {
+    const diagnosticRoot = temp("sol-candidate-diagnostic-");
+    try {
+      const reportPath = resolve(diagnosticRoot, "report.json");
+      await expect(diagnoseCalibrationCandidate({ workRoot: resolve(diagnosticRoot, "work"), reportPath, execute: async () => ({ exitCode: 9, signal: null, stdout: "", stderr: "token=secret-value", durationMs: 3, timedOut: false, outputLimited: false, usage: { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, calls: 0 } }) })).rejects.toThrow("nonzero_exit");
+      expect(JSON.parse(readFileSync(reportPath, "utf8"))).toMatchObject({ status: "invalid", failure: { kind: "nonzero_exit", stderrTail: "token=[REDACTED]" } });
+      const missingOutputReport = resolve(diagnosticRoot, "missing-output.json");
+      await expect(diagnoseCalibrationCandidate({ workRoot: resolve(diagnosticRoot, "work-2"), reportPath: missingOutputReport, execute: async () => ({ exitCode: 0, signal: null, stdout: "", stderr: "", durationMs: 3, timedOut: false, outputLimited: false, usage: { inputTokens: 1, cachedInputTokens: 0, outputTokens: 1, reasoningTokens: 0, calls: 1 } }) })).rejects.toThrow("missing_output");
+      expect(JSON.parse(readFileSync(missingOutputReport, "utf8"))).toMatchObject({ status: "invalid", failure: { kind: "missing_output" } });
+    } finally { rmSync(diagnosticRoot, { recursive: true, force: true }); }
+  });
+
   it("collects the exact isolated 3 candidate, 12 worker, and 6 judge calibration matrix", async () => {
     const root = temp("sol-calibration-");
     try {
@@ -272,6 +325,7 @@ describe("budget, judges, and plan-first", () => {
       expect(profile.conversionFactors!.openai).toBeCloseTo(2 / (15 * 0.301));
       expect(profile.conversionFactors!.anthropic).toBeCloseTo(1 / (6 * 0.301));
       expect(JSON.parse(readFileSync(resolve(root, "checkpoint.json"), "utf8"))).toMatchObject({ status: "complete", samples: expect.any(Array) });
+      expect(JSON.parse(readFileSync(resolve(root, "work/task-0/artifacts/worker-opus-4.8.json"), "utf8"))).toMatchObject({ evidence: [] });
     } finally { rmSync(root, { recursive: true, force: true }); }
   });
 
@@ -316,7 +370,7 @@ describe("budget, judges, and plan-first", () => {
         const preSnapshot = percentageSnapshot(new Date(base).toISOString(), resetAt);
         const execute = async (): Promise<ProviderExecution> => ({ exitCode: 0, signal: null, stdout: "", stderr: mode === "quota" ? "usage limit reached" : "", durationMs: 1, timedOut: false, outputLimited: false, usage: { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, calls: mode === "malformed" ? 0 : 1 } });
         await expect(collectCalibration({ beforePath, afterPath, observationsPath: resolve(root, "observations.json"), checkpointPath, workRoot: resolve(root, "work"), outputPath: resolve(root, "profile.json"), snapshotProvider: { snapshot: async () => preSnapshot }, execute, now: () => base })).rejects.toThrow();
-        expect(JSON.parse(readFileSync(checkpointPath, "utf8"))).toMatchObject({ status: "invalid" });
+        expect(JSON.parse(readFileSync(checkpointPath, "utf8"))).toMatchObject({ status: "invalid", failure: { kind: mode === "quota" ? "quota_warning" : "malformed_usage" } });
         await expect(collectCalibration({ beforePath, afterPath, observationsPath: resolve(root, "observations.json"), checkpointPath, workRoot: resolve(root, "work-2"), outputPath: resolve(root, "profile.json"), snapshotProvider: { snapshot: async () => preSnapshot }, execute, now: () => base })).rejects.toThrow("cannot be mixed");
       } finally { rmSync(root, { recursive: true, force: true }); }
     }

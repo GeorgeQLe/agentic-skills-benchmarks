@@ -56,7 +56,7 @@ export function hasQuotaWarning(result: Pick<ProviderExecution, "stdout" | "stde
   return quotaWarning(`${result.stdout}\n${result.stderr}`);
 }
 
-export function prohibitedModelDescendants(psOutput: string, rootPid: number): number[] {
+export function prohibitedModelDescendants(psOutput: string, rootPid: number, providerRuntime?: "codex" | "claude"): number[] {
   const processes = psOutput.split("\n").flatMap((line) => {
     const match = line.trim().match(/^(\d+)\s+(\d+)\s+(\S+)/);
     return match ? [{ pid: Number(match[1]), ppid: Number(match[2]), command: match[3] }] : [];
@@ -73,7 +73,14 @@ export function prohibitedModelDescendants(psOutput: string, rootPid: number): n
     }
   }
   return processes
-    .filter((process) => descendants.has(process.pid) && /(?:^|\/)(?:codex|claude)$/.test(process.command))
+    .filter((process) => {
+      if (!descendants.has(process.pid) || !/(?:^|[\\/])(?:codex|claude)(?:\.exe)?$/.test(process.command)) return false;
+      const basename = process.command.split(/[\\/]/).at(-1)?.replace(/\.exe$/, "");
+      // Script-based provider launchers (for example codex.js under node) spawn one
+      // native provider runtime directly. Only that direct child is trusted; model
+      // processes launched beneath it remain prohibited.
+      return !(providerRuntime && process.ppid === rootPid && basename === providerRuntime);
+    })
     .map((process) => process.pid);
 }
 
@@ -112,7 +119,7 @@ export function executeProvider(spec: ProviderCommandSpec): Promise<ProviderExec
       ? setInterval(() => {
           if (!child.pid || settled) return;
           const ps = spawnSync("ps", ["-axo", "pid=,ppid=,comm="], { encoding: "utf8" });
-          if (ps.status === 0 && prohibitedModelDescendants(ps.stdout, child.pid).length > 0) {
+          if (ps.status === 0 && prohibitedModelDescendants(ps.stdout, child.pid, spec.command).length > 0) {
             directModelViolation = true;
             stderr += "\nDirect candidate-launched model subprocess denied.\n";
             terminateTree("SIGTERM");

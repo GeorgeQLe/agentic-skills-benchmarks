@@ -1,5 +1,43 @@
 # Session History
 
+## 2026-07-10 — Calibration failure diagnostics hardened
+
+The first live 21-call calibration attempt stopped invalid after all four
+workers and before the first candidate completed. Added a separately gated
+`calibrate --candidate-only --execute --ack-subscription` route that reproduces
+the candidate boundary with synthetic worker evidence, records bounded and
+credential-redacted structured failure diagnostics, and refuses to overwrite
+an existing report. Full calibration checkpoints now retain typed failure
+details, Anthropic structured worker output is persisted alongside the Codex
+worker artifacts, and the descendant-process guard permits only a provider
+launcher's direct matching native runtime while still denying nested model
+launches. Adversarial review also fixed false-success reporting when a candidate
+exits successfully without creating its required structured output artifact.
+
+Ship manifest: User goal: safely wrap up the calibration diagnostic and process
+isolation changes exposed by the invalid live attempt. Changed files:
+`tests/orchestration/calibration.ts` adds typed/redacted diagnostics and the
+isolated candidate route; `tests/orchestration/cli.ts` exposes its explicit live
+gate; `tests/orchestration/process.ts` hardens native-runtime descendant checks;
+`tests/layer1/orchestration.test.ts` covers classifications, redaction,
+artifacts, command variants, and missing output; `README.md` documents the new
+operator route; the locked design checksum tracks the locally installed Claude
+CLI version; task docs record completion.
+User-goal mapping: every committed change either makes the failed live boundary
+diagnosable without repeating all 21 calls or preserves its isolation and
+auditability. Tests run: `pnpm test` (142 tests), `npx tsc --noEmit`, and
+`pnpm bench:orchestration verify`; after adversarial correction, the focused
+orchestration test, TypeScript compile, and deterministic verification were run
+again. Skipped tests: no further live model calls were made because shipping
+does not authorize additional subscription spend and the invalid checkpoint is
+preserved locally. Adversarial review: traced every candidate-diagnostic exit
+and fixed the successful-exit/missing-artifact false-success state. Residual
+risk: the underlying live candidate failure is not yet identified; a fresh
+candidate-only run spends one model call and requires explicit invocation.
+Rollback note: revert the shipping commit; local calibration JSON remains
+untracked evidence. Next command: none, because no executable item is promoted
+in `tasks/todo.md`.
+
 ## 2026-07-10 — Installed-app no-model Pitwall smoke completed
 
 Rebuilt and installed Pitwall with its localhost server reconciliation moved

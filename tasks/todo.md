@@ -11,6 +11,10 @@
 
 ## Completed
 
+- [x] Harden the first live calibration attempt with a one-candidate diagnostic
+  route, redacted structured failure evidence, persisted Anthropic worker
+  output, native-runtime-aware subprocess isolation, and missing-output
+  fail-closed coverage.
 - [x] Replace manual allowance snapshots with mandatory authenticated Pitwall
   Local telemetry for calibration, pilot/full campaign creation, resume, and
   settled scheduler-wave refreshes, preserving the exact 21-call matrix,

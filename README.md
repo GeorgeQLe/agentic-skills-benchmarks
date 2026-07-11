@@ -124,6 +124,11 @@ pnpm bench:orchestration calibrate --collect --execute --ack-subscription \
   --enable-pitwall-api \
   --output calibration-profile.json
 
+# Diagnose one candidate boundary without repeating the 21-call matrix.
+pnpm bench:orchestration calibrate --candidate-only --execute \
+  --ack-subscription \
+  --diagnostic-report generated-results/sol-orchestration/candidate-diagnostic.json
+
 # Planning is read-only and launches no models.
 pnpm bench:orchestration pilot
 pnpm bench:orchestration run
@@ -174,6 +179,10 @@ is macOS-only and incompatible with `--pitwall-url` or
 `PITWALL_API_TOKEN_FILE`. Any setup, authentication, freshness, or provider-window
 failure occurs before all 21 model calls; the flag never reads, prints, or
 rotates the bearer token.
+If a live attempt stops at the candidate boundary, `--candidate-only` runs one
+representative candidate with synthetic worker evidence. It requires the same
+subscription acknowledgement, refuses to overwrite its report, and stores only
+bounded, credential-redacted process diagnostics.
 Pitwall refreshes Codex primary five-hour and Claude `seven_day` All Models
 telemetry together. Authentication, partial/stale telemetry, unknown resets, or
 wrong window/confidence mappings fail closed with no manual or cached fallback.

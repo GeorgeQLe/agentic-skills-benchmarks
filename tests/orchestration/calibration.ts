@@ -37,9 +37,38 @@ interface CollectionCheckpoint {
   updatedAt: string;
   samples: CalibrationSample[];
   error?: string;
+  failure?: CalibrationFailureDiagnostic;
+}
+
+export type CalibrationFailureKind = "nonzero_exit" | "signal" | "timeout" | "output_limit" | "direct_model_violation" | "quota_warning" | "malformed_usage" | "missing_output";
+
+export interface CalibrationFailureDiagnostic {
+  kind: CalibrationFailureKind;
+  provider: ProviderCommandSpec["provider"];
+  role: ProviderCommandSpec["role"];
+  model: string;
+  exitCode: number;
+  signal: NodeJS.Signals | null;
+  durationMs: number;
+  guardFlags: { timedOut: boolean; outputLimited: boolean; directModelViolation: boolean; quotaWarning: boolean };
+  stderrTail: string;
+}
+
+export class CalibrationExecutionError extends Error {
+  constructor(public readonly diagnostic: CalibrationFailureDiagnostic) {
+    super(`calibration ${diagnostic.kind} for ${diagnostic.provider}/${diagnostic.role}/${diagnostic.model}`);
+    this.name = "CalibrationExecutionError";
+  }
 }
 
 export type CalibrationExecutor = (spec: ProviderCommandSpec) => Promise<ProviderExecution>;
+
+export interface CandidateDiagnosticResult {
+  schemaVersion: 1;
+  status: "complete" | "invalid";
+  outputPath: string;
+  failure?: CalibrationFailureDiagnostic;
+}
 
 function atomicJson(path: string, value: unknown): void {
   mkdirSync(dirname(path), { recursive: true });
@@ -62,9 +91,68 @@ function schema(path: string, value: object): string {
   return path;
 }
 
-function assertExecution(result: ProviderExecution): void {
-  if (hasQuotaWarning(result)) throw new Error("provider quota warning invalidated calibration attempt");
-  if (result.exitCode !== 0 || result.signal || result.timedOut || result.outputLimited || result.directModelViolation) throw new Error("provider execution failure invalidated calibration attempt");
+export function sanitizeDiagnosticText(value: string, limit = 4096): string {
+  const redacted = value
+    .replace(/\b(?:sk-[A-Za-z0-9_-]{8,}|sk-ant-[A-Za-z0-9_-]{8,})\b/g, "[REDACTED]")
+    .replace(/((?:api[-_]?key|authorization|token|secret|password)\s*[:=]\s*)(?:bearer\s+)?[^\s,;]+/gi, "$1[REDACTED]")
+    .replace(/\bBearer\s+[^\s,;]+/gi, "Bearer [REDACTED]");
+  return redacted.length <= limit ? redacted : redacted.slice(-limit);
+}
+
+export function classifyExecutionFailure(spec: ProviderCommandSpec, result: ProviderExecution): CalibrationFailureDiagnostic | undefined {
+  const quota = hasQuotaWarning(result);
+  const kind: CalibrationFailureKind | undefined = quota ? "quota_warning"
+    : result.timedOut ? "timeout"
+      : result.outputLimited ? "output_limit"
+        : result.directModelViolation ? "direct_model_violation"
+          : result.signal ? "signal"
+            : result.exitCode !== 0 ? "nonzero_exit"
+              : undefined;
+  if (!kind) return undefined;
+  return { kind, provider: spec.provider, role: spec.role, model: spec.model, exitCode: result.exitCode, signal: result.signal, durationMs: result.durationMs, guardFlags: { timedOut: result.timedOut, outputLimited: result.outputLimited, directModelViolation: result.directModelViolation === true, quotaWarning: quota }, stderrTail: sanitizeDiagnosticText(result.stderr) };
+}
+
+function assertExecution(spec: ProviderCommandSpec, result: ProviderExecution): void {
+  const diagnostic = classifyExecutionFailure(spec, result);
+  if (diagnostic) throw new CalibrationExecutionError(diagnostic);
+}
+
+function anthropicStructuredReport(stdout: string): string {
+  try {
+    const value = JSON.parse(stdout) as { structured_output?: unknown };
+    if (value.structured_output === undefined) throw new Error();
+    return `${JSON.stringify(value.structured_output, null, 2)}\n`;
+  } catch { throw new Error("Anthropic worker returned no structured report"); }
+}
+
+/** Runs exactly one candidate with calibration-identical boundaries and synthetic worker evidence. */
+export async function diagnoseCalibrationCandidate(input: { workRoot: string; reportPath: string; execute?: CalibrationExecutor }): Promise<CandidateDiagnosticResult> {
+  if (existsSync(input.reportPath)) throw new Error("candidate diagnostic report already exists; use a fresh path");
+  const scenario = loadScenarios().find((row) => row.variant === "challenge" && row.language === "typescript" && row.capability === "debugging");
+  if (!scenario) throw new Error("representative calibration scenario is missing");
+  const fixture = resolve(input.workRoot, "fixture");
+  const artifacts = resolve(input.workRoot, "artifacts");
+  mkdirSync(artifacts, { recursive: true });
+  materializeFixture(resolve(EXPERIMENT_ROOT, scenario.fixture), fixture, "seed", false);
+  const deny = createDenyShimDirectory(input.workRoot);
+  const candidateSchema = schema(resolve(artifacts, "candidate.schema.json"), CANDIDATE_OUTPUT_SCHEMA);
+  const outputPath = resolve(artifacts, "candidate.json");
+  const reports = ["sol", "terra", "luna", "opus-4.8"].map((worker, index) => JSON.stringify({ facts: [`Representative ${worker} report for isolated boundary validation.`], inferences: [], risks: [], recommendations: ["Inspect the fixture and solve the task directly."], verification: [`worker evidence ${index + 1}`] }));
+  const prompt = `${scenario.prompt}\n\nUse all four independent worker reports:\n${reports.map((item, index) => `WORKER ${index + 1}:\n${item}`).join("\n\n")}`;
+  const spec = codexCandidateSpec({ cwd: fixture, prompt, effort: "xhigh", schemaPath: candidateSchema, outputPath, denyShimDir: deny });
+  const execution = await (input.execute ?? executeProvider)(spec);
+  let failure = classifyExecutionFailure(spec, execution);
+  if (!failure) {
+    try { rawWeight(execution.usage); }
+    catch { failure = { kind: "malformed_usage", provider: spec.provider, role: spec.role, model: spec.model, exitCode: execution.exitCode, signal: execution.signal, durationMs: execution.durationMs, guardFlags: { timedOut: execution.timedOut, outputLimited: execution.outputLimited, directModelViolation: execution.directModelViolation === true, quotaWarning: false }, stderrTail: sanitizeDiagnosticText(execution.stderr) }; }
+  }
+  if (!failure && !existsSync(outputPath)) {
+    failure = { kind: "missing_output", provider: spec.provider, role: spec.role, model: spec.model, exitCode: execution.exitCode, signal: execution.signal, durationMs: execution.durationMs, guardFlags: { timedOut: execution.timedOut, outputLimited: execution.outputLimited, directModelViolation: execution.directModelViolation === true, quotaWarning: false }, stderrTail: sanitizeDiagnosticText(execution.stderr) };
+  }
+  const result: CandidateDiagnosticResult = { schemaVersion: 1, status: failure ? "invalid" : "complete", outputPath, ...(failure ? { failure } : {}) };
+  atomicJson(input.reportPath, result);
+  if (failure) throw new CalibrationExecutionError(failure);
+  return result;
 }
 
 export async function collectCalibration(input: {
@@ -116,8 +204,13 @@ export async function collectCalibration(input: {
       const evidence: string[] = [];
       const invoke = async (spec: ProviderCommandSpec, outputPath?: string) => {
         const result = await execute(spec);
-        assertExecution(result);
-        checkpoint.samples.push({ provider: spec.provider, model: spec.model, effort: spec.role === "judge" ? "high" : "xhigh", role: spec.role === "candidate" ? "orchestrator" : spec.role, taskClass: `${scenario!.language}:${scenario!.capability}`, rawWeight: rawWeight(result.usage) });
+        assertExecution(spec, result);
+        let weight: number;
+        try { weight = rawWeight(result.usage); }
+        catch {
+          throw new CalibrationExecutionError({ kind: "malformed_usage", provider: spec.provider, role: spec.role, model: spec.model, exitCode: result.exitCode, signal: result.signal, durationMs: result.durationMs, guardFlags: { timedOut: result.timedOut, outputLimited: result.outputLimited, directModelViolation: result.directModelViolation === true, quotaWarning: false }, stderrTail: sanitizeDiagnosticText(result.stderr) });
+        }
+        checkpoint.samples.push({ provider: spec.provider, model: spec.model, effort: spec.role === "judge" ? "high" : "xhigh", role: spec.role === "candidate" ? "orchestrator" : spec.role, taskClass: `${scenario!.language}:${scenario!.capability}`, rawWeight: weight });
         checkpoint.updatedAt = new Date(now()).toISOString();
         atomicJson(input.checkpointPath, checkpoint);
         if (outputPath && existsSync(outputPath)) return readFileSync(outputPath, "utf8");
@@ -127,7 +220,10 @@ export async function collectCalibration(input: {
         const output = resolve(artifacts, `worker-${worker}.json`);
         evidence.push(await invoke(codexWorkerSpec({ worker, cwd: fixture, prompt: `Analyze this task without editing files.\n${scenario!.prompt}`, effort: "xhigh", schemaPath: workerSchema, outputPath: output, denyShimDir: deny }), output));
       }
-      evidence.push(await invoke(claudeWorkerSpec({ cwd: fixture, prompt: `Analyze this task without editing files.\n${scenario!.prompt}`, effort: "xhigh", denyShimDir: deny })));
+      const anthropicRaw = await invoke(claudeWorkerSpec({ cwd: fixture, prompt: `Analyze this task without editing files.\n${scenario!.prompt}`, effort: "xhigh", denyShimDir: deny }));
+      const anthropicReport = anthropicStructuredReport(anthropicRaw);
+      writeFileSync(resolve(artifacts, "worker-opus-4.8.json"), anthropicReport, { flag: "wx" });
+      evidence.push(anthropicReport);
       const candidateOutput = resolve(artifacts, "candidate.json");
       const candidatePrompt = `${scenario!.prompt}\n\nUse all four independent worker reports:\n${evidence.map((item, index) => `WORKER ${index + 1}:\n${item}`).join("\n\n")}`;
       const candidate = await invoke(codexCandidateSpec({ cwd: fixture, prompt: candidatePrompt, effort: "xhigh", schemaPath: candidateSchema, outputPath: candidateOutput, denyShimDir: deny }), candidateOutput);
@@ -152,6 +248,7 @@ export async function collectCalibration(input: {
   } catch (error) {
     checkpoint.status = "invalid";
     checkpoint.error = (error as Error).message;
+    if (error instanceof CalibrationExecutionError) checkpoint.failure = error.diagnostic;
     checkpoint.updatedAt = new Date(now()).toISOString();
     atomicJson(input.checkpointPath, checkpoint);
     throw error;

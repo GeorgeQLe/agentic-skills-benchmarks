@@ -186,7 +186,7 @@
   "chunkCount": 1440,
   "chunkSize": 8,
   "cliPins": {
-    "claude": "2.1.206 (Claude Code)",
+    "claude": "2.1.207 (Claude Code)",
     "codex": "codex-cli 0.144.1",
     "node": "v25.2.1"
   },
