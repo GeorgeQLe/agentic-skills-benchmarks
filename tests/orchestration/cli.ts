@@ -14,7 +14,8 @@ import { evaluatePilotGate, readPassingPilotGate } from "./pilot-gates.js";
 import { GitHubPublisherTransport } from "./github-publisher-transport.js";
 import { PublisherCoordinator } from "./publisher.js";
 import { hashFile } from "./canonical.js";
-import { PitwallClient, validatePitwallBaseUrl, type AllowanceSnapshotProvider } from "./pitwall.js";
+import { PitwallClient, isPitwallSetupProblem, validatePitwallBaseUrl, type AllowanceSnapshotProvider } from "./pitwall.js";
+import { MacPitwallApiSetup, type PitwallApiSetup } from "./pitwall-setup.js";
 
 export interface CommandIo {
   stdout: Pick<NodeJS.WriteStream, "write">;
@@ -23,6 +24,9 @@ export interface CommandIo {
 
 export interface CommandDependencies {
   createPitwallClient?: (url?: string) => AllowanceSnapshotProvider;
+  createPitwallApiSetup?: () => PitwallApiSetup;
+  collectCalibration?: typeof collectCalibration;
+  environment?: NodeJS.ProcessEnv;
 }
 
 function defaultIo(): CommandIo {
@@ -55,7 +59,7 @@ export function orchestrationHelpText(): string {
     "Commands:",
     "  generate   deterministically write and lock v1 design files",
     "  verify     regenerate byte-for-byte, validate pairs, and qualify fixtures",
-    "  calibrate  collect capped allowance estimates around fresh Pitwall snapshots",
+    "  calibrate  collect capped allowance estimates around fresh Pitwall snapshots; --enable-pitwall-api may enable/restart the installed macOS app before all model calls",
     "  pilot      plan or execute the replicated 30-row OFAT pilot plus plan-first",
     "  run        plan or execute the full campaign in immutable eight-configuration chunks",
     "  resume     continue only incomplete immutable run IDs in a campaign",
@@ -72,7 +76,7 @@ export function orchestrationHelpText(): string {
     "Examples:",
     "  pnpm bench:orchestration generate",
     "  pnpm bench:orchestration verify",
-    "  pnpm bench:orchestration calibrate --collect --execute --ack-subscription",
+    "  pnpm bench:orchestration calibrate --collect --execute --ack-subscription --enable-pitwall-api",
     "  pnpm bench:orchestration run --chunk 0",
     "  pnpm bench:orchestration report --campaign <id>",
   ].join("\n");
@@ -127,8 +131,22 @@ async function calibrateCommand(args: string[], io: CommandIo, dependencies: Com
   const checkpoint = resolve(valueFor(args, "--checkpoint") ?? "calibration-checkpoint.json");
   const workRoot = resolve(valueFor(args, "--work-root") ?? "generated-results/sol-orchestration/calibration-live");
   const evidenceRoot = dirname(checkpoint);
+  const provider = pitwallClient(args, dependencies);
+  const enable = args.includes("--enable-pitwall-api");
+  if (enable && args.includes("--pitwall-url")) throw new Error("--enable-pitwall-api cannot be used with --pitwall-url");
+  if (enable && (dependencies.environment ?? process.env).PITWALL_API_TOKEN_FILE !== undefined) throw new Error("--enable-pitwall-api cannot be used with PITWALL_API_TOKEN_FILE");
   line(io.stdout, "requesting fresh Pitwall pre-snapshot before exactly 21 isolated calibration calls");
-  const profile = await collectCalibration({ beforePath: resolve(evidenceRoot, "calibration-before.json"), afterPath: resolve(evidenceRoot, "calibration-after.json"), observationsPath: resolve(observations), checkpointPath: checkpoint, workRoot, outputPath: output, snapshotProvider: pitwallClient(args, dependencies) });
+  let before;
+  try { before = await provider.snapshot(); }
+  catch (error) {
+    if (!enable) throw new Error(`${(error as Error).message}; enable the installed macOS app with --enable-pitwall-api`);
+    if (!isPitwallSetupProblem(error)) throw error;
+    line(io.stdout, "enabling Pitwall localhost API on port 19440 and waiting up to 30 seconds");
+    before = await (dependencies.createPitwallApiSetup?.() ?? new MacPitwallApiSetup()).enableAndWait(provider);
+  }
+  let initial: typeof before | undefined = before;
+  const preflightedProvider: AllowanceSnapshotProvider = { snapshot: async () => { if (initial) { const result = initial; initial = undefined; return result; } return provider.snapshot(); } };
+  const profile = await (dependencies.collectCalibration ?? collectCalibration)({ beforePath: resolve(evidenceRoot, "calibration-before.json"), afterPath: resolve(evidenceRoot, "calibration-after.json"), observationsPath: resolve(observations), checkpointPath: checkpoint, workRoot, outputPath: output, snapshotProvider: preflightedProvider });
   line(io.stdout, `calibration profile written to ${output}: ${profile.candidateExecutions} candidates, ${profile.judgeCalls} judge calls`);
   return 0;
 }

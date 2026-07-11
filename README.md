@@ -121,6 +121,7 @@ pnpm bench:orchestration generate
 pnpm bench:orchestration verify
 pnpm bench:orchestration verify --campaign-ready
 pnpm bench:orchestration calibrate --collect --execute --ack-subscription \
+  --enable-pitwall-api \
   --output calibration-profile.json
 
 # Planning is read-only and launches no models.
@@ -164,6 +165,15 @@ or exact USD cost. Live calibration and campaigns require Pitwall Local's
 loopback API at `http://127.0.0.1:19440` by default. The client discovers the
 owner-only bearer token at `~/Library/Application Support/Pitwall/local-api-token`;
 `PITWALL_API_TOKEN_FILE` and `--pitwall-url` are test/development overrides.
+For calibration only, explicit `--enable-pitwall-api` consent first tries the
+normal authenticated snapshot without changing the system. If the API or token
+is absent, it can stop and relaunch the installed macOS `/Applications/Pitwall.app`,
+preserve its other `com.pitwall.app` preferences, enable `localHTTPAPI` on the
+fixed port `19440`, and wait up to 30 seconds for complete fresh telemetry. It
+is macOS-only and incompatible with `--pitwall-url` or
+`PITWALL_API_TOKEN_FILE`. Any setup, authentication, freshness, or provider-window
+failure occurs before all 21 model calls; the flag never reads, prints, or
+rotates the bearer token.
 Pitwall refreshes Codex primary five-hour and Claude `seven_day` All Models
 telemetry together. Authentication, partial/stale telemetry, unknown resets, or
 wrong window/confidence mappings fail closed with no manual or cached fallback.

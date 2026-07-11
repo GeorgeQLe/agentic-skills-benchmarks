@@ -2,7 +2,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { PitwallClient, normalizePitwallSnapshot, validatePitwallBaseUrl } from "../orchestration/pitwall.js";
+import { PitwallClient, PitwallClientError, normalizePitwallSnapshot, validatePitwallBaseUrl } from "../orchestration/pitwall.js";
+import { decodePitwallPreferences, encodePitwallPreferences, MacPitwallApiSetup } from "../orchestration/pitwall-setup.js";
 
 function payload(now: number) {
   const capturedAt = new Date(now).toISOString();
@@ -18,6 +19,45 @@ function payload(now: number) {
 }
 
 describe("Pitwall allowance client", () => {
+  it("preserves unrelated preferences while enabling the fixed localhost API port", () => {
+    const phase4 = { history: { isEnabled: true, retentionDays: 3 }, localHTTPAPI: { isEnabled: false, port: 1234 } };
+    const original = decodePitwallPreferences(Buffer.from(JSON.stringify(phase4)).toString("base64"));
+    const encoded = JSON.parse(Buffer.from(encodePitwallPreferences(original), "hex").toString("utf8"));
+    expect(encoded).toEqual({
+      history: { isEnabled: true, retentionDays: 3 }, localHTTPAPI: { isEnabled: true, port: 19440 },
+    });
+    expect(() => decodePitwallPreferences(Buffer.from("[]").toString("base64"))).toThrow("malformed");
+  });
+
+  it("stops, preserves/imports preferences, launches, and polls without handling token contents", async () => {
+    const calls: Array<{ file: string; args: string[]; input?: string }> = [];
+    let now = 0;
+    let snapshots = 0;
+    const setup = new MacPitwallApiSetup({
+      platform: "darwin", appExists: () => true, now: () => now, timeoutMs: 2_000,
+      sleep: async (ms) => { now += ms; }, tokenMode: () => 0o600,
+      run: (file, args, input) => {
+        calls.push({ file, args, input });
+        if (file.endsWith("defaults") && args[0] === "export") return "plist";
+        if (file.endsWith("plutil")) return Buffer.from(JSON.stringify({ theme: "dark" })).toString("base64");
+        return "";
+      },
+    });
+    await expect(setup.enableAndWait({ snapshot: async () => { snapshots += 1; if (snapshots === 1) throw new PitwallClientError("request-failed", "not ready"); return normalizePitwallSnapshot(payload(500), 500); } })).resolves.toBeTruthy();
+    expect(calls.map((call) => call.file)).toEqual(expect.arrayContaining(["/usr/bin/osascript", "/usr/bin/defaults", "/usr/bin/open"]));
+    const write = calls.find((call) => call.file.endsWith("defaults") && call.args[0] === "write");
+    expect(write?.args).toContain("-data");
+    expect(Buffer.from(write!.args.at(-1)!, "hex").toString("utf8")).toContain("dark");
+  });
+
+  it("rejects unsupported platforms, missing apps, insecure tokens, and readiness timeouts", async () => {
+    const provider = { snapshot: async () => { throw new PitwallClientError("request-failed", "not ready"); } };
+    await expect(new MacPitwallApiSetup({ platform: "linux" }).enableAndWait(provider)).rejects.toThrow("only on macOS");
+    await expect(new MacPitwallApiSetup({ platform: "darwin", appExists: () => false }).enableAndWait(provider)).rejects.toThrow("not installed");
+    let now = 0;
+    const timed = new MacPitwallApiSetup({ platform: "darwin", appExists: () => true, run: () => "{}", now: () => now, sleep: async (ms) => { now += ms; }, timeoutMs: 500 });
+    await expect(timed.enableAndWait(provider)).rejects.toThrow("timed out");
+  });
   it("normalizes only exact authoritative provider windows", () => {
     const now = Date.now();
     const snapshot = normalizePitwallSnapshot(payload(now), now);

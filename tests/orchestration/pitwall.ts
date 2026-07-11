@@ -28,6 +28,16 @@ export interface AllowanceSnapshotProvider {
   snapshot(): Promise<UsageSnapshot>;
 }
 
+export type PitwallClientErrorCode = "token-unavailable" | "token-empty" | "request-failed" | "authentication" | "http" | "malformed" | "telemetry";
+
+export class PitwallClientError extends Error {
+  constructor(readonly code: PitwallClientErrorCode, message: string) { super(message); }
+}
+
+export function isPitwallSetupProblem(error: unknown): boolean {
+  return error instanceof PitwallClientError && ["token-unavailable", "token-empty", "request-failed"].includes(error.code);
+}
+
 export interface PitwallClientOptions {
   baseUrl?: string;
   tokenFile?: string;
@@ -111,8 +121,8 @@ export class PitwallClient implements AllowanceSnapshotProvider {
   async snapshot(): Promise<UsageSnapshot> {
     let token: string;
     try { token = readFileSync(this.tokenFile, "utf8").trim(); }
-    catch { throw new Error("Pitwall API token file is unavailable"); }
-    if (!token) throw new Error("Pitwall API token file is empty");
+    catch { throw new PitwallClientError("token-unavailable", "Pitwall API token file is unavailable"); }
+    if (!token) throw new PitwallClientError("token-empty", "Pitwall API token file is empty");
 
     let response: Response;
     try {
@@ -121,15 +131,16 @@ export class PitwallClient implements AllowanceSnapshotProvider {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       });
     } catch {
-      throw new Error("Pitwall allowance snapshot request failed");
+      throw new PitwallClientError("request-failed", "Pitwall allowance snapshot request failed");
     }
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) throw new Error("Pitwall allowance snapshot authentication failed");
-      throw new Error(`Pitwall allowance snapshot unavailable (HTTP ${response.status})`);
+      if (response.status === 401 || response.status === 403) throw new PitwallClientError("authentication", "Pitwall allowance snapshot authentication failed");
+      throw new PitwallClientError("http", `Pitwall allowance snapshot unavailable (HTTP ${response.status})`);
     }
     let payload: PitwallPayload;
     try { payload = await response.json() as PitwallPayload; }
-    catch { throw new Error("Pitwall allowance snapshot response is malformed"); }
-    return normalizePitwallSnapshot(payload, this.now());
+    catch { throw new PitwallClientError("malformed", "Pitwall allowance snapshot response is malformed"); }
+    try { return normalizePitwallSnapshot(payload, this.now()); }
+    catch (error) { throw new PitwallClientError("telemetry", (error as Error).message); }
   }
 }

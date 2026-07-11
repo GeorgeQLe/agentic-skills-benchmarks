@@ -2,9 +2,12 @@
 
 ## Active
 
-- [ ] Run the no-model-call live snapshot smoke after enabling the localhost API
-  in the newly built Pitwall Local app; the current installed/running app has no
-  `local-api-token` file, so the client correctly fails before an HTTP request.
+- [x] Run the installed-app, no-model calibration preflight smoke: explicitly
+  enabled the localhost API, verified the token is owner-only, obtained one
+  complete fresh snapshot, and stopped before the 21-call matrix.
+- [x] Implement the explicit idempotent macOS `--enable-pitwall-api` calibration
+  preflight with preference preservation, bounded readiness polling, injectable
+  system actions, override rejection, and zero-model fail-closed coverage.
 
 ## Completed
 

@@ -38,6 +38,7 @@ import { prohibitedModelDescendants } from "../orchestration/process.js";
 import type { ProviderExecution } from "../orchestration/process.js";
 import { executeRun } from "../orchestration/runner.js";
 import { Semaphore } from "../orchestration/semaphore.js";
+import { PitwallClientError } from "../orchestration/pitwall.js";
 
 function temp(prefix: string): string {
   return mkdtempSync(resolve(tmpdir(), prefix));
@@ -621,6 +622,59 @@ describe("archive, resume, and CLI safeguards", () => {
     expect(await runOrchestrationCommand(["calibrate", "--collect", "--execute", "--ack-subscription", "--before", "manual.json"], io, { createPitwallClient: () => ({ snapshot: async () => { throw new Error("must not request Pitwall"); } }) })).toBe(1);
     expect(stderr).toContain("no longer supported");
   });
+
+  it("preflights calibration, sets up only eligible failures, and never collects after failed setup", async () => {
+    const now = Date.now();
+    const valid = percentageSnapshot(new Date(now).toISOString(), new Date(now + 3 * 60 * 60_000).toISOString());
+    const run = async (options: { flag?: boolean; snapshot: () => Promise<UsageSnapshot>; setup?: () => Promise<UsageSnapshot>; extra?: string[]; environment?: NodeJS.ProcessEnv }) => {
+      let stderr = "";
+      let collections = 0;
+      let setups = 0;
+      const code = await runOrchestrationCommand([
+        "calibrate", "--collect", "--execute", "--ack-subscription", ...(options.flag === false ? [] : ["--enable-pitwall-api"]), ...(options.extra ?? []),
+      ], { stdout: { write: () => true }, stderr: { write: (chunk: string) => { stderr += chunk; return true; } } }, {
+        createPitwallClient: () => ({ snapshot: options.snapshot }),
+        environment: options.environment ?? {},
+        createPitwallApiSetup: () => ({ enableAndWait: async () => { setups += 1; return options.setup?.() ?? valid; } }),
+        collectCalibration: async (input) => { collections += 1; await input.snapshotProvider.snapshot(); return { candidateExecutions: 3, judgeCalls: 6 } as Awaited<ReturnType<typeof collectCalibration>>; },
+      });
+      return { code, stderr, collections, setups };
+    };
+
+    const ready = await run({ snapshot: async () => valid });
+    expect(ready).toMatchObject({ code: 0, collections: 1, setups: 0 });
+
+    let attempts = 0;
+    const retried = await run({ snapshot: async () => { attempts += 1; if (attempts === 1) throw new PitwallClientError("token-unavailable", "Pitwall API token file is unavailable"); return valid; } });
+    expect(retried).toMatchObject({ code: 0, collections: 1, setups: 1 });
+
+    const missingFlag = await run({ flag: false, snapshot: async () => { throw new PitwallClientError("request-failed", "Pitwall allowance snapshot request failed"); } });
+    expect(missingFlag).toMatchObject({ code: 1, collections: 0, setups: 0 });
+    expect(missingFlag.stderr).toContain("--enable-pitwall-api");
+
+    for (const message of ["--enable-pitwall-api is supported only on macOS", "Pitwall is not installed", "Pitwall API setup timed out after 30 seconds"]) {
+      const failed = await run({ snapshot: async () => { throw new PitwallClientError("request-failed", "not ready"); }, setup: async () => { throw new Error(message); } });
+      expect(failed).toMatchObject({ code: 1, collections: 0, setups: 1 });
+      expect(failed.stderr).toContain(message);
+    }
+
+    for (const error of [
+      new PitwallClientError("authentication", "Pitwall allowance snapshot authentication failed"),
+      new PitwallClientError("malformed", "Pitwall allowance snapshot response is malformed"),
+      new PitwallClientError("telemetry", "Pitwall anthropic telemetry is missing"),
+    ]) {
+      const failed = await run({ snapshot: async () => { throw error; } });
+      expect(failed).toMatchObject({ code: 1, collections: 0, setups: 0 });
+      expect(failed.stderr).not.toContain("sensitive-test-token");
+    }
+
+    const override = await run({ snapshot: async () => valid, extra: ["--pitwall-url", "http://127.0.0.1:19440"] });
+    expect(override).toMatchObject({ code: 1, collections: 0, setups: 0 });
+    expect(override.stderr).toContain("cannot be used");
+    const tokenOverride = await run({ snapshot: async () => valid, environment: { PITWALL_API_TOKEN_FILE: "/tmp/test-token" } });
+    expect(tokenOverride).toMatchObject({ code: 1, collections: 0, setups: 0 });
+    expect(tokenOverride.stderr).toContain("PITWALL_API_TOKEN_FILE");
+  }, 30_000);
 
   it("fetches Pitwall automatically before creating a live pilot campaign", async () => {
     const root = temp("sol-cli-pitwall-");

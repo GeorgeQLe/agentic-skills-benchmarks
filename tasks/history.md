@@ -1,5 +1,62 @@
 # Session History
 
+## 2026-07-10 — Installed-app no-model Pitwall smoke completed
+
+Rebuilt and installed Pitwall with its localhost server reconciliation moved
+behind persisted Phase 4 settings application. The standalone
+`MacPitwallApiSetup.enableAndWait(new PitwallClient())` smoke enabled port 19440,
+confirmed `local-api-token` mode `0600`, and returned one fresh authenticated
+snapshot: Codex `primary_five_hour` with `providerSupplied` confidence and an
+18,000-second duration, plus Claude `seven_day` / `all_models` with `exact`
+confidence. The installed `PitwallApp` remained active. No `calibrate` command,
+candidate, worker, judge, or other model process was launched; the 21-call
+calibration remains a separate explicit action.
+
+Ship manifest: User goal: complete the no-model preflight after the Pitwall
+startup-order fix while preserving existing calibration-preflight work. Changed
+files: the existing README, orchestration CLI/setup/client tests and helpers keep
+the explicit idempotent preflight implementation; todo/history close the live
+smoke blocker with installed-app evidence. User-goal mapping: direct for safe API
+enablement, exact provider-window validation, and zero-model failure boundaries.
+Tests run: standalone authenticated installed-app smoke, token/process checks,
+`npx tsc --noEmit`, `pnpm test`, `pnpm bench:orchestration verify`, and diff/task
+doc checks. Skipped tests: the 21-call live calibration was intentionally not run.
+Adversarial review: existing tests cover preference preservation, override
+rejection, bounded readiness, injected system actions, and zero-model failure;
+the live smoke proves the rebuilt app lifecycle path. Residual risk: live
+calibration behavior remains unmeasured until separately authorized. Rollback
+note: revert the benchmark preflight commit to restore the prior manual setup
+contract; revert Pitwall `4f4f2ad` and reinstall to restore its prior startup
+ordering. Next command: choose a separate explicit calibration action only when
+the 21 model calls are intended.
+
+## 2026-07-10 — Explicit Pitwall API calibration preflight
+
+Added `calibrate --enable-pitwall-api` as a separate-consent, macOS-only
+preflight. It first uses an already-ready authenticated snapshot unchanged; only
+an absent token or unreachable local API triggers preservation of the
+`com.pitwall.app` preferences, enablement of `localHTTPAPI` on port 19440, an app
+restart, and bounded readiness polling. Authentication, malformed/stale data,
+provider-window errors, custom URL/token overrides, missing installation, and
+timeouts all fail before calibration execution. System actions are injectable,
+and tests prove failed preflights launch zero calibration/model work and do not
+expose token contents.
+
+Validation: `pnpm test` passed 138 tests; `npx tsc --noEmit` passed; and
+`pnpm bench:orchestration verify` passed all six fixtures, capability probes,
+and archive prerequisites. The installed-app no-model smoke preserved the
+defaults domain, wrote a binary `pitwall.phase4.settings.v1` value with the API
+enabled on port 19440, launched `/Applications/Pitwall.app`, and launched zero
+models. It then timed out safely because the installed build did not create the
+token. Inspection identified the remaining app-side blocker: Pitwall startup
+calls `updateLocalHTTPServer()` before its asynchronous phase-4 settings load
+finishes and does not call it again after applying the loaded settings.
+
+Resolved benchmark-side blocker: operators no longer need to manually discover
+or edit the Pitwall localhost API preference, and every unsuccessful preflight
+stops before calibration. Remaining installed-app blocker: restart-time API
+startup must be fixed/rebuilt in Pitwall before the live snapshot smoke can pass.
+
 ## 2026-07-10 — Pitwall-backed automatic allowance snapshots
 
 Replaced live manual dashboard files with authenticated Pitwall Local telemetry.
