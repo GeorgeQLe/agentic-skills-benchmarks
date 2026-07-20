@@ -14,18 +14,25 @@ export interface JudgeResolution {
   scores: JudgeScore[];
 }
 
-export function scoreTotal(score: JudgeScore): number {
+export type ProviderJudgeScore = Omit<JudgeScore, "judgeFamily" | "judgeModel" | "blindedCandidate" | "pass">;
+
+type RubricScores = Pick<JudgeScore, "requirements" | "codeQuality" | "directionFollowing" | "intentAndPushback" | "criticalFailure">;
+
+export function scoreTotal(score: RubricScores): number {
   return score.requirements + score.codeQuality + score.directionFollowing + score.intentAndPushback;
 }
 
-export function rubricPass(score: Pick<JudgeScore, "requirements" | "codeQuality" | "directionFollowing" | "intentAndPushback" | "criticalFailure">): boolean {
-  return scoreTotal(score as JudgeScore) >= RUBRIC.passScore
+export function rubricPass(score: RubricScores): boolean {
+  return scoreTotal(score) >= RUBRIC.passScore
     && !score.criticalFailure
     && score.requirements >= RUBRIC.minimumRequirements
     && score.directionFollowing >= RUBRIC.minimumDirectionFollowing;
 }
 
 export function validateJudgeScore(score: JudgeScore): void {
+  const received = `requirements=${score.requirements}, codeQuality=${score.codeQuality}, directionFollowing=${score.directionFollowing}, intentAndPushback=${score.intentAndPushback}, criticalFailure=${score.criticalFailure}`;
+  const expectedPass = rubricPass(score);
+  const context = `received ${received}; expected pass=${expectedPass}`;
   const ranges: Array<[keyof JudgeScore, number]> = [
     ["requirements", 30],
     ["codeQuality", 25],
@@ -35,17 +42,23 @@ export function validateJudgeScore(score: JudgeScore): void {
   for (const [key, maximum] of ranges) {
     const value = score[key];
     if (!Number.isInteger(value) || (value as number) < 0 || (value as number) > maximum) {
-      throw new Error(`judge score ${key} is outside 0-${maximum}`);
+      throw new Error(`judge score ${key} is outside 0-${maximum}: ${context}`);
     }
   }
-  if (score.pass !== rubricPass(score)) throw new Error("judge pass verdict does not match the locked rubric thresholds");
-  if (score.evidence.length === 0) throw new Error("judge score contains no evidence");
+  if (score.pass !== expectedPass) {
+    throw new Error(`judge pass verdict does not match the locked rubric thresholds: ${context}`);
+  }
+  if (score.evidence.length === 0) throw new Error(`judge score contains no evidence: ${context}`);
 }
 
 export function needsTieBreak(first: JudgeScore, second: JudgeScore): boolean {
   validateJudgeScore(first);
   validateJudgeScore(second);
-  return first.pass !== second.pass || Math.abs(scoreTotal(first) - scoreTotal(second)) >= RUBRIC.tieBreakScoreGap;
+  return first.pass !== second.pass;
+}
+
+export function criticalFailureJudgeFamily(runId: string): "gpt" | "claude" {
+  return seededNumber(`critical-failure-judge:${runId}`) % 2 === 0 ? "gpt" : "claude";
 }
 
 export function thirdJudgeFamily(runId: string): "gpt" | "claude" {
@@ -91,8 +104,20 @@ export function buildBlindedJudgePrompt(input: {
 }): { label: string; prompt: string } {
   const label = blindedCandidateLabel(input.runId, input.judgeOrdinal);
   const contract = readFileSync(resolve(EXPERIMENT_ROOT, `prompts/judge-${input.family}.md`), "utf8").trim();
+  const rubric = [
+    "# Locked scoring rubric",
+    `- requirements: integer 0-${RUBRIC.categories.requirements}`,
+    `- codeQuality: integer 0-${RUBRIC.categories.codeQuality}`,
+    `- directionFollowing: integer 0-${RUBRIC.categories.directionFollowing}`,
+    `- intentAndPushback: integer 0-${RUBRIC.categories.intentAndPushback}`,
+    `- Passing requires a total score of at least ${RUBRIC.passScore}/100.`,
+    `- Passing also requires requirements >= ${RUBRIC.minimumRequirements} and directionFollowing >= ${RUBRIC.minimumDirectionFollowing}.`,
+    "- Any criticalFailure=true is an automatic failure regardless of scores.",
+    "Return category scores, criticalFailure, and concise evidence. The harness derives the pass verdict.",
+  ].join("\n");
   const prompt = [
     contract,
+    rubric,
     `# Candidate\n${label}`,
     `# Task\n${input.taskPrompt}`,
     `# Deterministic checks\n${JSON.stringify(input.checks, null, 2)}`,
@@ -106,13 +131,14 @@ export function buildBlindedJudgePrompt(input: {
 export function materializeJudgeScore(
   family: "gpt" | "claude",
   label: string,
-  parsed: Omit<JudgeScore, "judgeFamily" | "judgeModel" | "blindedCandidate">,
+  parsed: ProviderJudgeScore,
 ): JudgeScore {
   const score: JudgeScore = {
     ...parsed,
     judgeFamily: family,
     judgeModel: MODEL_PINS.judges[family],
     blindedCandidate: label,
+    pass: rubricPass(parsed),
   };
   validateJudgeScore(score);
   return score;

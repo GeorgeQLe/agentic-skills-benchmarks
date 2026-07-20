@@ -18,7 +18,7 @@ const selfPath = fileURLToPath(import.meta.url);
 
 // Assembled from parts so the lint's own source never contains the literal
 // pinned shape it hunts for.
-const PINNED_RUN_ID = new RegExp("-(?:claude|codex|grok)-[0-9a-f]{6,}");
+const PINNED_RUN_ID = new RegExp("-(?:claude|codex)-[0-9a-f]{6,}");
 
 const SCAN_ROOTS = ["tests", "scripts"];
 const SKIP_DIRS = new Set(["node_modules", ".git", "dist", "benchmark"]);

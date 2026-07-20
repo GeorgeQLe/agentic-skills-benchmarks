@@ -44,7 +44,7 @@ function writeLine(stream: Pick<NodeJS.WriteStream, "write">, text = ""): void {
 
 export function benchHelpText(command = "pnpm bench"): string {
   return helpText("SkillBench runner", `  ${command} --skill <name> [options]\n  ${command} --skills <a,b,c> [options]\n  ${command} --scenario <name> [options]`, [
-    "  --agent <agent>       claude, codex, grok, or both (default: both = claude+codex)",
+    "  --agent <agent>       claude, codex, or both (default: both)",
     "  --runs <n>            Runs per selected target/agent (default: 3)",
     "  --chunk-size <n>      Runs per child invocation (default: --runs)",
     "  --budget <usd>        Hard USD ceiling for this invocation (default: 5; env: BENCH_BUDGET_USD)",
@@ -128,8 +128,6 @@ export function runBenchCommand(
     }
 
     const agent = valueFor(rawArgs, "--agent", "both")!;
-    // `both` stays claude+codex only so existing broad runs do not silently
-    // double spend once grok lands. Select grok explicitly with --agent grok.
     const agents = (agent === "both" ? ["claude", "codex"] : [agent]) as BenchAgent[];
     const runs = parsePositiveIntegerFlag(rawArgs, "--runs", "3");
     const chunkSize = parsePositiveIntegerFlag(rawArgs, "--chunk-size", String(runs));
@@ -141,7 +139,7 @@ export function runBenchCommand(
 
     for (const selectedAgent of agents) {
       if (!isBenchAgent(selectedAgent)) {
-        writeLine(io.stderr, `unknown agent "${selectedAgent}" (expected claude, codex, grok, or both)`);
+        writeLine(io.stderr, `unknown agent "${selectedAgent}" (expected claude, codex, or both)`);
         return 1;
       }
     }

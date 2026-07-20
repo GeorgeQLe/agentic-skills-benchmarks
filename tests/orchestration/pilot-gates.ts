@@ -30,19 +30,28 @@ export function evaluatePilotGate(input: {
   fixtureQualification: boolean;
 }): PilotGate {
   if (input.state.kind !== "pilot") throw new Error("pilot gates require a pilot campaign");
-  const completed = input.results.length === 1_116;
+  const decision = input.state.shortlistDecision;
+  const stage1Complete = decision !== undefined && Object.values(decision.metrics).every((metric) => metric.runs === 12);
+  const shortlistComplete = decision !== undefined && decision.selectedIds.every((id) =>
+    input.results.filter((result) => result.assignmentId === id && !result.run.planFirst).length === 36,
+  );
+  const planFirstComplete = input.results.filter((result) => result.run.planFirst).length === 36;
+  const completed = input.state.pilotStage === "complete" && stage1Complete && shortlistComplete && planFirstComplete;
   const allModelsAndEffortsObserved = completed
     && input.results.some((result) => result.workerCalls === 0)
     && input.results.some((result) => result.workerCalls === 1)
     && input.results.some((result) => result.workerCalls === 4);
-  const judgeCalibration = input.report.judges.comparedRuns === input.results.length
+  const judgeCalibration = input.report.judges.comparedRuns > 0
     && input.report.judges.observedAgreement >= 0.7
     && input.report.judges.kappa >= 0.4;
   const uniqueRuns = new Set(input.results.map((result) => result.run.id)).size === input.results.length;
   const uniqueAttempts = new Set(input.results.map((result) => result.attemptRoot)).size === input.results.length;
   const budgetCalibration = input.results.every((result) => result.usage.openaiUnits >= 0 && result.usage.anthropicUnits >= 0);
-  const harnessIntegrity = completed
-    && input.results.every((result) => result.candidateCalls === 1 && result.judgeCalls >= 2 && result.judgeCalls <= 3)
+  const singles = input.results.filter((result) => result.judgingMode === "single-critical-failure");
+  const gptSingles = singles.filter((result) => result.judges[0]?.judgeFamily === "gpt").length;
+  const balancedSingles = Math.abs(gptSingles - (singles.length - gptSingles)) <= 1;
+  const harnessIntegrity = completed && balancedSingles
+    && input.results.every((result) => result.candidateCalls === 1 && result.judgeCalls >= 1 && result.judgeCalls <= 3)
     && !input.state.haltedReason;
   const gates = {
     fixtureQualification: input.fixtureQualification,

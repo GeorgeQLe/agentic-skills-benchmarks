@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { deterministicTarGzip, extractDeterministicArchive, reassembleArchiveParts, scanArchiveInputs, splitArchiveBuffer } from "../orchestration/archive.js";
 import {
   CANDIDATE_OUTPUT_SCHEMA,
+  JUDGE_OUTPUT_SCHEMA,
   claudeWorkerSpec,
   codexCandidateSpec,
   codexWorkerSpec,
@@ -25,7 +26,7 @@ import {
   loadScenarios,
   verifyGeneratedArtifacts,
 } from "../orchestration/design.js";
-import { buildBlindedJudgePrompt, needsTieBreak, resolveJudges, rubricPass, thirdJudgeFamily } from "../orchestration/judges.js";
+import { buildBlindedJudgePrompt, materializeJudgeScore, needsTieBreak, resolveJudges, rubricPass, thirdJudgeFamily } from "../orchestration/judges.js";
 import { createIsolatedRun, runIdentity, scheduleChunk } from "../orchestration/isolation.js";
 import { evaluatePlanFirst, generateV2Assignments } from "../orchestration/plan-first.js";
 import { runSchedule, scheduleFullChunk, schedulePilot } from "../orchestration/scheduler.js";
@@ -34,7 +35,7 @@ import { installTreatments } from "../orchestration/treatments.js";
 import { buildCampaignReport } from "../orchestration/report.js";
 import { renderOrchestrationDashboard } from "../orchestration/dashboard.js";
 import type { Assignment, JudgeScore, UsageEstimate, UsageSnapshot } from "../orchestration/types.js";
-import { prohibitedModelDescendants } from "../orchestration/process.js";
+import { hasQuotaWarning, prohibitedModelDescendants } from "../orchestration/process.js";
 import type { ProviderExecution } from "../orchestration/process.js";
 import { executeRun } from "../orchestration/runner.js";
 import { Semaphore } from "../orchestration/semaphore.js";
@@ -64,7 +65,7 @@ function percentageSnapshot(capturedAt: string, resetAt: string, openai = 100, a
 
 async function successfulProviderExecution(spec: ProviderCommandSpec): Promise<ProviderExecution> {
   const value = spec.role === "judge"
-    ? { requirements: 30, codeQuality: 25, directionFollowing: 20, intentAndPushback: 25, criticalFailure: false, pass: true, evidence: ["verified"] }
+    ? { requirements: 30, codeQuality: 25, directionFollowing: 20, intentAndPushback: 25, criticalFailure: false, evidence: ["verified"] }
     : spec.role === "candidate"
       ? { summary: [], verification: [], pushback: [], workerEvidenceUsed: [] }
       : { evidence: [] };
@@ -129,7 +130,7 @@ describe("Sol orchestration design", () => {
     expect(rows.filter((row) => row.kind === "solo-control")).toHaveLength(1);
     expect(rows.filter((row) => row.kind === "reference")).toHaveLength(1);
     expect(rows.filter((row) => row.kind === "ofat")).toHaveLength(28);
-    expect(schedulePilot()).toHaveLength(1_116);
+    expect(schedulePilot()).toHaveLength(360);
   });
 
   it("expands every assignment/task/repetition into 414720 unique immutable identities", () => {
@@ -277,11 +278,27 @@ describe("budget, judges, and plan-first", () => {
       expect(classifyExecutionFailure(spec, { ...base, outputLimited: true })?.kind).toBe("output_limit");
       expect(classifyExecutionFailure(spec, { ...base, directModelViolation: true })?.kind).toBe("direct_model_violation");
       expect(classifyExecutionFailure(spec, { ...base, stderr: "quota reached" })?.kind).toBe("quota_warning");
+      const diagnostic = classifyExecutionFailure(spec, { ...base, exitCode: 2, stdout: `token=secret-value\n${"y".repeat(5000)}` });
+      expect(diagnostic?.stdoutTail).not.toContain("secret-value");
+      expect(diagnostic?.stdoutTail.length).toBeLessThanOrEqual(4096);
       const sanitized = sanitizeDiagnosticText(`Authorization: Bearer secret-token\napi_key=sk-abcdefghijklmnop\n${"x".repeat(5000)}`, 200);
       expect(sanitized).not.toContain("secret-token");
       expect(sanitized).not.toContain("sk-abcdefghijklmnop");
       expect(sanitized.length).toBeLessThanOrEqual(200);
     } finally { rmSync(root, { recursive: true, force: true }); }
+  });
+
+  it("detects provider quota signals without matching ordinary telemetry or model discussion", () => {
+    const warning = (stdout: string, stderr = "") => hasQuotaWarning({ stdout, stderr });
+    expect(warning(JSON.stringify({ type: "event", rate_limits: { primary: { used_percent: 12, resets_at: 123 } }, rate_limit_reached_type: null }))).toBe(false);
+    expect(warning(JSON.stringify({ type: "event", rate_limits: {}, rate_limit_reached_type: "primary" }))).toBe(true);
+    expect(warning(JSON.stringify({ type: "error", message: "Usage limit reached for this account" }))).toBe(true);
+    expect(warning(JSON.stringify({ event: "warning", error: { message: "Too many requests" } }))).toBe(true);
+    expect(warning("quota reached")).toBe(true);
+    expect(warning("HTTP 429 rate-limit error")).toBe(true);
+    expect(warning(JSON.stringify({ type: "assistant", message: "Explain why the phrase quota reached can be misleading." }))).toBe(false);
+    expect(warning(JSON.stringify({ structured_output: { summary: "This report discusses quota reached messages." } }))).toBe(false);
+    expect(warning("This report discusses quota accounting and provider allowance." )).toBe(false);
   });
 
   it("persists candidate diagnostics and Anthropic structured worker evidence", async () => {
@@ -350,6 +367,22 @@ describe("budget, judges, and plan-first", () => {
       const beforePath = resolve(root, "before.json"); const afterPath = resolve(root, "after.json"); const observationsPath = resolve(root, "observations.json");
       writeFileSync(beforePath, JSON.stringify(before)); writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 50, 50))); writeFileSync(observationsPath, JSON.stringify(observations));
       expect(buildCalibrationProfile({ beforePath, afterPath, observationsPath, now: base + 60_000 })).toMatchObject({ censored: { openai: true, anthropic: true }, observedDrops: { openai: 0, anthropic: 0 }, accountedDrops: { openai: 1, anthropic: 1 }, displayResolutionUpperBound: 1 });
+      const jitteredAfter = percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 50, 50);
+      jitteredAfter.providers.anthropic.resetAt = new Date(Date.parse(resetAt) - 134).toISOString();
+      writeFileSync(afterPath, JSON.stringify(jitteredAfter));
+      expect(buildCalibrationProfile({ beforePath, afterPath, observationsPath, now: base + 60_000 })).toMatchObject({ censored: { openai: true, anthropic: true } });
+      jitteredAfter.providers.anthropic.resetAt = new Date(Date.parse(resetAt) - 1_001).toISOString();
+      writeFileSync(afterPath, JSON.stringify(jitteredAfter));
+      expect(() => buildCalibrationProfile({ beforePath, afterPath, observationsPath, now: base + 60_000 })).toThrow("cross a provider reset");
+      const capturedAtAfter = percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 50, 50);
+      capturedAtAfter.providers.anthropic.resetAt = capturedAtAfter.capturedAt;
+      writeFileSync(afterPath, JSON.stringify(capturedAtAfter));
+      expect(() => buildCalibrationProfile({ beforePath, afterPath, observationsPath, now: base + 60_000 })).toThrow();
+      const capturedAtBefore = percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 50, 50);
+      const beforeAtCapture = percentageSnapshot(new Date(base).toISOString(), capturedAtBefore.capturedAt, 50, 50);
+      writeFileSync(beforePath, JSON.stringify(beforeAtCapture)); writeFileSync(afterPath, JSON.stringify(capturedAtBefore));
+      expect(() => buildCalibrationProfile({ beforePath, afterPath, observationsPath, now: base + 60_000 })).toThrow();
+      writeFileSync(beforePath, JSON.stringify(before));
       writeFileSync(afterPath, JSON.stringify(percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 44, 50)));
       expect(() => buildCalibrationProfile({ beforePath, afterPath, observationsPath, now: base + 60_000 })).toThrow("more than 10%");
       writeFileSync(beforePath, JSON.stringify(percentageSnapshot(new Date(base - 60_000).toISOString(), new Date(base - 30_000).toISOString(), 50, 50)));
@@ -461,6 +494,28 @@ describe("budget, judges, and plan-first", () => {
     expect(blinded.prompt).not.toContain("fanout");
     expect(blinded.prompt).not.toContain("gpt-5.6-sol");
     expect(blinded.label).toMatch(/^candidate-/);
+    expect(blinded.prompt).toContain("requirements: integer 0-30");
+    expect(blinded.prompt).toContain("codeQuality: integer 0-25");
+    expect(blinded.prompt).toContain("directionFollowing: integer 0-20");
+    expect(blinded.prompt).toContain("intentAndPushback: integer 0-25");
+    expect(blinded.prompt).toContain("at least 80/100");
+    expect(blinded.prompt).toContain("requirements >= 24");
+    expect(blinded.prompt).toContain("directionFollowing >= 16");
+    expect(blinded.prompt).toContain("criticalFailure=true is an automatic failure");
+    expect(JUDGE_OUTPUT_SCHEMA.required).not.toContain("pass");
+    expect(JUDGE_OUTPUT_SCHEMA.properties).not.toHaveProperty("pass");
+  });
+
+  it("derives judge verdicts from scores, minimums, and critical failures", () => {
+    const materialize = (overrides: Partial<Parameters<typeof materializeJudgeScore>[2]> = {}) => materializeJudgeScore("gpt", "candidate-test", {
+      requirements: 24, codeQuality: 20, directionFollowing: 16, intentAndPushback: 20, criticalFailure: false, evidence: ["scored evidence"], ...overrides,
+    });
+    expect(materialize().pass).toBe(true);
+    expect(materialize({ requirements: 23, codeQuality: 25, directionFollowing: 20, intentAndPushback: 25 }).pass).toBe(false);
+    expect(materialize({ requirements: 30, codeQuality: 25, directionFollowing: 15, intentAndPushback: 25 }).pass).toBe(false);
+    expect(materialize({ requirements: 30, codeQuality: 25, directionFollowing: 20, intentAndPushback: 25, criticalFailure: true }).pass).toBe(false);
+    expect(materialize({ requirements: 4, codeQuality: 4, directionFollowing: 3, intentAndPushback: 4 }).pass).toBe(false);
+    expect(() => materialize({ requirements: 31 })).toThrow(/requirements=31.*expected pass=/);
   });
 
   it("promotes only supported plan-first results and emits a separate 23040-row v2", () => {
@@ -655,7 +710,7 @@ describe("archive, resume, and CLI safeguards", () => {
         snapshotProvider: { snapshot: async () => { refreshes += 1; return percentageSnapshot(new Date(base + 60_000).toISOString(), resetAt, 99, 100); } },
       });
       expect(refreshes).toBe(1);
-      expect(state.haltedReason).toContain("quota")
+      expect(state.pause?.reason).toContain("quota")
       const ledger = new AllowanceLedger(resolve(store.root, "allowance-ledger.json")).snapshot();
       expect(ledger.epochs).toHaveLength(2);
       expect(ledger.reservations.some((entry) => entry.state === "reserved")).toBe(false);

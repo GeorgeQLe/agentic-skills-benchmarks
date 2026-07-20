@@ -51,6 +51,7 @@ export interface CalibrationFailureDiagnostic {
   signal: NodeJS.Signals | null;
   durationMs: number;
   guardFlags: { timedOut: boolean; outputLimited: boolean; directModelViolation: boolean; quotaWarning: boolean };
+  stdoutTail: string;
   stderrTail: string;
 }
 
@@ -109,7 +110,7 @@ export function classifyExecutionFailure(spec: ProviderCommandSpec, result: Prov
             : result.exitCode !== 0 ? "nonzero_exit"
               : undefined;
   if (!kind) return undefined;
-  return { kind, provider: spec.provider, role: spec.role, model: spec.model, exitCode: result.exitCode, signal: result.signal, durationMs: result.durationMs, guardFlags: { timedOut: result.timedOut, outputLimited: result.outputLimited, directModelViolation: result.directModelViolation === true, quotaWarning: quota }, stderrTail: sanitizeDiagnosticText(result.stderr) };
+  return { kind, provider: spec.provider, role: spec.role, model: spec.model, exitCode: result.exitCode, signal: result.signal, durationMs: result.durationMs, guardFlags: { timedOut: result.timedOut, outputLimited: result.outputLimited, directModelViolation: result.directModelViolation === true, quotaWarning: quota }, stdoutTail: sanitizeDiagnosticText(result.stdout), stderrTail: sanitizeDiagnosticText(result.stderr) };
 }
 
 function assertExecution(spec: ProviderCommandSpec, result: ProviderExecution): void {
@@ -144,10 +145,10 @@ export async function diagnoseCalibrationCandidate(input: { workRoot: string; re
   let failure = classifyExecutionFailure(spec, execution);
   if (!failure) {
     try { rawWeight(execution.usage); }
-    catch { failure = { kind: "malformed_usage", provider: spec.provider, role: spec.role, model: spec.model, exitCode: execution.exitCode, signal: execution.signal, durationMs: execution.durationMs, guardFlags: { timedOut: execution.timedOut, outputLimited: execution.outputLimited, directModelViolation: execution.directModelViolation === true, quotaWarning: false }, stderrTail: sanitizeDiagnosticText(execution.stderr) }; }
+    catch { failure = { kind: "malformed_usage", provider: spec.provider, role: spec.role, model: spec.model, exitCode: execution.exitCode, signal: execution.signal, durationMs: execution.durationMs, guardFlags: { timedOut: execution.timedOut, outputLimited: execution.outputLimited, directModelViolation: execution.directModelViolation === true, quotaWarning: false }, stdoutTail: sanitizeDiagnosticText(execution.stdout), stderrTail: sanitizeDiagnosticText(execution.stderr) }; }
   }
   if (!failure && !existsSync(outputPath)) {
-    failure = { kind: "missing_output", provider: spec.provider, role: spec.role, model: spec.model, exitCode: execution.exitCode, signal: execution.signal, durationMs: execution.durationMs, guardFlags: { timedOut: execution.timedOut, outputLimited: execution.outputLimited, directModelViolation: execution.directModelViolation === true, quotaWarning: false }, stderrTail: sanitizeDiagnosticText(execution.stderr) };
+    failure = { kind: "missing_output", provider: spec.provider, role: spec.role, model: spec.model, exitCode: execution.exitCode, signal: execution.signal, durationMs: execution.durationMs, guardFlags: { timedOut: execution.timedOut, outputLimited: execution.outputLimited, directModelViolation: execution.directModelViolation === true, quotaWarning: false }, stdoutTail: sanitizeDiagnosticText(execution.stdout), stderrTail: sanitizeDiagnosticText(execution.stderr) };
   }
   const result: CandidateDiagnosticResult = { schemaVersion: 1, status: failure ? "invalid" : "complete", outputPath, ...(failure ? { failure } : {}) };
   atomicJson(input.reportPath, result);
@@ -208,7 +209,7 @@ export async function collectCalibration(input: {
         let weight: number;
         try { weight = rawWeight(result.usage); }
         catch {
-          throw new CalibrationExecutionError({ kind: "malformed_usage", provider: spec.provider, role: spec.role, model: spec.model, exitCode: result.exitCode, signal: result.signal, durationMs: result.durationMs, guardFlags: { timedOut: result.timedOut, outputLimited: result.outputLimited, directModelViolation: result.directModelViolation === true, quotaWarning: false }, stderrTail: sanitizeDiagnosticText(result.stderr) });
+          throw new CalibrationExecutionError({ kind: "malformed_usage", provider: spec.provider, role: spec.role, model: spec.model, exitCode: result.exitCode, signal: result.signal, durationMs: result.durationMs, guardFlags: { timedOut: result.timedOut, outputLimited: result.outputLimited, directModelViolation: result.directModelViolation === true, quotaWarning: false }, stdoutTail: sanitizeDiagnosticText(result.stdout), stderrTail: sanitizeDiagnosticText(result.stderr) });
         }
         checkpoint.samples.push({ provider: spec.provider, model: spec.model, effort: spec.role === "judge" ? "high" : "xhigh", role: spec.role === "candidate" ? "orchestrator" : spec.role, taskClass: `${scenario!.language}:${scenario!.capability}`, rawWeight: weight });
         checkpoint.updatedAt = new Date(now()).toISOString();
@@ -263,8 +264,10 @@ export function buildCalibrationProfile(input: { beforePath: string; afterPath: 
   validatePercentageSnapshot(after, { now: validationNow, requirePitwall: true });
   if (Date.parse(after.capturedAt) <= Date.parse(before.capturedAt)) throw new Error("post-calibration snapshot must be newer than the pre-calibration snapshot");
   for (const provider of ["openai", "anthropic"] as const) {
-    const reset = Date.parse(before.providers[provider].resetAt!);
-    if (Date.parse(after.capturedAt) >= reset || after.providers[provider].resetAt !== before.providers[provider].resetAt) throw new Error("calibration snapshots cross a provider reset");
+    const beforeReset = Date.parse(before.providers[provider].resetAt!);
+    const afterReset = Date.parse(after.providers[provider].resetAt!);
+    const afterCaptured = Date.parse(after.capturedAt);
+    if (afterCaptured >= beforeReset || afterCaptured >= afterReset || Math.abs(afterReset - beforeReset) > 1_000) throw new Error("calibration snapshots cross a provider reset");
   }
   const observations = JSON.parse(readFileSync(input.observationsPath, "utf8")) as CalibrationObservations;
   if (observations.schemaVersion !== 2 || observations.candidateExecutions !== 3 || observations.workerCalls !== 12 || observations.judgeCalls !== 6 || observations.samples.length !== 21) throw new Error("calibration observations must contain the exact 3/12/6 call matrix");

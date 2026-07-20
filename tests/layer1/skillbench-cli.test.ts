@@ -146,6 +146,26 @@ describe("skillbench CLI", () => {
     expect(capture.stderr()).toContain('--runs must be a positive integer, got "0"');
   });
 
+  it("rejects the removed Grok agent before spawning work", () => {
+    const capture = captureIo();
+    let spawned = false;
+    const code = runBenchCommand(
+      ["--skill", "investigate", "--agent", "grok", "--runs", "1", "--budget", "1"],
+      process.env,
+      {
+        io: capture.io,
+        spawn: () => {
+          spawned = true;
+          return 0;
+        },
+      },
+    );
+
+    expect(code).toBe(1);
+    expect(spawned).toBe(false);
+    expect(capture.stderr()).toContain('unknown agent "grok" (expected claude, codex, or both)');
+  });
+
   it("accepts --release-channel canary and propagates it to bench workers", () => {
     const capture = captureIo();
     const envs: Record<string, string>[] = [];

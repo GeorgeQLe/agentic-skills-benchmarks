@@ -20,15 +20,17 @@ export interface ConfigurationAggregate {
   tieBreaks: number;
   infrastructureFailures: number;
   paretoEfficient: boolean;
+  status: "ranked" | "screened";
 }
 
 export interface CampaignReport {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   generatedAt: string;
   campaignId: string;
   completedRuns: number;
   expectedRuns: number;
   leaderboard: ConfigurationAggregate[];
+  stage1?: { metrics: CampaignState["shortlistDecision"] extends infer T ? T : never; selectedIds: string[]; eliminatedIds: string[] };
   factors: Record<string, Array<{ level: string; runs: number; passRate: number; averageScore: number }>>;
   tasks: Record<string, { runs: number; passRate: number; averageScore: number }>;
   judges: {
@@ -126,8 +128,9 @@ function markPareto(rows: ConfigurationAggregate[]): void {
 }
 
 export function buildCampaignReport(state: CampaignState, results: ExecutionResult[]): CampaignReport {
+  const analysisResults = results.filter((result) => !result.run.planFirst);
   const groups = new Map<string, ExecutionResult[]>();
-  for (const result of results) {
+  for (const result of analysisResults) {
     const group = groups.get(result.assignmentId) ?? [];
     group.push(result);
     groups.set(result.assignmentId, group);
@@ -148,9 +151,11 @@ export function buildCampaignReport(state: CampaignState, results: ExecutionResu
       tieBreaks: runs.filter((result) => result.tieBreakUsed).length,
       infrastructureFailures: 0,
       paretoEfficient: false,
+      status: (state.designVersion === 2 && state.kind === "pilot" && state.shortlistDecision && !state.shortlistDecision.selectedIds.includes(assignmentId) ? "screened" : "ranked") as "screened" | "ranked",
     };
   }).sort((left, right) => right.passRate - left.passRate || right.averageScore - left.averageScore || left.averageLatencyMs - right.averageLatencyMs);
-  markPareto(leaderboard);
+  markPareto(leaderboard.filter((row) => row.status === "ranked"));
+  leaderboard.sort((a, b) => (a.status === "ranked" ? 0 : 1) - (b.status === "ranked" ? 0 : 1) || b.passRate - a.passRate || b.averageScore - a.averageScore);
 
   const assignmentMap = new Map(loadAssignments().map((assignment) => [assignment.id, assignment]));
   for (const row of loadPilotRows()) {
@@ -202,12 +207,13 @@ export function buildCampaignReport(state: CampaignState, results: ExecutionResu
     latencyMs: sum.latencyMs + result.durationMs,
   }), { inputTokens: 0, cachedInputTokens: 0, outputTokens: 0, reasoningTokens: 0, allowanceUnits: 0, latencyMs: 0 });
   return {
-    schemaVersion: 1,
+    schemaVersion: state.designVersion === 2 ? 2 : 1,
     generatedAt: new Date().toISOString(),
     campaignId: state.id,
     completedRuns: results.length,
     expectedRuns: Object.keys(state.runs).length,
     leaderboard,
+    stage1: state.shortlistDecision ? { metrics: state.shortlistDecision, selectedIds: state.shortlistDecision.selectedIds, eliminatedIds: state.shortlistDecision.eliminatedIds } : undefined,
     factors,
     tasks,
     judges: {

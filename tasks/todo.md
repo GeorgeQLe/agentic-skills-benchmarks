@@ -9,6 +9,12 @@
   preflight with preference preservation, bounded readiness polling, injectable
   system actions, override rejection, and zero-model fail-closed coverage.
 
+## Deferred
+
+- [ ] Test Claude-backed benchmark and orchestration paths after an Anthropic
+  subscription is available again. Claude testing is non-blocking while the
+  subscription is inactive.
+
 ## Completed
 
 - [x] Harden the first live calibration attempt with a one-candidate diagnostic

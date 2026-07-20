@@ -1,6 +1,6 @@
 import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { createTempProject, runClaude, runCodex, runGrok } from "./runner.js";
+import { createTempProject, runClaude, runCodex } from "./runner.js";
 import type { RunOptions } from "./runner.js";
 import type { BenchAgent, SkillBenchSetup, SingleRunResult, SessionManifest, BenchConfig, BenchmarkCatalogMetadata } from "./bench-types.js";
 import type { RunResult } from "./types.js";
@@ -247,8 +247,7 @@ export function canResumeSession(
 
 function runBenchAgent(agent: BenchAgent, opts: RunOptions): Promise<RunResult> {
   if (agent === "claude") return runClaude(opts);
-  if (agent === "codex") return runCodex(opts);
-  return runGrok(opts);
+  return runCodex(opts);
 }
 
 export function classifyInfrastructureBlock(result: RunResult): string | undefined {

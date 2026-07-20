@@ -14,11 +14,12 @@ export function readValidResultArtifact(path: string, expected: RunIdentity): Ex
   const stats = lstatSync(path);
   if (!stats.isFile() || stats.isSymbolicLink()) throw new Error(`result artifact is not an owned regular file: ${path}`);
   const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
-  if (!isRecord(parsed) || parsed.schemaVersion !== 1 || !isRecord(parsed.run)) throw new Error(`result schema mismatch: ${expected.id}`);
+  if (!isRecord(parsed) || (parsed.schemaVersion !== 1 && parsed.schemaVersion !== 2) || !isRecord(parsed.run)) throw new Error(`result schema mismatch: ${expected.id}`);
   const result = parsed as unknown as ExecutionResult;
   if (!sameIdentity(result.run, expected)) throw new Error(`result identity mismatch: ${expected.id}`);
   if (result.assignmentId !== expected.assignmentId || result.scenarioId !== expected.scenarioId) throw new Error(`result ownership fields mismatch: ${expected.id}`);
-  if (!Array.isArray(result.judges) || result.judges.length < 2) throw new Error(`result judges schema mismatch: ${expected.id}`);
+  if (!Array.isArray(result.judges) || result.judges.length < 1 || result.judges.length > 3) throw new Error(`result judges schema mismatch: ${expected.id}`);
+  if (result.schemaVersion === 2 && !["single-critical-failure", "dual-pass", "dual-plus-tiebreak"].includes(result.judgingMode)) throw new Error(`result judging mode mismatch: ${expected.id}`);
   if (!isRecord(result.usage) || !isRecord(result.usage.openai) || !isRecord(result.usage.anthropic)
     || typeof result.usage.openaiUnits !== "number" || !Number.isFinite(result.usage.openaiUnits) || result.usage.openaiUnits < 0
     || typeof result.usage.anthropicUnits !== "number" || !Number.isFinite(result.usage.anthropicUnits) || result.usage.anthropicUnits < 0

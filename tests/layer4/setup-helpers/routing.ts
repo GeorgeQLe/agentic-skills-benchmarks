@@ -17,8 +17,6 @@ export const nextCommandHandoffPattern = new RegExp(
  * Convention:
  * - Claude: `/skill` (slash commands)
  * - Codex: `$skill` (dollar commands)
- * - Grok: `/skill` — same as Claude, because Grok discovers Claude-compat
- *   skills and exposes them as slash commands
  */
 export type SkillCommandPrefix = "/" | "$";
 
@@ -36,14 +34,14 @@ export function skillCommandForAgent(agent: BenchAgent, command: string): string
 }
 
 /**
- * Claude-slash / Grok-slash / Codex-dollar map for a skill command.
+ * Claude-slash / Codex-dollar map for a skill command.
  * Accepts `"ship"`, `"/ship"`, or `"$ship"` (plus trailing args).
  * Shell paths and other non-skill commands are shared as-is for every agent.
  */
 export function recommendedRoutesFor(command: string): Record<BenchAgent, string> {
   if (/^[/$]/.test(command)) {
     const bare = command.slice(1);
-    return { claude: `/${bare}`, grok: `/${bare}`, codex: `$${bare}` };
+    return { claude: `/${bare}`, codex: `$${bare}` };
   }
 
   // Shell / path commands must not gain skill prefixes.
@@ -52,13 +50,12 @@ export function recommendedRoutesFor(command: string): Record<BenchAgent, string
     firstToken.includes("/") ||
     /^(?:node|pnpm|npm|npx|yarn|bun|git|python|python3)\b/.test(command)
   ) {
-    return { claude: command, grok: command, codex: command };
+    return { claude: command, codex: command };
   }
 
   // Bare skill name (+ optional args): "ship", "exec", "project-fleet --status"
   return {
     claude: `/${command}`,
-    grok: `/${command}`,
     codex: `$${command}`,
   };
 }
@@ -78,8 +75,7 @@ export function runnerRouteVariants(command: string): string[] {
  *
  * Lookup order:
  * 1. explicit `routes[agent]`
- * 2. for Grok, Claude's slash route (shared convention) when present
- * 3. shared `fallback` (literal `recommendedRoute` used by all runners)
+ * 2. shared `fallback` (literal `recommendedRoute` used by all runners)
  */
 export function resolveRecommendedRoute(
   routes: Partial<Record<BenchAgent, string>> | undefined,
@@ -88,9 +84,6 @@ export function resolveRecommendedRoute(
 ): string | undefined {
   if (agent && routes?.[agent]) {
     return routes[agent];
-  }
-  if (agent === "grok" && routes?.claude) {
-    return routes.claude;
   }
   return fallback;
 }

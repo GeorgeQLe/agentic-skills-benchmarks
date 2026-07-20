@@ -1,9 +1,9 @@
 import type { RunResult, Assertion } from "./types.js";
 
-export type BenchAgent = "claude" | "codex" | "grok";
+export type BenchAgent = "claude" | "codex";
 
-/** Agents accepted by `--agent` / `BENCH_AGENT`. `both` remains claude+codex only. */
-export const BENCH_AGENTS: readonly BenchAgent[] = ["claude", "codex", "grok"] as const;
+/** Agents accepted by `--agent` / `BENCH_AGENT`. */
+export const BENCH_AGENTS: readonly BenchAgent[] = ["claude", "codex"] as const;
 
 export function isBenchAgent(value: string): value is BenchAgent {
   return (BENCH_AGENTS as readonly string[]).includes(value);

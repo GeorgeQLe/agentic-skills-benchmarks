@@ -1,5 +1,5 @@
 import { rmSync } from "node:fs";
-import { createTempProject, runClaude, runCodex, runGrok } from "../runner.js";
+import { createTempProject, runClaude, runCodex } from "../runner.js";
 import type { RunOptions } from "../runner.js";
 import { buildRunResult } from "../bench-runner.js";
 import type { RunResult } from "../types.js";
@@ -33,8 +33,7 @@ interface Task {
 
 function runDashboardAgent(cli: BenchAgent, opts: RunOptions): Promise<RunResult> {
   if (cli === "claude") return runClaude(opts);
-  if (cli === "codex") return runCodex(opts);
-  return runGrok(opts);
+  return runCodex(opts);
 }
 
 /** Drive an agent run for one task, real or simulated, into a SingleRunResult. */

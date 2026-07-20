@@ -8,7 +8,8 @@ import { renderOrchestrationDashboard, loadAllowanceState } from "./dashboard.js
 import { writeGeneratedArtifacts, verifyGeneratedArtifacts } from "./design.js";
 import { EXPERIMENT_ROOT, GENERATED_RESULTS_ROOT, REPO_ROOT } from "./paths.js";
 import { buildCampaignReport, loadExecutionResults, persistCompactResults, writeCampaignReport } from "./report.js";
-import { loadAssignments, loadCalibration, loadChunks, loadPilotRows, runSchedule, scheduleFullChunk, schedulePilot } from "./scheduler.js";
+import { computePilotShortlist, loadAssignments, loadCalibration, loadChunks, loadPilotRows, runSchedule, scheduleFullChunk, schedulePilot, schedulePilotPlanFirst, schedulePilotStage2 } from "./scheduler.js";
+import { assertCodexCollaborationControls } from "./adapters.js";
 import { evaluatePlanFirst, writeV2Manifest, type PairedPlanObservation } from "./plan-first.js";
 import { evaluatePilotGate, readPassingPilotGate } from "./pilot-gates.js";
 import { GitHubPublisherTransport } from "./github-publisher-transport.js";
@@ -176,7 +177,7 @@ async function executeCampaign(args: string[], kind: "pilot" | "full", io: Comma
   const chunkOrdinal = integerFor(args, "--chunk", 0);
   if (!args.includes("--execute")) {
     if (kind === "pilot") {
-      line(io.stdout, "pilot plan: 1116 fresh candidate executions (1080 OFAT + 36 plan-first)");
+      line(io.stdout, "pilot plan: 396 + 24 × shortlisted configurations (360 screening + repeated shortlist + 36 plan-first)");
     } else if (requestedChunk !== undefined) {
       line(io.stdout, `full plan: 288 fresh candidate executions in chunk ${chunkOrdinal} (8 configurations × 12 tasks × 3 repetitions)`);
     } else {
@@ -197,12 +198,17 @@ async function executeCampaign(args: string[], kind: "pilot" | "full", io: Comma
   const calibration = loadCalibration(resolve(calibrationPath));
   if (calibration.schemaVersion !== 2) throw new Error("live execution requires a schema-v2 percentage calibration profile");
   const snapshots = pitwallClient(args, dependencies);
+  assertCodexCollaborationControls(dependencies.environment ?? process.env);
   const snapshot = await snapshots.snapshot();
   const state = newCampaign({
     kind,
     snapshot,
-    concurrency: integerFor(args, "--concurrency", 4),
-    workerConcurrency: integerFor(args, "--worker-concurrency", 8),
+    concurrency: integerFor(args, "--initial-run-concurrency", integerFor(args, "--concurrency", 4)),
+    workerConcurrency: integerFor(args, "--initial-worker-concurrency", integerFor(args, "--worker-concurrency", 8)),
+    minConcurrency: integerFor(args, "--min-run-concurrency", 2),
+    maxConcurrency: integerFor(args, "--max-run-concurrency", 8),
+    minWorkerConcurrency: integerFor(args, "--min-worker-concurrency", 4),
+    maxWorkerConcurrency: integerFor(args, "--max-worker-concurrency", 16),
     calibrationSha256: hashFile(resolve(calibrationPath)),
     allowanceKinds: calibration.allowanceKinds,
     sourceLock: calibration.sourceLock,
@@ -215,8 +221,25 @@ async function executeCampaign(args: string[], kind: "pilot" | "full", io: Comma
     if (next.haltedReason) line(io.stderr, `HALT ${next.haltedReason}`);
   };
   if (kind === "pilot") {
-    const scheduled = schedulePilot();
-    await runSchedule({ store, state, scheduled, calibration, calibrationPath: resolve(calibrationPath), snapshotProvider: snapshots, maxRuns: integerFor(args, "--max-runs", scheduled.length), onUpdate: update });
+    let remaining = integerFor(args, "--max-runs", Number.MAX_SAFE_INTEGER);
+    const stage1 = schedulePilot();
+    await runSchedule({ store, state, scheduled: stage1, calibration, calibrationPath: resolve(calibrationPath), snapshotProvider: snapshots, maxRuns: Math.min(remaining, stage1.length), onUpdate: update });
+    remaining -= Math.min(remaining, stage1.length);
+    let currentResults = loadExecutionResults(store.root);
+    if (stage1.every((entry) => state.runs[entry.run.id]?.status === "judged")) {
+      state.shortlistDecision ??= computePilotShortlist(currentResults.filter((result) => !result.run.planFirst && result.run.repetition === 0));
+      state.pilotStage = "stage-2";
+      store.save(state);
+      const stage2 = schedulePilotStage2(state.shortlistDecision.selectedIds);
+      if (remaining > 0) await runSchedule({ store, state, scheduled: stage2, calibration, calibrationPath: resolve(calibrationPath), snapshotProvider: snapshots, maxRuns: Math.min(remaining, stage2.length), onUpdate: update });
+      remaining -= Math.min(remaining, stage2.length);
+      if (stage2.every((entry) => state.runs[entry.run.id]?.status === "judged")) {
+        state.pilotStage = "plan-first"; store.save(state);
+        const paired = schedulePilotPlanFirst();
+        if (remaining > 0) await runSchedule({ store, state, scheduled: paired, calibration, calibrationPath: resolve(calibrationPath), snapshotProvider: snapshots, maxRuns: Math.min(remaining, paired.length), onUpdate: update });
+        if (paired.every((entry) => state.runs[entry.run.id]?.status === "judged")) { state.pilotStage = "complete"; store.save(state); }
+      }
+    }
   } else {
     const chunks = loadChunks();
     const ordinals = requestedChunk !== undefined
@@ -245,7 +268,7 @@ async function executeCampaign(args: string[], kind: "pilot" | "full", io: Comma
   persistCompactResults(store.root, results);
   const report = buildCampaignReport(state, results);
   writeCampaignReport(store.root, report);
-  if (kind === "pilot" && results.length === 1_116) {
+  if (kind === "pilot" && state.pilotStage === "complete") {
     const scratch = resolve(GENERATED_RESULTS_ROOT, `pilot-gate-${state.id}`);
     const fixtureQualification = qualifyAllFixtures(scratch).every((result) => result.ok);
     rmSync(scratch, { recursive: true, force: true });
@@ -268,7 +291,7 @@ async function resumeCommand(args: string[], io: CommandIo, dependencies: Comman
   const store = new CampaignStore(id);
   const state = store.load();
   const scheduled = state.kind === "pilot"
-    ? schedulePilot()
+    ? [...schedulePilot(), ...(state.shortlistDecision ? schedulePilotStage2(state.shortlistDecision.selectedIds) : []), ...(state.pilotStage === "plan-first" || state.pilotStage === "complete" ? schedulePilotPlanFirst() : [])]
     : [...new Set(Object.values(state.chunks).map((chunk) => chunk.ordinal))].flatMap(scheduleFullChunk);
   const loadedCalibration = loadCalibration(resolve(calibration));
   if (loadedCalibration.schemaVersion !== 2) throw new Error("resume requires the original schema-v2 percentage calibration profile");
@@ -327,7 +350,7 @@ async function reportCommand(args: string[], io: CommandIo): Promise<number> {
   const id = valueFor(args, "--campaign") ?? listCampaigns().at(-1);
   if (!id) throw new Error("no campaigns found; pass --campaign");
   const store = new CampaignStore(id);
-  const state = store.load();
+  const state = store.load({ allowLegacyRead: true });
   const runId = valueFor(args, "--run");
   if (runId) { drillDown(store, runId, io, valueFor(args, "--results-repo")); return 0; }
   const results = loadExecutionResults(store.root);

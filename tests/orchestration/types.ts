@@ -127,14 +127,16 @@ export const RUBRIC: RubricDefinition = {
 };
 
 export interface RunIdentity {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   id: string;
-  campaignVersion: "v1";
+  campaignVersion: "v1" | "v2";
   assignmentId: string;
   scenarioId: string;
   repetition: 0 | 1 | 2;
   planFirst: boolean;
 }
+
+export type JudgingMode = "single-critical-failure" | "dual-pass" | "dual-plus-tiebreak";
 
 export interface UsageSnapshot {
   schemaVersion: 1;

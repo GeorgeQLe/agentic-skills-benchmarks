@@ -22,21 +22,25 @@ import {
   materializeJudgeScore,
   needsTieBreak,
   resolveJudges,
+  scoreTotal,
   thirdJudgeFamily,
+  criticalFailureJudgeFamily,
+  type ProviderJudgeScore,
 } from "./judges.js";
 import { Semaphore } from "./semaphore.js";
 import { allocateConsultations, assertBalancedMultiRoster, buildCandidatePrompt, buildWorkerPrompt, type Consultation } from "./topology.js";
 import { installTreatments } from "./treatments.js";
-import type { Assignment, JudgeScore, RunIdentity, TaskScenario, UsageEstimate } from "./types.js";
+import type { Assignment, JudgeScore, JudgingMode, RunIdentity, TaskScenario, UsageEstimate } from "./types.js";
 
 export class InfrastructureError extends Error {}
 export class QuotaStopError extends InfrastructureError {}
 export class AllowanceStopError extends InfrastructureError {}
+export class CandidateContractError extends Error {}
 
 export type ProviderExecutor = (spec: ProviderCommandSpec) => Promise<ProviderExecution>;
 
 export interface ExecutionResult {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   run: RunIdentity;
   assignmentId: string;
   scenarioId: string;
@@ -54,6 +58,7 @@ export interface ExecutionResult {
   judges: JudgeScore[];
   finalAnswer: unknown;
   attemptRoot: string;
+  judgingMode: JudgingMode;
 }
 
 function emptyUsage(): ParsedUsage {
@@ -91,7 +96,7 @@ function safeCommand(spec: ProviderCommandSpec): Record<string, unknown> {
 
 function assertProviderSuccess(result: ProviderExecution): void {
   if (hasQuotaWarning(result)) throw new QuotaStopError("provider quota or rate-limit warning; campaign stopped immediately");
-  if (result.directModelViolation) throw new InfrastructureError("candidate attempted a direct model subprocess outside the metered delegation service");
+  if (result.directModelViolation) throw new CandidateContractError("candidate attempted a direct model subprocess outside the metered delegation service");
   if (result.timedOut) throw new InfrastructureError("provider process timed out and its process tree was terminated");
   if (result.outputLimited) throw new InfrastructureError("provider output exceeded the fixed limit");
   if (result.exitCode !== 0) throw new InfrastructureError(`provider process exited ${result.exitCode}: ${result.stderr.slice(-600)}`);
@@ -133,6 +138,7 @@ async function invoke(
     durationMs: execution.durationMs,
     timedOut: execution.timedOut,
     outputLimited: execution.outputLimited,
+    directModelViolation: execution.directModelViolation ?? false,
     usage: execution.usage,
   });
   assertProviderSuccess(execution);
@@ -185,9 +191,9 @@ async function consultWorkers(input: {
   return outputs;
 }
 
-function parsedJudge(value: unknown): Omit<JudgeScore, "judgeFamily" | "judgeModel" | "blindedCandidate"> {
+function parsedJudge(value: unknown): ProviderJudgeScore {
   if (value === null || typeof value !== "object") throw new InfrastructureError("judge returned invalid structured output");
-  return value as Omit<JudgeScore, "judgeFamily" | "judgeModel" | "blindedCandidate">;
+  return value as ProviderJudgeScore;
 }
 
 export interface RunExecutionOptions {
@@ -274,15 +280,25 @@ export async function executeRun(options: RunExecutionOptions): Promise<Executio
       const parsed = await invoke(context, spec, outputPath);
       return materializeJudgeScore(family, blinded.label, parsedJudge(parsed));
     };
-    judgeScores.push(...await Promise.all([runJudge("gpt", 0), runJudge("claude", 1)]));
-    if (needsTieBreak(judgeScores[0], judgeScores[1])) {
-      judgeScores.push(await runJudge(thirdJudgeFamily(options.run.id), 2));
+    const deterministicCriticalFailure = deterministic.checks.criticalFailures.length > 0;
+    let judgingMode: JudgingMode;
+    let resolution;
+    if (deterministicCriticalFailure) {
+      judgingMode = "single-critical-failure";
+      judgeScores.push(await runJudge(criticalFailureJudgeFamily(options.run.id), 0));
+      resolution = { pass: false, totalScore: scoreTotal(judgeScores[0]), tieBreakUsed: false };
+    } else {
+      judgeScores.push(...await Promise.all([runJudge("gpt", 0), runJudge("claude", 1)]));
+      if (needsTieBreak(judgeScores[0], judgeScores[1])) {
+        judgingMode = "dual-plus-tiebreak";
+        judgeScores.push(await runJudge(thirdJudgeFamily(options.run.id), 2));
+      } else judgingMode = "dual-pass";
+      resolution = resolveJudges(options.run.id, [judgeScores[0], judgeScores[1]], judgeScores[2]);
     }
-    const resolution = resolveJudges(options.run.id, [judgeScores[0], judgeScores[1]], judgeScores[2]);
     const openaiUnits = Number((weightedUsageUnits(usage.openai) * (options.conversionFactors?.openai ?? 1)).toFixed(6));
     const anthropicUnits = Number((weightedUsageUnits(usage.anthropic) * (options.conversionFactors?.anthropic ?? 1)).toFixed(6));
     const result: ExecutionResult = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       run: options.run,
       assignmentId: options.assignment.id,
       scenarioId: options.scenario.id,
@@ -300,6 +316,7 @@ export async function executeRun(options: RunExecutionOptions): Promise<Executio
       judges: judgeScores,
       finalAnswer,
       attemptRoot: `runs/${options.run.id}/attempts/${attemptRoot.split("/").at(-1)}`,
+      judgingMode,
     };
     writeAtomicJson(resolve(paths.runRoot, "result.json"), result);
     resultPersisted = true;

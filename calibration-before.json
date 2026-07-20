@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "capturedAt": "2026-07-11T01:13:06.283Z",
+  "providers": {
+    "openai": {
+      "source": "pitwall-local",
+      "window": "primary_five_hour",
+      "usedPercent": 5,
+      "remainingPercent": 95,
+      "durationSeconds": 18000,
+      "resetAt": "2026-07-11T05:43:06.000Z",
+      "observedAt": "2026-07-11T01:13:04.483Z",
+      "confidence": "providerSupplied"
+    },
+    "anthropic": {
+      "source": "pitwall-local",
+      "window": "seven_day",
+      "scope": "all_models",
+      "usedPercent": 0,
+      "remainingPercent": 100,
+      "resetAt": "2026-07-17T21:59:59.927Z",
+      "observedAt": "2026-07-11T01:13:04.483Z",
+      "confidence": "exact"
+    }
+  }
+}

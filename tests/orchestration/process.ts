@@ -48,12 +48,38 @@ export function parseUsage(output: string): ParsedUsage {
   return usage;
 }
 
-function quotaWarning(text: string): boolean {
-  return /rate.?limit|quota|usage.?limit|allowance|too many requests|reset (?:at|in)/i.test(text);
+const QUOTA_MESSAGE = /(?:quota|usage\s+limit)\s+(?:has\s+been\s+)?(?:reached|exceeded)|too many requests|http(?:\/\S+)?\s+429|\b429\b[^\n]{0,80}rate.?limit|rate.?limit(?:ed|\s+(?:reached|exceeded|error))/i;
+
+function structuredQuotaWarning(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some(structuredQuotaWarning);
+  if (value === null || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  if ("rate_limit_reached_type" in record && record.rate_limit_reached_type !== null && record.rate_limit_reached_type !== undefined) return true;
+  const classification = [record.type, record.event, record.level, record.severity, record.status]
+    .filter((item): item is string => typeof item === "string")
+    .join(" ");
+  const providerWarning = /(?:^|[_.:-])(error|warning|warn)(?:$|[_.:-])/i.test(classification)
+    || /^(?:error|warning|warn)$/i.test(classification);
+  if (providerWarning) {
+    const messages = [record.message, record.error, record.warning, record.detail, record.reason]
+      .filter((item) => item !== undefined)
+      .map((item) => typeof item === "string" ? item : JSON.stringify(item));
+    if (messages.some((message) => QUOTA_MESSAGE.test(message))) return true;
+  }
+  return Object.values(record).some(structuredQuotaWarning);
+}
+
+function streamHasQuotaWarning(stream: string): boolean {
+  return stream.split(/\r?\n/).some((line) => {
+    const text = line.trim();
+    if (!text) return false;
+    try { return structuredQuotaWarning(JSON.parse(text)); }
+    catch { return QUOTA_MESSAGE.test(text); }
+  });
 }
 
 export function hasQuotaWarning(result: Pick<ProviderExecution, "stdout" | "stderr">): boolean {
-  return quotaWarning(`${result.stdout}\n${result.stderr}`);
+  return streamHasQuotaWarning(result.stdout) || streamHasQuotaWarning(result.stderr);
 }
 
 export function prohibitedModelDescendants(psOutput: string, rootPid: number, providerRuntime?: "codex" | "claude"): number[] {

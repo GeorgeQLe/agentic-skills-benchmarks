@@ -443,7 +443,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "ship",
     outputPath: "ship-manifest.md",
-    prompt: "You have the ship skill installed. Read the fixture task and diff summary, then write ship-manifest.md with User goal, Changed files, Tests run, Deploy status, Rollback note, and Next command. Use your runner's command convention for Next command: Claude and Grok use `/exec`; Codex uses `$exec`. Do not run git.",
+    prompt: "You have the ship skill installed. Read the fixture task and diff summary, then write ship-manifest.md with User goal, Changed files, Tests run, Deploy status, Rollback note, and Next command. Use your runner's command convention for Next command: Claude use `/exec`; Codex uses `$exec`. Do not run git.",
     fixtureFiles: {
       "tasks/todo.md": "# Active Phase\n\n## Review\n\nValidation passed for the completed fixture step.\n",
       "diff-summary.txt": "M tests/example.test.ts\nM tasks/todo.md\n",
@@ -475,7 +475,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "ship-end",
     outputPath: "session-handoff.md",
-    prompt: "You have the ship-end skill installed. Write session-handoff.md summarizing completed work, validation evidence, remaining risks, next work, and Next command. Use the fixture task files as the source of truth, not the benchmark session's lack of git activity, and name both `tasks/todo.md` and `tasks/history.md` in the handoff. The final Next command must contain exactly one command for the active runner: `/exec` when running as Claude or Grok, or `$exec` when running as Codex. Do not list alternate runner routes in the final handoff. Do not run git.",
+    prompt: "You have the ship-end skill installed. Write session-handoff.md summarizing completed work, validation evidence, remaining risks, next work, and Next command. Use the fixture task files as the source of truth, not the benchmark session's lack of git activity, and name both `tasks/todo.md` and `tasks/history.md` in the handoff. The final Next command must contain exactly one command for the active runner: `/exec` when running as Claude, or `$exec` when running as Codex. Do not list alternate runner routes in the final handoff. Do not run git.",
     fixtureFiles: {
       "tasks/todo.md": "# Active Phase\n\n- [x] Step 1.1 complete\n- [ ] Step 1.2 next\n",
       "tasks/history.md": "# History\n\n- Completed Step 1.1 with tests.\n",
@@ -737,7 +737,7 @@ const workflowDefinitions: Tier1WorkflowDefinition[] = [
   {
     skill: "benchmark-test-skill",
     outputPath: "benchmark/test-run-2026-05-11.md",
-    prompt: "You have the benchmark-test-skill skill installed. Use only bench-output.txt and verify-output.txt; do not search the repository, read extra skill files, or run pnpm. Write benchmark/test-run-2026-05-11.md as a structured benchmark report with `## Verify`, `## Benchmark Metrics`, `## Raw Evidence`, and `## Next Route` sections. Use Markdown tables for the verify and benchmark metrics sections. In the `## Benchmark Metrics` section, create one row each for pass rate, p50 latency, total cost, and raw session path. The pass-rate row must contain `passRate=1.0` or `100%`; the p50 row must contain `p50=1200`; the total-cost row must contain `totalCost=0.42`; the raw-session row must contain `run-agent-abc`. Include exact evidence from the fixture: `layer1 PASS`, `layer2 SKIPPED`, `passRate=1.0` or `100%`, `p50=1200`, `totalCost=0.42`, raw session path `run-agent-abc`, source file names, literal report path `benchmark/test-run-2026-05-11.md`, and a literal `Recommended next command:` line. Use your runner's command convention for the route, regardless of fixture file names or raw session path text: Claude `/ship`, Grok `/ship`, Codex `$ship`.",
+    prompt: "You have the benchmark-test-skill skill installed. Use only bench-output.txt and verify-output.txt; do not search the repository, read extra skill files, or run pnpm. Write benchmark/test-run-2026-05-11.md as a structured benchmark report with `## Verify`, `## Benchmark Metrics`, `## Raw Evidence`, and `## Next Route` sections. Use Markdown tables for the verify and benchmark metrics sections. In the `## Benchmark Metrics` section, create one row each for pass rate, p50 latency, total cost, and raw session path. The pass-rate row must contain `passRate=1.0` or `100%`; the p50 row must contain `p50=1200`; the total-cost row must contain `totalCost=0.42`; the raw-session row must contain `run-agent-abc`. Include exact evidence from the fixture: `layer1 PASS`, `layer2 SKIPPED`, `passRate=1.0` or `100%`, `p50=1200`, `totalCost=0.42`, raw session path `run-agent-abc`, source file names, literal report path `benchmark/test-run-2026-05-11.md`, and a literal `Recommended next command:` line. Use your runner's command convention for the route, regardless of fixture file names or raw session path text: Claude `/ship`, Codex `$ship`.",
     fixtureFiles: {
       "verify-output.txt": "layer1 PASS in 7.1s\nlayer2 SKIPPED no tests matched run\n",
       "bench-output.txt": "Benchmark coverage for run: custom\npassRate=1.0 p50=1200 totalCost=0.42 raw=tests/benchmarks/runs/run-agent-abc/report.json\n",

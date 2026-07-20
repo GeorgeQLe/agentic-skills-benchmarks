@@ -135,7 +135,7 @@ export const afpsStatusSetup: SkillBenchSetup = {
     assertions.push(assertContentIncludes(content, "Step 1.1", "Report cites the concrete pending task"));
     assertions.push(assertNextCommand(content));
 
-    // Grok shares Claude's slash convention (`/exec`); only Codex uses `$exec`.
+    // Claude uses `/exec`; Codex uses `$exec`.
     const route = skillCommandForAgent(context?.agent ?? "claude", "/exec");
     assertions.push(assertRecommendedRoute(content, route));
 

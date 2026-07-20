@@ -12,9 +12,10 @@ export function runIdentity(
   scenarioId: string,
   repetition: 0 | 1 | 2,
   planFirst = false,
+  campaignVersion: "v1" | "v2" = "v1",
 ): RunIdentity {
-  const identity = { campaignVersion: "v1" as const, assignmentId, scenarioId, repetition, planFirst };
-  return { schemaVersion: 1, id: contentId("run", identity, 24), ...identity };
+  const identity = { campaignVersion, assignmentId, scenarioId, repetition, planFirst };
+  return { schemaVersion: campaignVersion === "v2" ? 2 : 1, id: contentId("run", identity, 24), ...identity };
 }
 
 export function allCandidateIdentities(assignments: Assignment[], scenarios = loadScenarios()): RunIdentity[] {

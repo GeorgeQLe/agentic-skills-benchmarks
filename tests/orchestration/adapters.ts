@@ -49,14 +49,13 @@ export const CANDIDATE_OUTPUT_SCHEMA = {
 export const JUDGE_OUTPUT_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["requirements", "codeQuality", "directionFollowing", "intentAndPushback", "criticalFailure", "pass", "evidence"],
+  required: ["requirements", "codeQuality", "directionFollowing", "intentAndPushback", "criticalFailure", "evidence"],
   properties: {
     requirements: { type: "integer", minimum: 0, maximum: 30 },
     codeQuality: { type: "integer", minimum: 0, maximum: 25 },
     directionFollowing: { type: "integer", minimum: 0, maximum: 20 },
     intentAndPushback: { type: "integer", minimum: 0, maximum: 25 },
     criticalFailure: { type: "boolean" },
-    pass: { type: "boolean" },
     evidence: { type: "array", items: { type: "string" } },
   },
 } as const;
@@ -90,6 +89,9 @@ function codexArgs(input: {
     "--ephemeral",
     "--ignore-user-config",
     "--strict-config",
+    "--disable", "multi_agent",
+    "--disable", "multi_agent_v2",
+    "--disable", "enable_fanout",
     "--model", input.model,
     "--config", effortConfig(input.effort),
     "--cd", input.cwd,
@@ -97,6 +99,19 @@ function codexArgs(input: {
     "--output-last-message", input.outputPath,
     input.prompt,
   ];
+}
+
+export const REQUIRED_COLLABORATION_CONTROLS = ["multi_agent", "multi_agent_v2", "enable_fanout"] as const;
+
+export function assertCodexCollaborationControls(env = process.env): void {
+  let output: string;
+  try {
+    output = execFileSync(resolveProviderExecutable("codex", env), ["features", "list"], { encoding: "utf8", env: subscriptionSafeEnv(env) });
+  } catch (error) {
+    throw new Error(`Codex collaboration capability probe failed closed: ${(error as Error).message}`);
+  }
+  const unavailable = REQUIRED_COLLABORATION_CONTROLS.filter((feature) => !new RegExp(`(?:^|\\s)${feature}(?:\\s|$)`, "m").test(output));
+  if (unavailable.length) throw new Error(`installed Codex cannot enforce required collaboration controls: ${unavailable.join(", ")}`);
 }
 
 export function codexCandidateSpec(input: {

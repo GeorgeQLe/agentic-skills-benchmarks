@@ -235,17 +235,6 @@ describe("selectModelTargets", () => {
     expect(() => selectModelTargets("fable-5")).toThrow(/banned/);
   });
 
-  it("includes grok-4.5 as a first-class matrix target", () => {
-    const grok = DEFAULT_MODEL_MATRIX.find((t) => t.id === "grok-4.5");
-    expect(grok).toEqual({
-      id: "grok-4.5",
-      label: "Grok 4.5",
-      cli: "grok",
-      model: "grok-4.5",
-    });
-    expect(selectModelTargets("grok-4.5").map((t) => t.id)).toEqual(["grok-4.5"]);
-  });
-
   it("throws on an unknown id rather than silently dropping it", () => {
     expect(() => selectModelTargets("claude-opus,made-up")).toThrow(/made-up/);
   });
