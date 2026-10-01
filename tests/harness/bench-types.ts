@@ -119,6 +119,8 @@ export interface BenchReport {
 
 export interface SkillBenchSetup {
   skill: string;
+  /** Scenarios that do not exercise one catalog skill can explicitly opt out. */
+  installSkill?: false;
   prompt: string;
   perRunBudgetUsd: number;
   timeoutMs: number;

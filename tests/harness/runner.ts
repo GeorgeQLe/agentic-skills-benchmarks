@@ -3,26 +3,15 @@ import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtempSync, readdirSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import type { RunResult } from "./types.js";
 
 const execFileAsync = promisify(execFile);
-
-const REPO_ROOT = resolve(import.meta.dirname, "../..");
-const PACK_SCRIPT = join(REPO_ROOT, "scripts/pack.sh");
 
 export function createTempProject(): string {
   const dir = mkdtempSync(join(tmpdir(), "skill-test-"));
   execSync("git init", { cwd: dir, stdio: "pipe" });
   return dir;
-}
-
-export function installPack(workDir: string, pack: string): void {
-  execSync(`bash "${PACK_SCRIPT}" install ${pack}`, {
-    cwd: workDir,
-    stdio: "pipe",
-    env: { ...process.env, HOME: process.env.HOME },
-  });
 }
 
 function listFilesRecursive(dir: string, base = ""): string[] {

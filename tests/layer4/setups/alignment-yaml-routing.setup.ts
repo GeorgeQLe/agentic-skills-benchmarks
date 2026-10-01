@@ -355,6 +355,7 @@ const PROMPT = [
 
 export const alignmentYamlRoutingSetup: SkillBenchSetup = {
   skill: "alignment-yaml-routing",
+  installSkill: false,
   prompt: PROMPT,
   qualityOutputPath: RESULT_PATH,
   qualityEvaluator: createSetupQualityEvaluator({

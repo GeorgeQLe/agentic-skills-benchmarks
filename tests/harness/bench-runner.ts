@@ -1,6 +1,7 @@
 import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { createTempProject, runClaude, runCodex } from "./runner.js";
+import { prepareBenchmarkProject, type BenchmarkProjectPreparer } from "./benchmark-project.js";
 import type { RunOptions } from "./runner.js";
 import type { BenchAgent, SkillBenchSetup, SingleRunResult, SessionManifest, BenchConfig, BenchmarkCatalogMetadata } from "./bench-types.js";
 import type { RunResult } from "./types.js";
@@ -34,6 +35,8 @@ export async function runChunk(
   count: number,
   runAgent = runBenchAgent,
   createProject = createTempProject,
+  prepareProject: BenchmarkProjectPreparer = (selectedSetup, context) =>
+    prepareBenchmarkProject(selectedSetup, context, { createProject }),
 ): Promise<ChunkResult> {
   const runs: SingleRunResult[] = [];
   let haltedByBudget = false;
@@ -56,8 +59,7 @@ export async function runChunk(
       break;
     }
 
-    const workDir = createProject();
-    setup.setupProject(workDir, { index, agent: manifest.config.agent });
+    const workDir = prepareProject(setup, { index, agent: manifest.config.agent });
 
     const startedAt = new Date().toISOString();
     const t0 = Date.now();

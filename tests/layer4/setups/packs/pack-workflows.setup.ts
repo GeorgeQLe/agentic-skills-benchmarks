@@ -24,12 +24,15 @@ import {
   resolveRecommendedRoute,
 } from "../../setup-helpers/routing.js";
 import type { QualityCriterion } from "../../../harness/bench-types.js";
+import type { FactRequirement } from "../../../harness/bench-quality.js";
 
 interface PackWorkflowDefinition {
   skill: string;
   pack: string;
   focus: string;
   inputs: string[];
+  /** Explicit semantic equivalents accepted only by the quality evidence gate. */
+  qualityFacts?: FactRequirement[];
   expectedPattern: RegExp;
   promptRequirements?: string[];
   requiredOutputPatterns?: Array<{ description: string; pattern: RegExp }>;
@@ -271,7 +274,7 @@ function createPackQualityEvaluator(definition: PackWorkflowDefinition) {
         description: "Uses deterministic local fixture evidence instead of generic pack prose.",
         weight: 2,
         critical: true,
-        facts: [...definition.inputs.slice(0, 2)],
+        facts: definition.qualityFacts ?? [...definition.inputs.slice(0, 2)],
       }),
       specificityCriterion({
         id: "pack-practical-risk-or-validation",
@@ -1006,6 +1009,15 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
     pack: "business-ops",
     focus: "assumption inventory with owner and validation cadence",
     inputs: ["Pricing assumption is unvalidated and gates the revenue model", "Onboarding conversion assumption is unknown but has a manual workaround"],
+    qualityFacts: [
+      "Pricing assumption is unvalidated and gates the revenue model",
+      {
+        anyOf: [
+          "Onboarding conversion assumption is unknown but has a manual workaround",
+          "onboarding conversion is unknown and has a manual workaround",
+        ],
+      },
+    ],
     expectedPattern: /assumption|validation|owner/i,
     // Derived, not echoed: the pricing assumption gates revenue with no workaround,
     // so it must be validated first. The fixture states the two assumptions; only a
@@ -1929,6 +1941,16 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
     pack: "business-ops",
     focus: "investor update structure",
     inputs: ["MRR grew from $8k to $12k month over month", "Runway: 7 months", "Ask: 2 intros to design-partner CTOs"],
+    qualityFacts: [
+      {
+        anyOf: [
+          "MRR grew from $8k to $12k month over month",
+          "MRR grew from $8,000 to $12,000 month over month",
+          "MRR growth from $8,000 to $12,000 month over month",
+        ],
+      },
+      { anyOf: ["Runway: 7 months", "seven months of runway", "reports seven months of runway"] },
+    ],
     expectedPattern: /investor|update|metrics/i,
     // Derived, not echoed: $8k → $12k MoM is 50% growth. The fixture states the two
     // figures; a transcriber never computes the headline growth rate.
@@ -2541,6 +2563,10 @@ const packWorkflowDefinitions: PackWorkflowDefinition[] = [
     pack: "business-ops",
     focus: "runway model",
     inputs: ["Cash: $240k", "Monthly revenue: $12k", "Monthly burn: $52k"],
+    qualityFacts: [
+      { anyOf: ["Cash: $240k", "Cash on hand: $240,000", "cash $240,000"] },
+      { anyOf: ["Monthly revenue: $12k", "Monthly revenue: $12,000", "monthly revenue $12,000"] },
+    ],
     expectedPattern: /runway|cash|burn/i,
     // Derived, not echoed: net burn = $52k − $12k = $40k/mo, so $240k / $40k ≈ 6
     // months of runway. The prompt states the three figures, never the answer.

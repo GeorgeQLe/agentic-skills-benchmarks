@@ -1,5 +1,6 @@
 import { rmSync } from "node:fs";
-import { createTempProject, runClaude, runCodex } from "../runner.js";
+import { runClaude, runCodex } from "../runner.js";
+import { prepareBenchmarkProject, type BenchmarkProjectPreparer } from "../benchmark-project.js";
 import type { RunOptions } from "../runner.js";
 import { buildRunResult } from "../bench-runner.js";
 import type { RunResult } from "../types.js";
@@ -23,6 +24,8 @@ export interface OrchestratorOptions {
   catalogMetadata?: BenchmarkCatalogMetadata;
   /** Fired after every state mutation so a renderer can repaint. */
   onUpdate?: (state: DashboardState) => void;
+  prepareProject?: BenchmarkProjectPreparer;
+  runAgent?: (agent: BenchAgent, opts: RunOptions) => Promise<RunResult>;
 }
 
 interface Task {
@@ -37,26 +40,27 @@ function runDashboardAgent(cli: BenchAgent, opts: RunOptions): Promise<RunResult
 }
 
 /** Drive an agent run for one task, real or simulated, into a SingleRunResult. */
-async function executeTask(task: Task, mock: boolean): Promise<SingleRunResult> {
+async function executeTask(task: Task, opts: OrchestratorOptions): Promise<SingleRunResult> {
   const { model, target, runIndex } = task;
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
 
-  if (mock) {
+  if (opts.mock) {
     return simulateRun(task);
   }
 
-  const workDir = createTempProject();
+  const prepareProject = opts.prepareProject ?? ((selectedSetup, context) =>
+    prepareBenchmarkProject(selectedSetup, context));
+  const workDir = prepareProject(target.setup, { index: runIndex, agent: model.cli });
   try {
-    target.setup.setupProject(workDir, { index: runIndex, agent: model.cli });
-    const opts: RunOptions = {
+    const runOptions: RunOptions = {
       prompt: target.setup.prompt,
       workDir,
       maxBudgetUsd: target.setup.perRunBudgetUsd,
       timeoutMs: target.setup.timeoutMs,
       model: model.model,
     };
-    const result = await runDashboardAgent(model.cli, opts);
+    const result = await (opts.runAgent ?? runDashboardAgent)(model.cli, runOptions);
     return buildRunResult(target.setup, model.cli, result, {
       index: runIndex,
       startedAt,
@@ -204,7 +208,7 @@ export async function runDashboard(opts: OrchestratorOptions): Promise<Dashboard
       agg.current = task.target.name;
       ping();
 
-      const result = await executeTask(task, opts.mock);
+      const result = await executeTask(task, opts);
 
       cell.running--;
       cell.results.push(result);

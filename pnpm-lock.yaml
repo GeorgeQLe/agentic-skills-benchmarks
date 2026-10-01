@@ -15,6 +15,9 @@ importers:
       '@types/node':
         specifier: ^24.0.0
         version: 24.13.2
+      skillpacks:
+        specifier: 0.1.17
+        version: 0.1.17
       tsx:
         specifier: ^4.20.0
         version: 4.22.4
@@ -484,6 +487,11 @@ packages:
 
   siginfo@2.0.0:
     resolution: {integrity: sha512-ybx0WO1/8bSBLEWXZvEd7gMW3Sn3JFlW3TvX1nREbDLRNQNaeNN8WK0meBwPdAaOI7TtRRRJn/Es1zhrrCHu7g==}
+
+  skillpacks@0.1.17:
+    resolution: {integrity: sha512-rCyTAmA95VwG0WgwECDsxhGpd0E80NMV5AnbcPlBBfTCu1CLRUx9fUstsFpsC42CQcVWQh8E8BpZC1a6HG/Qmw==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -983,6 +991,8 @@ snapshots:
       kind-of: 6.0.3
 
   siginfo@2.0.0: {}
+
+  skillpacks@0.1.17: {}
 
   source-map-js@1.2.1: {}
 
